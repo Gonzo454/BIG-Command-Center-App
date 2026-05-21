@@ -54,64 +54,123 @@ async function getCheckRegister() {
   });
 }
 
+function getLineAmount(t) {
+  const candidates = [t.amount, t.line_amount, t.gl_amount];
+  for (const v of candidates) {
+    if (v !== undefined && v !== null && v !== '') {
+      const n = parseFloat(v);
+      if (!isNaN(n)) return n;
+    }
+  }
+  return null;
+}
+
 function analyzeTransactions(txns) {
+  if (txns.length === 0) {
+    return { totalDisbursed: 0, topProperties: [], topVendors: [], topVendorDetails: [], flags: [] };
+  }
+
+  const sample = txns[0];
+  console.log('Sample transaction fields:', Object.keys(sample).join(', '));
+  console.log('Sample values — amount:', sample.amount, 'payment_amount:', sample.payment_amount, 'check_id:', sample.check_id);
+
+  // Detect whether the API provides line-item amounts distinct from check totals
+  const hasLineAmounts = txns.some(t => {
+    const line = getLineAmount(t);
+    const check = parseFloat(t.payment_amount || 0);
+    return line !== null && check > 0 && Math.abs(line - check) > 0.01;
+  });
+  console.log('Line-item amounts available:', hasLineAmounts);
+
+  // Group rows by check_id
+  const checkGroups = new Map();
+  let standaloneIdx = 0;
+  txns.forEach(t => {
+    const key = t.check_id || `_standalone_${standaloneIdx++}`;
+    if (!checkGroups.has(key)) checkGroups.set(key, []);
+    checkGroups.get(key).push(t);
+  });
+  console.log(`${txns.length} rows → ${checkGroups.size} unique checks`);
+
   const byProperty = {};
   const byVendor = {};
   const vendorDetail = {};
   const flags = [];
-  const seenChecks = new Set();
-  const disbursedChecks = new Set();
+  const seenFlags = new Set();
   let totalDisbursed = 0;
 
-  if (txns.length > 0) {
-    const sample = txns[0];
-    console.log('Sample transaction fields:', Object.keys(sample).join(', '));
-    console.log('Sample values — amount:', sample.amount, 'payment_amount:', sample.payment_amount, 'check_id:', sample.check_id);
-  }
+  for (const [checkId, lines] of checkGroups) {
+    const first = lines[0];
+    const checkAmt = parseFloat(first.payment_amount || 0) || getLineAmount(first) || 0;
+    const vendor = first.payee_name || 'Unknown';
+    const date = first.occurred_date || '';
 
-  txns.forEach(t => {
-    const lineAmt = parseFloat(t.amount || t.payment_amount || 0);
-    const checkAmt = parseFloat(t.payment_amount || t.amount || 0);
-    const checkId = t.check_id || '';
-    const prop = t.property_name || 'Unknown';
-    const vendor = t.payee_name || 'Unknown';
-    const gl = t.gl_account_name || 'Uncategorized';
-    const date = t.occurred_date || '';
-    const remarks = t.remarks || '';
+    // Total disbursed — each check counted once
+    totalDisbursed += checkAmt;
 
-    if (checkId && !disbursedChecks.has(checkId)) {
-      disbursedChecks.add(checkId);
-      totalDisbursed += checkAmt;
-    } else if (!checkId) {
-      totalDisbursed += lineAmt;
+    // Vendor total — each check counted once
+    byVendor[vendor] = (byVendor[vendor] || 0) + checkAmt;
+
+    if (hasLineAmounts) {
+      // Real line-item amounts — aggregate per-line
+      lines.forEach(t => {
+        const lineAmt = getLineAmount(t) || parseFloat(t.payment_amount || 0);
+        const prop = t.property_name || 'Unknown';
+        const gl = t.gl_account_name || 'Uncategorized';
+        const remarks = t.remarks || '';
+
+        byProperty[prop] = (byProperty[prop] || 0) + lineAmt;
+
+        if (!vendorDetail[vendor]) vendorDetail[vendor] = {};
+        if (!vendorDetail[vendor][gl]) vendorDetail[vendor][gl] = { total: 0, properties: {} };
+        vendorDetail[vendor][gl].total += lineAmt;
+        vendorDetail[vendor][gl].properties[prop] = (vendorDetail[vendor][gl].properties[prop] || 0) + lineAmt;
+
+        addLineFlags(flags, seenFlags, lineAmt, prop, vendor, gl, date, remarks);
+      });
+    } else {
+      // No line-item amounts — only check totals available.
+      // Attribute check to its properties; show one entry per check in vendor detail.
+      const props = [...new Set(lines.map(l => l.property_name || 'Unknown'))];
+      const perProp = checkAmt / props.length;
+      props.forEach(p => { byProperty[p] = (byProperty[p] || 0) + perProp; });
+
+      // Vendor detail: show unique GL accounts but consolidate to check level
+      const glAccounts = [...new Set(lines.map(l => l.gl_account_name || 'Uncategorized'))];
+      if (!vendorDetail[vendor]) vendorDetail[vendor] = {};
+      if (lines.length === 1 || glAccounts.length === 1) {
+        const gl = glAccounts[0];
+        if (!vendorDetail[vendor][gl]) vendorDetail[vendor][gl] = { total: 0, properties: {} };
+        vendorDetail[vendor][gl].total += checkAmt;
+        props.forEach(p => {
+          vendorDetail[vendor][gl].properties[p] = (vendorDetail[vendor][gl].properties[p] || 0) + perProp;
+        });
+      } else {
+        // Multi-GL check without line amounts — show as single consolidated entry
+        const gl = glAccounts.join(', ');
+        if (!vendorDetail[vendor][gl]) vendorDetail[vendor][gl] = { total: 0, properties: {} };
+        vendorDetail[vendor][gl].total += checkAmt;
+        props.forEach(p => {
+          vendorDetail[vendor][gl].properties[p] = (vendorDetail[vendor][gl].properties[p] || 0) + perProp;
+        });
+      }
+
+      // Flags from the check level
+      const gl = first.gl_account_name || '';
+      const prop = first.property_name || 'Unknown';
+      const remarks = first.remarks || '';
+      addLineFlags(flags, seenFlags, checkAmt, prop, vendor, gl, date, remarks);
     }
 
-    byProperty[prop] = (byProperty[prop] || 0) + lineAmt;
-    byVendor[vendor] = (byVendor[vendor] || 0) + lineAmt;
-
-    if (!vendorDetail[vendor]) vendorDetail[vendor] = {};
-    if (!vendorDetail[vendor][gl]) vendorDetail[vendor][gl] = { total: 0, properties: {} };
-    vendorDetail[vendor][gl].total += lineAmt;
-    vendorDetail[vendor][gl].properties[prop] = (vendorDetail[vendor][gl].properties[prop] || 0) + lineAmt;
-
-    if (vendor.includes('Baker Tilly') && lineAmt > 2000)
-      flags.push({ type: 'review', label: `Baker Tilly: ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
-    if (gl.toLowerCase().includes('legal') && lineAmt > 1000)
-      flags.push({ type: 'review', label: `Legal: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
-    if (gl.toLowerCase().includes('franchise') && lineAmt > 5000)
-      flags.push({ type: 'info', label: `Franchise fee: ${fmtFull(lineAmt)}`, detail: `${prop} — ${vendor}`, date });
-    if ((gl.toLowerCase().includes('electricity') || gl.toLowerCase().includes('gas')) && lineAmt > 10000)
-      flags.push({ type: 'review', label: `Large utility: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — verify vs prior month`, date });
-    if (gl.toLowerCase().includes('tenant improvements') && lineAmt > 5000)
-      flags.push({ type: 'info', label: `Capital spend: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
+    // CC statement flag — always at check level, deduped
     if (vendor.toLowerCase().includes('visa') || vendor.toLowerCase().includes('credit card')) {
-      const dedupKey = checkId || `${vendor}|${date}|${checkAmt}`;
-      if (!seenChecks.has(dedupKey)) {
-        seenChecks.add(dedupKey);
-        flags.push({ type: 'review', label: `CC statement payment: ${fmtFull(checkAmt)}`, detail: `${prop} — line items need detail review`, date });
+      const flagKey = checkId.startsWith('_standalone_') ? `${vendor}|${date}|${checkAmt}` : checkId;
+      if (!seenFlags.has(`cc_${flagKey}`)) {
+        seenFlags.add(`cc_${flagKey}`);
+        flags.push({ type: 'review', label: `CC statement payment: ${fmtFull(checkAmt)}`, detail: `${(first.property_name || 'Unknown')} — line items need detail review`, date });
       }
     }
-  });
+  }
 
   const topProperties = Object.entries(byProperty).sort((a, b) => b[1] - a[1]).slice(0, 10);
   const topVendors = Object.entries(byVendor).sort((a, b) => b[1] - a[1]).slice(0, 10);
@@ -125,6 +184,29 @@ function analyzeTransactions(txns) {
   });
 
   return { totalDisbursed, topProperties, topVendors, topVendorDetails, flags };
+}
+
+function addLineFlags(flags, seen, amt, prop, vendor, gl, date, remarks) {
+  if (vendor.includes('Baker Tilly') && amt > 2000) {
+    const key = `bt_${prop}_${amt}_${date}`;
+    if (!seen.has(key)) { seen.add(key); flags.push({ type: 'review', label: `Baker Tilly: ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date }); }
+  }
+  if (gl.toLowerCase().includes('legal') && amt > 1000) {
+    const key = `legal_${vendor}_${prop}_${amt}_${date}`;
+    if (!seen.has(key)) { seen.add(key); flags.push({ type: 'review', label: `Legal: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date }); }
+  }
+  if (gl.toLowerCase().includes('franchise') && amt > 5000) {
+    const key = `franchise_${prop}_${amt}_${date}`;
+    if (!seen.has(key)) { seen.add(key); flags.push({ type: 'info', label: `Franchise fee: ${fmtFull(amt)}`, detail: `${prop} — ${vendor}`, date }); }
+  }
+  if ((gl.toLowerCase().includes('electricity') || gl.toLowerCase().includes('gas')) && amt > 10000) {
+    const key = `util_${vendor}_${prop}_${amt}_${date}`;
+    if (!seen.has(key)) { seen.add(key); flags.push({ type: 'review', label: `Large utility: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — verify vs prior month`, date }); }
+  }
+  if (gl.toLowerCase().includes('tenant improvements') && amt > 5000) {
+    const key = `capex_${vendor}_${prop}_${amt}_${date}`;
+    if (!seen.has(key)) { seen.add(key); flags.push({ type: 'info', label: `Capital spend: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date }); }
+  }
 }
 
 function buildEmail(txns, reportDate) {
