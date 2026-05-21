@@ -61,7 +61,7 @@ function getLineAmount(t) {
   for (const v of candidates) {
     if (v !== undefined && v !== null && v !== '') {
       const n = typeof v === 'string' ? parseFloat(v.replace(/,/g, '')) : parseFloat(v);
-      if (!isNaN(n) && n > 0) return n;
+      if (!isNaN(n) && n !== 0) return n;
     }
   }
   return null;
@@ -122,7 +122,7 @@ function analyzeTransactions(txns) {
 
   for (const [checkKey, lines] of checkGroups) {
     const first = lines[0];
-    const checkAmt = parseFloat(String(first.payment_amount || '0').replace(/,/g, '')) || 0;
+    const checkAmt = parseFloat(String(first.payment_amount || '0').replace(/,/g, '')) || getLineAmount(first) || 0;
     const vendor = first.payee_name || 'Unknown';
     const date = first.occurred_date || '';
 
