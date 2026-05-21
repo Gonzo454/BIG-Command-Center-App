@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 
 interface Property {
   name: string;
@@ -62,8 +63,12 @@ export default function PropertiesPage() {
                 {properties
                   .sort((a, b) => b.netAmount - a.netAmount)
                   .map((p) => (
-                    <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{p.name}</td>
+                    <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer">
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        <Link href={`/properties/${encodeURIComponent(p.name)}`} className="text-blue-600 hover:underline">
+                          {p.name}
+                        </Link>
+                      </td>
                       <td className={`px-6 py-4 text-right font-mono ${p.netAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
                         {p.netAmount >= 0 ? "+" : ""}${Math.abs(p.netAmount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </td>
