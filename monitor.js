@@ -255,7 +255,7 @@ function analyzePnL(rows) {
 
     // Use the summary rows AppFolio provides for totals
     if (lowerName === 'total income') { totalIncome = parseAmount(row.month_to_date); continue; }
-    if (lowerName === 'total expense') { totalExpense = parseAmount(row.month_to_date); continue; }
+    if (lowerName === 'total expense' || lowerName === 'total expenses') { totalExpense = parseAmount(row.month_to_date); continue; }
 
     const amt = parseAmount(row.month_to_date);
     if (amt === 0) continue;
