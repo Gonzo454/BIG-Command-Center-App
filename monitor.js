@@ -63,6 +63,37 @@ async function getAccountTotals() {
   });
 }
 
+async function getGeneralLedger() {
+  return fetchReport('general_ledger_detail', {
+    from_date: firstOfMonth(),
+    to_date: today(),
+    paginate_results: false,
+  });
+}
+
+// Try multiple endpoints to get P&L data; return { source, rows }.
+async function fetchPnLData() {
+  const endpoints = [
+    { name: 'general_ledger_detail', fn: getGeneralLedger },
+    { name: 'account_totals', fn: getAccountTotals },
+  ];
+  for (const ep of endpoints) {
+    try {
+      console.log(`P&L: trying ${ep.name}...`);
+      const rows = await ep.fn();
+      if (rows.length > 0) {
+        console.log(`P&L: ${ep.name} returned ${rows.length} rows`);
+        return { source: ep.name, rows };
+      }
+      console.log(`P&L: ${ep.name} returned 0 rows, trying next...`);
+    } catch (err) {
+      console.warn(`P&L: ${ep.name} failed: ${err.message}`);
+    }
+  }
+  console.warn('P&L: all endpoints failed — P&L section will be omitted');
+  return { source: null, rows: [] };
+}
+
 // Try to extract a line-item amount that is distinct from the check total.
 // AppFolio may use any of these field names depending on report version.
 function getLineAmount(t) {
@@ -213,22 +244,65 @@ function analyzeTransactions(txns) {
 }
 
 // ---------------------------------------------------------------------------
-// P&L from Account Totals
+// P&L from AppFolio data
 // ---------------------------------------------------------------------------
 
-// Standard AppFolio GL account type classification.
-// The account_totals response includes an account_type or similar field;
-// when missing we fall back to heuristic name matching.
+function parseAmount(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  const n = typeof v === 'string' ? parseFloat(v.replace(/[,$]/g, '')) : parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function analyzePnL(rows, source) {
+  if (rows.length === 0) return null;
+
+  const sample = rows[0];
+  console.log('=== P&L DIAGNOSTIC ===');
+  console.log(`Source: ${source}, rows: ${rows.length}`);
+  console.log('Fields:', Object.keys(sample).join(', '));
+  console.log('Sample:', JSON.stringify(sample, null, 2));
+  console.log('=== END P&L DIAGNOSTIC ===');
+
+  if (source === 'general_ledger_detail') return analyzePnLFromLedgerDetail(rows);
+  if (source === 'account_totals') return analyzePnLFromPropertyTotals(rows);
+  return null;
+}
+
+// account_totals returns per-property data: property_name, net_amount, ending_balance
+function analyzePnLFromPropertyTotals(rows) {
+  const properties = [];
+  let portfolioNet = 0;
+  let portfolioBalance = 0;
+
+  for (const row of rows) {
+    const name = row.property_name || row.property || 'Unknown';
+    const net = parseAmount(row.net_amount ?? 0);
+    const balance = parseAmount(row.ending_balance ?? 0);
+    properties.push({ name, net, balance });
+    portfolioNet += net;
+    portfolioBalance += balance;
+  }
+
+  properties.sort((a, b) => b.net - a.net);
+  console.log(`P&L: ${properties.length} properties, portfolio net: ${portfolioNet.toFixed(2)}`);
+
+  return {
+    type: 'property',
+    properties,
+    portfolioNet,
+    portfolioBalance,
+  };
+}
+
+// GL account type classification for general_ledger_detail rows.
 const INCOME_KEYWORDS = ['income', 'revenue', 'rent', 'parking', 'laundry income', 'other income', 'late fee', 'nsf fee', 'utility reimbursement', 'cam reimbursement'];
 const EXPENSE_KEYWORDS = ['expense', 'repair', 'maintenance', 'r & m', 'salary', 'wage', 'insurance', 'tax', 'utility', 'electric', 'gas', 'water', 'sewer', 'trash', 'management fee', 'legal', 'accounting', 'professional', 'office', 'supplies', 'janitorial', 'landscaping', 'advertising', 'marketing', 'travel', 'vehicle', 'telephone', 'internet', 'software', 'license', 'depreciation', 'amortization', 'interest', 'mortgage', 'bank', 'commission', 'franchise', 'permit', 'contract'];
 
 function classifyAccount(row) {
-  // Try explicit type field first
   const type = (row.account_type || row.type || row.gl_account_type || '').toLowerCase();
   if (type.includes('income') || type.includes('revenue')) return 'income';
   if (type.includes('expense') || type.includes('cost')) return 'expense';
 
-  // Try account number convention (1xx/4xx = income, 5xx-9xx = expense)
   const num = row.account_number || row.gl_account_number || row.number || '';
   const prefix = parseInt(num, 10);
   if (!isNaN(prefix)) {
@@ -237,64 +311,46 @@ function classifyAccount(row) {
     if (prefix >= 500) return 'expense';
   }
 
-  // Fallback: keyword match on name
   const name = (row.gl_account_name || row.account_name || row.name || '').toLowerCase();
   if (INCOME_KEYWORDS.some(kw => name.includes(kw))) return 'income';
   if (EXPENSE_KEYWORDS.some(kw => name.includes(kw))) return 'expense';
-
   return 'other';
 }
 
-function parseAmount(v) {
-  if (v === undefined || v === null || v === '') return 0;
-  const n = typeof v === 'string' ? parseFloat(v.replace(/[,$]/g, '')) : parseFloat(v);
-  return isNaN(n) ? 0 : n;
-}
+function analyzePnLFromLedgerDetail(rows) {
+  const glAccounts = {};
+  for (const row of rows) {
+    const name = row.gl_account_name || row.account_name || row.name || 'Unknown';
+    const debit = parseAmount(row.debit ?? 0);
+    const credit = parseAmount(row.credit ?? 0);
+    const amt = parseAmount(row.amount ?? row.total ?? 0);
+    const net = (debit || credit) ? (debit - credit) : amt;
+    if (!glAccounts[name]) glAccounts[name] = { row, net: 0 };
+    glAccounts[name].net += net;
+  }
 
-function analyzePnL(rows) {
-  if (rows.length === 0) return null;
-
-  // Diagnostic
-  const sample = rows[0];
-  console.log('=== P&L DIAGNOSTIC ===');
-  console.log('Account totals rows:', rows.length);
-  console.log('Fields:', Object.keys(sample).join(', '));
-  console.log('Sample:', JSON.stringify(sample, null, 2));
-  console.log('=== END P&L DIAGNOSTIC ===');
-
-  const income = [];   // { name, amount }
-  const expenses = []; // { name, amount }
+  const income = [];
+  const expenses = [];
   let totalIncome = 0;
   let totalExpense = 0;
 
-  for (const row of rows) {
-    const name = row.gl_account_name || row.account_name || row.name || 'Unknown';
-    // account_totals may return total/amount/balance/net_amount
-    const amt = parseAmount(row.total ?? row.amount ?? row.balance ?? row.net_amount ?? row.debit ?? 0);
-    if (amt === 0) continue;
-
-    const cat = classifyAccount(row);
+  for (const [name, data] of Object.entries(glAccounts)) {
+    if (data.net === 0) continue;
+    const cat = classifyAccount(data.row);
+    const absAmt = Math.abs(data.net);
     if (cat === 'income') {
-      const absAmt = Math.abs(amt);
       income.push({ name, amount: absAmt });
       totalIncome += absAmt;
     } else if (cat === 'expense') {
-      const absAmt = Math.abs(amt);
       expenses.push({ name, amount: absAmt });
       totalExpense += absAmt;
     }
   }
 
+  console.log(`P&L: ${Object.keys(glAccounts).length} GL accounts → ${income.length} income, ${expenses.length} expense`);
   income.sort((a, b) => b.amount - a.amount);
   expenses.sort((a, b) => b.amount - a.amount);
-
-  return {
-    income,
-    expenses,
-    totalIncome,
-    totalExpense,
-    netIncome: totalIncome - totalExpense,
-  };
+  return { type: 'gl', income, expenses, totalIncome, totalExpense, netIncome: totalIncome - totalExpense };
 }
 
 function addLineFlags(flags, seen, amt, prop, vendor, gl, date, remarks) {
@@ -428,6 +484,64 @@ function buildEmail(txns, reportDate, pnlData) {
 }
 
 function buildPnLSection(pnl) {
+  if (pnl.type === 'property') return buildPropertyPnLSection(pnl);
+  if (pnl.type === 'gl') return buildGLPnLSection(pnl);
+  return '';
+}
+
+function buildPropertyPnLSection(pnl) {
+  const netColor = pnl.portfolioNet >= 0 ? '#065F46' : '#991B1B';
+  const balColor = pnl.portfolioBalance >= 0 ? '#065F46' : '#991B1B';
+
+  const propRows = pnl.properties.map(p => {
+    const nColor = p.net >= 0 ? '#065F46' : '#991B1B';
+    const bColor = p.balance >= 0 ? '#065F46' : '#991B1B';
+    return `
+      <tr>
+        <td style="padding:5px 8px 5px 16px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;">${p.name}</td>
+        <td style="padding:5px 8px;font-size:12px;color:${nColor};text-align:right;border-bottom:1px solid #f3f4f6;">${fmtFull(p.net)}</td>
+        <td style="padding:5px 0;font-size:12px;color:${bColor};text-align:right;border-bottom:1px solid #f3f4f6;">${fmtFull(p.balance)}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+  <tr><td style="padding:24px 28px 0;">
+    <h2 style="margin:0 0 16px;font-size:13px;font-weight:500;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Property P&amp;L — Month to Date</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="width:50%;padding-right:8px;vertical-align:top;">
+          <div style="background:${pnl.portfolioNet >= 0 ? '#ECFDF5' : '#FEF2F2'};border-radius:6px;padding:14px 16px;">
+            <p style="margin:0;font-size:11px;color:${netColor};text-transform:uppercase;letter-spacing:0.06em;">Portfolio Net MTD</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:500;color:${netColor};">${fmt(pnl.portfolioNet)}</p>
+          </div>
+        </td>
+        <td style="width:50%;padding-left:8px;vertical-align:top;">
+          <div style="background:#F3F4F6;border-radius:6px;padding:14px 16px;">
+            <p style="margin:0;font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Portfolio Balance</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:500;color:${balColor};">${fmt(pnl.portfolioBalance)}</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:16px 28px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:4px 8px 4px 16px;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid #E5E7EB;">Property</td>
+        <td style="padding:4px 8px;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;text-align:right;border-bottom:1px solid #E5E7EB;">Net MTD</td>
+        <td style="padding:4px 0;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;text-align:right;border-bottom:1px solid #E5E7EB;">Balance</td>
+      </tr>
+      ${propRows}
+      <tr style="background:#F9FAFB;">
+        <td style="padding:8px 8px 8px 16px;font-size:13px;font-weight:700;color:#111827;border-top:2px solid #E5E7EB;">Portfolio Total</td>
+        <td style="padding:8px 8px;font-size:13px;font-weight:700;color:${netColor};text-align:right;border-top:2px solid #E5E7EB;">${fmtFull(pnl.portfolioNet)}</td>
+        <td style="padding:8px 0;font-size:13px;font-weight:700;color:${balColor};text-align:right;border-top:2px solid #E5E7EB;">${fmtFull(pnl.portfolioBalance)}</td>
+      </tr>
+    </table>
+  </td></tr>`;
+}
+
+function buildGLPnLSection(pnl) {
   const incomeRows = pnl.income.slice(0, 15).map(i => `
       <tr>
         <td style="padding:4px 12px 4px 16px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;">${i.name}</td>
@@ -528,15 +642,12 @@ async function run() {
   const reportDate = today();
   console.log(`[${new Date().toISOString()}] Running BIG monitor for ${reportDate}...`);
   try {
-    const [txns, acctRows] = await Promise.all([
+    const [txns, pnlResult] = await Promise.all([
       getCheckRegister(),
-      getAccountTotals().catch(err => {
-        console.warn('account_totals fetch failed (P&L will be skipped):', err.message);
-        return [];
-      }),
+      fetchPnLData(),
     ]);
-    console.log(`Fetched ${txns.length} transactions, ${acctRows.length} account totals`);
-    const pnlData = acctRows.length > 0 ? analyzePnL(acctRows) : null;
+    console.log(`Fetched ${txns.length} transactions, P&L source: ${pnlResult.source || 'none'} (${pnlResult.rows.length} rows)`);
+    const pnlData = pnlResult.rows.length > 0 ? analyzePnL(pnlResult.rows, pnlResult.source) : null;
     const html = buildEmail(txns, reportDate, pnlData);
     await sendEmail(html, reportDate);
     console.log('Done.');
