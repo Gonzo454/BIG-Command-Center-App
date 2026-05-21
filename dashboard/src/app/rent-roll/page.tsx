@@ -98,7 +98,7 @@ export default function RentRollPage() {
                       <td className="px-4 py-2 text-gray-900 dark:text-white font-medium">{u.tenant || "—"}</td>
                       <td className="px-4 py-2">
                         <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                          u.status.toLowerCase().includes("occupied")
+                          u.status.toLowerCase() === "current"
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
                         }`}>

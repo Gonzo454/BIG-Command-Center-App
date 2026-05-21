@@ -1,15 +1,16 @@
-import { fetchReport } from "@/lib/appfolio";
+import { fetchReport, parseAmount } from "@/lib/appfolio";
 
 interface RentRollRow {
   property_name?: string;
-  unit_name?: string;
-  tenant_name?: string;
+  unit?: string;
+  tenant?: string;
   status?: string;
   market_rent?: string;
-  actual_rent?: string;
-  move_in_date?: string;
-  lease_end_date?: string;
-  balance?: string;
+  rent?: string;
+  lease_to?: string;
+  past_due?: string;
+  sqft?: number;
+  move_in?: string;
 }
 
 export async function GET() {
@@ -18,19 +19,18 @@ export async function GET() {
 
     const units = rows.map((r) => ({
       property: r.property_name || "",
-      unit: r.unit_name || "",
-      tenant: r.tenant_name || "",
+      unit: r.unit || "",
+      tenant: r.tenant || "",
       status: r.status || "",
-      marketRent: r.market_rent || "",
-      actualRent: r.actual_rent || "",
-      moveIn: r.move_in_date || "",
-      leaseEnd: r.lease_end_date || "",
-      balance: r.balance || "",
+      marketRent: r.market_rent ? `$${parseAmount(r.market_rent).toLocaleString()}` : "",
+      actualRent: r.rent ? `$${parseAmount(r.rent).toLocaleString()}` : "",
+      leaseEnd: r.lease_to || "",
+      balance: r.past_due ? `$${parseAmount(r.past_due).toLocaleString()}` : "",
     }));
 
     const totalUnits = units.length;
     const occupied = units.filter(
-      (u) => u.status.toLowerCase().includes("occupied") || u.tenant
+      (u) => u.status.toLowerCase() === "current"
     ).length;
     const vacant = totalUnits - occupied;
 

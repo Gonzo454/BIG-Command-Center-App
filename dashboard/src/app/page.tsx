@@ -29,10 +29,14 @@ export default function ExecutiveDashboard() {
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const initialized = useRef(false);
 
-  async function fetchData(from?: string, to?: string) {
+  async function fetchData(from?: string, to?: string, period?: string) {
     setLoading(true);
     try {
-      const qs = from && to ? `?from=${from}&to=${to}` : "";
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (period) params.set("period", period);
+      const qs = params.toString() ? `?${params.toString()}` : "";
       const [propRes, pnlRes, rentRes] = await Promise.all([
         fetch("/api/account-totals"),
         fetch(`/api/income-statement${qs}`),
@@ -60,9 +64,9 @@ export default function ExecutiveDashboard() {
     }
   }, []);
 
-  function handleRangeChange(from: string, to: string) {
+  function handleRangeChange(from: string, to: string, period: string) {
     setDateRange({ from, to });
-    fetchData(from, to);
+    fetchData(from, to, period);
   }
 
   const maxAbsolute = Math.max(

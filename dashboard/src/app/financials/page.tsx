@@ -23,9 +23,13 @@ export default function FinancialsPage() {
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
 
-  async function fetchData(from?: string, to?: string) {
+  async function fetchData(from?: string, to?: string, period?: string) {
     setLoading(true);
-    const qs = from && to ? `?from=${from}&to=${to}` : "";
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (period) params.set("period", period);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     try {
       const res = await fetch(`/api/income-statement${qs}`);
       const json = await res.json();
@@ -56,7 +60,7 @@ export default function FinancialsPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Income Statement (P&L)</p>
         </div>
-        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
+        <DateRangePicker onRangeChange={(from, to, period) => fetchData(from, to, period)} />
       </div>
 
       {loading ? (

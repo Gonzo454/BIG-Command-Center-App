@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const nav = [
@@ -16,9 +17,12 @@ export function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col z-50">
-      <div className="p-6 border-b border-gray-700">
-        <h1 className="text-lg font-bold">Blackdeer Investment</h1>
-        <p className="text-xs text-gray-400 mt-1">Financial Dashboard</p>
+      <div className="p-6 border-b border-gray-700 flex items-center gap-3">
+        <Image src="/logo.png" alt="BIG Logo" width={40} height={40} className="rounded" />
+        <div>
+          <h1 className="text-lg font-bold">Blackdeer Investment Group</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Financial Dashboard</p>
+        </div>
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {nav.map((item) => {

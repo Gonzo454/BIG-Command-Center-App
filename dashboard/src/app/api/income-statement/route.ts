@@ -8,16 +8,25 @@ interface IncomeRow {
   year_to_date?: string;
 }
 
+function classifyAccount(accountNumber: string): "income" | "expense" {
+  const prefix = accountNumber.charAt(0);
+  if (prefix === "4" || prefix === "5") return "income";
+  return "expense";
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const from = params.get("from") || firstOfMonth();
   const to = params.get("to") || today();
+  const period = params.get("period") || "mtd";
 
   try {
     const rows = await fetchReport<IncomeRow>("income_statement", {
       from_date: from,
       to_date: to,
     });
+
+    const column = period === "ytd" ? "year_to_date" : "month_to_date";
 
     let totalIncome = 0;
     let totalExpenses = 0;
@@ -26,7 +35,7 @@ export async function GET(request: NextRequest) {
     for (const row of rows) {
       const name = (row.account_name || "").trim();
       const lowerName = name.toLowerCase();
-      const amount = parseAmount(row.month_to_date);
+      const amount = parseAmount(row[column]);
 
       if (lowerName === "total income") {
         totalIncome = amount;
@@ -36,10 +45,13 @@ export async function GET(request: NextRequest) {
         totalExpenses = Math.abs(amount);
         continue;
       }
+      if (lowerName === "net income" || lowerName === "net operating income") {
+        continue;
+      }
 
       if (row.account_number && amount !== 0) {
-        const type = amount > 0 ? "income" : "expense";
-        accounts.push({ name, number: row.account_number, amount, type });
+        const type = classifyAccount(row.account_number);
+        accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
       }
     }
 
@@ -48,7 +60,7 @@ export async function GET(request: NextRequest) {
       totalExpenses,
       netIncome: totalIncome - totalExpenses,
       accounts,
-      period: { from, to },
+      period: { from, to, column },
     });
   } catch (err) {
     return Response.json(

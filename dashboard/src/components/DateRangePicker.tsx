@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 interface DateRangePickerProps {
-  onRangeChange: (from: string, to: string) => void;
+  onRangeChange: (from: string, to: string, period: string) => void;
 }
 
 function firstOfMonth(): string {
@@ -26,9 +26,9 @@ function today(): string {
 }
 
 const presets = [
-  { label: "MTD", from: firstOfMonth, to: today },
-  { label: "QTD", from: firstOfQuarter, to: today },
-  { label: "YTD", from: firstOfYear, to: today },
+  { label: "MTD", period: "mtd", from: firstOfMonth, to: today },
+  { label: "QTD", period: "qtd", from: firstOfQuarter, to: today },
+  { label: "YTD", period: "ytd", from: firstOfYear, to: today },
 ];
 
 export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
@@ -36,13 +36,13 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(today());
 
-  function selectPreset(label: string, from: () => string, to: () => string) {
+  function selectPreset(label: string, period: string, from: () => string, to: () => string) {
     const f = from();
     const t = to();
     setActivePreset(label);
     setFromDate(f);
     setToDate(t);
-    onRangeChange(f, t);
+    onRangeChange(f, t, period);
   }
 
   return (
@@ -50,7 +50,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
       {presets.map((p) => (
         <button
           key={p.label}
-          onClick={() => selectPreset(p.label, p.from, p.to)}
+          onClick={() => selectPreset(p.label, p.period, p.from, p.to)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
             activePreset === p.label
               ? "bg-blue-600 text-white"
@@ -67,7 +67,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
           onChange={(e) => {
             setFromDate(e.target.value);
             setActivePreset("Custom");
-            onRangeChange(e.target.value, toDate);
+            onRangeChange(e.target.value, toDate, "custom");
           }}
           className="px-2 py-1 text-xs border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600"
         />
@@ -78,7 +78,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
           onChange={(e) => {
             setToDate(e.target.value);
             setActivePreset("Custom");
-            onRangeChange(fromDate, e.target.value);
+            onRangeChange(fromDate, e.target.value, "custom");
           }}
           className="px-2 py-1 text-xs border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600"
         />
