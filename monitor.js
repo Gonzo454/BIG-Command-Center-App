@@ -57,37 +57,58 @@ async function getCheckRegister() {
 function analyzeTransactions(txns) {
   const byProperty = {};
   const byVendor = {};
+  const vendorDetail = {};
   const flags = [];
   const seenChecks = new Set();
+  const disbursedChecks = new Set();
   let totalDisbursed = 0;
 
+  if (txns.length > 0) {
+    const sample = txns[0];
+    console.log('Sample transaction fields:', Object.keys(sample).join(', '));
+    console.log('Sample values — amount:', sample.amount, 'payment_amount:', sample.payment_amount, 'check_id:', sample.check_id);
+  }
+
   txns.forEach(t => {
-    const amt = parseFloat(t.payment_amount || 0);
+    const lineAmt = parseFloat(t.amount || t.payment_amount || 0);
+    const checkAmt = parseFloat(t.payment_amount || t.amount || 0);
+    const checkId = t.check_id || '';
     const prop = t.property_name || 'Unknown';
     const vendor = t.payee_name || 'Unknown';
-    const gl = t.gl_account_name || '';
+    const gl = t.gl_account_name || 'Uncategorized';
     const date = t.occurred_date || '';
     const remarks = t.remarks || '';
 
-    totalDisbursed += amt;
-    byProperty[prop] = (byProperty[prop] || 0) + amt;
-    byVendor[vendor] = (byVendor[vendor] || 0) + amt;
+    if (checkId && !disbursedChecks.has(checkId)) {
+      disbursedChecks.add(checkId);
+      totalDisbursed += checkAmt;
+    } else if (!checkId) {
+      totalDisbursed += lineAmt;
+    }
 
-    if (vendor.includes('Baker Tilly') && amt > 2000)
-      flags.push({ type: 'review', label: `Baker Tilly: ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date });
-    if (gl.toLowerCase().includes('legal') && amt > 1000)
-      flags.push({ type: 'review', label: `Legal: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date });
-    if (gl.toLowerCase().includes('franchise') && amt > 5000)
-      flags.push({ type: 'info', label: `Franchise fee: ${fmtFull(amt)}`, detail: `${prop} — ${vendor}`, date });
-    if ((gl.toLowerCase().includes('electricity') || gl.toLowerCase().includes('gas')) && amt > 10000)
-      flags.push({ type: 'review', label: `Large utility: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — verify vs prior month`, date });
-    if (gl.toLowerCase().includes('tenant improvements') && amt > 5000)
-      flags.push({ type: 'info', label: `Capital spend: ${vendor} ${fmtFull(amt)}`, detail: `${prop} — ${remarks || gl}`, date });
+    byProperty[prop] = (byProperty[prop] || 0) + lineAmt;
+    byVendor[vendor] = (byVendor[vendor] || 0) + lineAmt;
+
+    if (!vendorDetail[vendor]) vendorDetail[vendor] = {};
+    if (!vendorDetail[vendor][gl]) vendorDetail[vendor][gl] = { total: 0, properties: {} };
+    vendorDetail[vendor][gl].total += lineAmt;
+    vendorDetail[vendor][gl].properties[prop] = (vendorDetail[vendor][gl].properties[prop] || 0) + lineAmt;
+
+    if (vendor.includes('Baker Tilly') && lineAmt > 2000)
+      flags.push({ type: 'review', label: `Baker Tilly: ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
+    if (gl.toLowerCase().includes('legal') && lineAmt > 1000)
+      flags.push({ type: 'review', label: `Legal: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
+    if (gl.toLowerCase().includes('franchise') && lineAmt > 5000)
+      flags.push({ type: 'info', label: `Franchise fee: ${fmtFull(lineAmt)}`, detail: `${prop} — ${vendor}`, date });
+    if ((gl.toLowerCase().includes('electricity') || gl.toLowerCase().includes('gas')) && lineAmt > 10000)
+      flags.push({ type: 'review', label: `Large utility: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — verify vs prior month`, date });
+    if (gl.toLowerCase().includes('tenant improvements') && lineAmt > 5000)
+      flags.push({ type: 'info', label: `Capital spend: ${vendor} ${fmtFull(lineAmt)}`, detail: `${prop} — ${remarks || gl}`, date });
     if (vendor.toLowerCase().includes('visa') || vendor.toLowerCase().includes('credit card')) {
-      const key = `${t.check_id}`;
-      if (!seenChecks.has(key)) {
-        seenChecks.add(key);
-        flags.push({ type: 'review', label: `CC statement payment: ${fmtFull(amt)}`, detail: `${prop} — line items need detail review`, date });
+      const dedupKey = checkId || `${vendor}|${date}|${checkAmt}`;
+      if (!seenChecks.has(dedupKey)) {
+        seenChecks.add(dedupKey);
+        flags.push({ type: 'review', label: `CC statement payment: ${fmtFull(checkAmt)}`, detail: `${prop} — line items need detail review`, date });
       }
     }
   });
@@ -95,11 +116,19 @@ function analyzeTransactions(txns) {
   const topProperties = Object.entries(byProperty).sort((a, b) => b[1] - a[1]).slice(0, 10);
   const topVendors = Object.entries(byVendor).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-  return { totalDisbursed, topProperties, topVendors, flags };
+  const topVendorDetails = topVendors.map(([name]) => {
+    const detail = vendorDetail[name] || {};
+    const glBreakdown = Object.entries(detail)
+      .map(([gl, data]) => ({ gl, total: data.total, properties: data.properties }))
+      .sort((a, b) => b.total - a.total);
+    return { name, breakdown: glBreakdown };
+  });
+
+  return { totalDisbursed, topProperties, topVendors, topVendorDetails, flags };
 }
 
 function buildEmail(txns, reportDate) {
-  const { totalDisbursed, topProperties, topVendors, flags } = analyzeTransactions(txns);
+  const { totalDisbursed, topProperties, topVendors, topVendorDetails, flags } = analyzeTransactions(txns);
 
   const propRows = topProperties.map(([name, amt]) => `
     <tr>
@@ -125,6 +154,33 @@ function buildEmail(txns, reportDate) {
         <span style="color:#6B7280;font-size:12px;">${f.detail} · ${f.date}</span>
       </td>
     </tr>`).join('');
+
+  const vendorDetailRows = topVendorDetails.map(v => {
+    const glRows = v.breakdown.map(b => {
+      const propList = Object.entries(b.properties)
+        .sort((a, b) => b[1] - a[1])
+        .map(([p, a]) => `${p}: ${fmtFull(a)}`)
+        .join(', ');
+      return `
+      <tr>
+        <td style="padding:4px 12px 4px 16px;font-size:12px;color:#374151;border-bottom:1px solid #f3f4f6;">${b.gl}</td>
+        <td style="padding:4px 8px;font-size:12px;color:#6B7280;border-bottom:1px solid #f3f4f6;">${propList}</td>
+        <td style="padding:4px 0;font-size:12px;color:#111827;text-align:right;border-bottom:1px solid #f3f4f6;">${fmtFull(b.total)}</td>
+      </tr>`;
+    }).join('');
+    return `
+  <tr><td style="padding:20px 28px 0;">
+    <h3 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#111827;">${v.name} <span style="font-weight:400;color:#6B7280;">— breakdown by GL account</span></h3>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:4px 12px 4px 16px;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid #E5E7EB;">GL Account</td>
+        <td style="padding:4px 8px;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid #E5E7EB;">Properties</td>
+        <td style="padding:4px 0;font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.04em;text-align:right;border-bottom:1px solid #E5E7EB;">Amount</td>
+      </tr>
+      ${glRows}
+    </table>
+  </td></tr>`;
+  }).join('');
 
   const [year, month, day] = reportDate.split('-');
   const monthName = new Date(year, month - 1, day).toLocaleString('en-US', { month: 'long', year: 'numeric' });
@@ -163,10 +219,12 @@ function buildEmail(txns, reportDate) {
     <h2 style="margin:0 0 12px;font-size:13px;font-weight:500;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Top 10 properties by spend</h2>
     <table width="100%" cellpadding="0" cellspacing="0">${propRows}</table>
   </td></tr>
-  <tr><td style="padding:24px 28px 32px;">
+  <tr><td style="padding:24px 28px 0;">
     <h2 style="margin:0 0 12px;font-size:13px;font-weight:500;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Top 10 vendors by spend</h2>
     <table width="100%" cellpadding="0" cellspacing="0">${vendorRows}</table>
   </td></tr>
+  ${vendorDetailRows}
+  <tr><td style="height:16px;"></td></tr>
   <tr><td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:16px 28px;border-radius:0 0 8px 8px;">
     <p style="margin:0;font-size:11px;color:#9CA3AF;">Generated by Metify · blackdeerig.appfolio.com · Confidential — do not forward</p>
   </td></tr>
