@@ -54,19 +54,17 @@ async function getCheckRegister() {
   });
 }
 
-async function getAccountTotals() {
-  return fetchReport('account_totals', {
-    posted_on_from: firstOfMonth(),
-    posted_on_to: today(),
-    accounting_basis: 'Cash',
-    paginate_results: false,
+async function getIncomeStatement() {
+  return fetchReport('income_statement', {
+    from_date: firstOfMonth(),
+    to_date: today(),
   });
 }
 
 // Try to extract a line-item amount that is distinct from the check total.
 // AppFolio may use any of these field names depending on report version.
 function getLineAmount(t) {
-  const candidates = [t.detail_amount, t.amount, t.line_amount, t.gl_amount, t.debit];
+  const candidates = [t.invoice_amount, t.detail_amount, t.amount, t.line_amount, t.gl_amount, t.debit];
   for (const v of candidates) {
     if (v !== undefined && v !== null && v !== '') {
       const n = typeof v === 'string' ? parseFloat(v.replace(/,/g, '')) : parseFloat(v);
@@ -216,33 +214,18 @@ function analyzeTransactions(txns) {
 // P&L from Account Totals
 // ---------------------------------------------------------------------------
 
-// Standard AppFolio GL account type classification.
-// The account_totals response includes an account_type or similar field;
-// when missing we fall back to heuristic name matching.
-const INCOME_KEYWORDS = ['income', 'revenue', 'rent', 'parking', 'laundry income', 'other income', 'late fee', 'nsf fee', 'utility reimbursement', 'cam reimbursement'];
-const EXPENSE_KEYWORDS = ['expense', 'repair', 'maintenance', 'r & m', 'salary', 'wage', 'insurance', 'tax', 'utility', 'electric', 'gas', 'water', 'sewer', 'trash', 'management fee', 'legal', 'accounting', 'professional', 'office', 'supplies', 'janitorial', 'landscaping', 'advertising', 'marketing', 'travel', 'vehicle', 'telephone', 'internet', 'software', 'license', 'depreciation', 'amortization', 'interest', 'mortgage', 'bank', 'commission', 'franchise', 'permit', 'contract'];
-
+// Classify income_statement rows by account_number prefix.
+// AppFolio chart of accounts: 4xxx/5xxx = Income/Revenue, 6xxx-8xxx = Expense.
+// Summary rows ("Total Income", "Total Expense") have no account_number.
 function classifyAccount(row) {
-  // Try explicit type field first
-  const type = (row.account_type || row.type || row.gl_account_type || '').toLowerCase();
-  if (type.includes('income') || type.includes('revenue')) return 'income';
-  if (type.includes('expense') || type.includes('cost')) return 'expense';
-
-  // Try account number convention (1xx/4xx = income, 5xx-9xx = expense)
-  const num = row.account_number || row.gl_account_number || row.number || '';
+  const num = (row.account_number || '').replace(/[-]/g, '').replace(/^0+/, '');
   const prefix = parseInt(num, 10);
-  if (!isNaN(prefix)) {
-    if (prefix >= 100 && prefix < 200) return 'income';
-    if (prefix >= 400 && prefix < 500) return 'income';
-    if (prefix >= 500) return 'expense';
+  if (!isNaN(prefix) && prefix > 0) {
+    const leading = parseInt(String(prefix)[0], 10);
+    if (leading >= 4 && leading <= 5) return 'income';
+    if (leading >= 6) return 'expense';
   }
-
-  // Fallback: keyword match on name
-  const name = (row.gl_account_name || row.account_name || row.name || '').toLowerCase();
-  if (INCOME_KEYWORDS.some(kw => name.includes(kw))) return 'income';
-  if (EXPENSE_KEYWORDS.some(kw => name.includes(kw))) return 'expense';
-
-  return 'other';
+  return 'summary';
 }
 
 function parseAmount(v) {
@@ -254,39 +237,39 @@ function parseAmount(v) {
 function analyzePnL(rows) {
   if (rows.length === 0) return null;
 
-  // Diagnostic
   const sample = rows[0];
   console.log('=== P&L DIAGNOSTIC ===');
-  console.log('Account totals rows:', rows.length);
+  console.log('income_statement rows:', rows.length);
   console.log('Fields:', Object.keys(sample).join(', '));
   console.log('Sample:', JSON.stringify(sample, null, 2));
   console.log('=== END P&L DIAGNOSTIC ===');
 
-  const income = [];   // { name, amount }
-  const expenses = []; // { name, amount }
+  const income = [];
+  const expenses = [];
   let totalIncome = 0;
   let totalExpense = 0;
 
   for (const row of rows) {
-    const name = row.gl_account_name || row.account_name || row.name || 'Unknown';
-    // account_totals may return total/amount/balance/net_amount
-    const amt = parseAmount(row.total ?? row.amount ?? row.balance ?? row.net_amount ?? row.debit ?? 0);
+    const name = row.account_name || 'Unknown';
+    const lowerName = name.toLowerCase();
+
+    // Use the summary rows AppFolio provides for totals
+    if (lowerName === 'total income') { totalIncome = parseAmount(row.month_to_date); continue; }
+    if (lowerName === 'total expense' || lowerName === 'total expenses') { totalExpense = parseAmount(row.month_to_date); continue; }
+
+    const amt = parseAmount(row.month_to_date);
     if (amt === 0) continue;
 
     const cat = classifyAccount(row);
     if (cat === 'income') {
-      const absAmt = Math.abs(amt);
-      income.push({ name, amount: absAmt });
-      totalIncome += absAmt;
+      income.push({ name, amount: amt });
     } else if (cat === 'expense') {
-      const absAmt = Math.abs(amt);
-      expenses.push({ name, amount: absAmt });
-      totalExpense += absAmt;
+      expenses.push({ name, amount: amt });
     }
   }
 
-  income.sort((a, b) => b.amount - a.amount);
-  expenses.sort((a, b) => b.amount - a.amount);
+  income.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  expenses.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
   return {
     income,
@@ -530,8 +513,8 @@ async function run() {
   try {
     const [txns, acctRows] = await Promise.all([
       getCheckRegister(),
-      getAccountTotals().catch(err => {
-        console.warn('account_totals fetch failed (P&L will be skipped):', err.message);
+      getIncomeStatement().catch(err => {
+        console.warn('income_statement fetch failed (P&L will be skipped):', err.message);
         return [];
       }),
     ]);
