@@ -23,7 +23,13 @@ interface PropertyPnl {
 
 export default function PropertyDetailPage() {
   const params = useParams();
-  const slug = params.slug as string;
+  const rawSlug = params.slug as string;
+  let slug: string;
+  try {
+    slug = decodeURIComponent(rawSlug);
+  } catch {
+    slug = rawSlug;
+  }
   const [data, setData] = useState<PropertyPnl | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
