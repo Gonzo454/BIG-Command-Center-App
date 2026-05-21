@@ -1,12 +1,15 @@
 "use client";
 
+import Link from "next/link";
+
 interface ProfitGaugeProps {
   name: string;
   netIncome: number;
   maxAbsolute: number;
+  href?: string;
 }
 
-export function ProfitGauge({ name, netIncome, maxAbsolute }: ProfitGaugeProps) {
+export function ProfitGauge({ name, netIncome, maxAbsolute, href }: ProfitGaugeProps) {
   const clamped = Math.max(-1, Math.min(1, netIncome / (maxAbsolute || 1)));
   const angle = clamped * 90; // -90 to +90 degrees
   const color =
@@ -16,8 +19,8 @@ export function ProfitGauge({ name, netIncome, maxAbsolute }: ProfitGaugeProps) 
         : "#eab308"
       : "#ef4444";
 
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center">
+  const content = (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center ${href ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all" : ""}`}>
       <svg viewBox="0 0 200 120" className="w-full max-w-[160px]">
         {/* Background arc */}
         <path
@@ -73,4 +76,9 @@ export function ProfitGauge({ name, netIncome, maxAbsolute }: ProfitGaugeProps) 
       </p>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+  return content;
 }
