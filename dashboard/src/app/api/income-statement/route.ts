@@ -8,6 +8,12 @@ interface IncomeRow {
   year_to_date?: string;
 }
 
+function classifyAccount(accountNumber: string): "income" | "expense" {
+  const prefix = accountNumber.charAt(0);
+  if (prefix === "4" || prefix === "5") return "income";
+  return "expense";
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const from = params.get("from") || firstOfMonth();
@@ -24,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     let totalIncome = 0;
     let totalExpenses = 0;
-    let section: "income" | "expense" = "income";
     const accounts: { name: string; number: string; amount: number; type: string }[] = [];
 
     for (const row of rows) {
@@ -34,7 +39,6 @@ export async function GET(request: NextRequest) {
 
       if (lowerName === "total income") {
         totalIncome = amount;
-        section = "expense";
         continue;
       }
       if (lowerName === "total expense" || lowerName === "total expenses") {
@@ -46,7 +50,8 @@ export async function GET(request: NextRequest) {
       }
 
       if (row.account_number && amount !== 0) {
-        accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type: section });
+        const type = classifyAccount(row.account_number);
+        accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
       }
     }
 
