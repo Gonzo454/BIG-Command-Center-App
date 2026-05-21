@@ -151,7 +151,8 @@ function analyzeTransactions(txns) {
     if (hasRealLineAmts) {
       // This check has real per-line amounts — show individual GL breakdown
       lines.forEach((t, i) => {
-        const lineAmt = lineAmts[i] || checkAmt;
+        const lineAmt = lineAmts[i];
+        if (lineAmt === null) return; // skip lines with no real amount
         const prop = t.property_name || 'Unknown';
         const gl = t.gl_account_name || 'Uncategorized';
         const remarks = t.remarks || '';
@@ -227,12 +228,13 @@ function classifyAccount(row) {
   if (type.includes('income') || type.includes('revenue')) return 'income';
   if (type.includes('expense') || type.includes('cost')) return 'expense';
 
-  // Try account number convention (1xx = income, 5xx-9xx = expense)
+  // Try account number convention (1xx/4xx = income, 5xx-9xx = expense)
   const num = row.account_number || row.gl_account_number || row.number || '';
   const prefix = parseInt(num, 10);
   if (!isNaN(prefix)) {
     if (prefix >= 100 && prefix < 200) return 'income';
-    if (prefix >= 400 || (prefix >= 200 && prefix < 300)) return 'expense';
+    if (prefix >= 400 && prefix < 500) return 'income';
+    if (prefix >= 500) return 'expense';
   }
 
   // Fallback: keyword match on name
@@ -268,7 +270,7 @@ function analyzePnL(rows) {
   for (const row of rows) {
     const name = row.gl_account_name || row.account_name || row.name || 'Unknown';
     // account_totals may return total/amount/balance/net_amount
-    const amt = parseAmount(row.total || row.amount || row.balance || row.net_amount || row.debit || 0);
+    const amt = parseAmount(row.total ?? row.amount ?? row.balance ?? row.net_amount ?? row.debit ?? 0);
     if (amt === 0) continue;
 
     const cat = classifyAccount(row);
