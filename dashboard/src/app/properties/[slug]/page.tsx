@@ -161,7 +161,7 @@ export default function PropertyDetailPage() {
                             {a.name}
                           </td>
                           <td className="px-4 py-2 text-right font-mono text-green-600">
-                            ${a.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            ${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
                       ))}
@@ -211,7 +211,7 @@ export default function PropertyDetailPage() {
                             {a.name}
                           </td>
                           <td className="px-4 py-2 text-right font-mono text-red-600">
-                            ${a.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            ${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
                       ))}

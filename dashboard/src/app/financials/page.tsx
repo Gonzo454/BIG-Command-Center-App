@@ -121,7 +121,7 @@ function AccountTable({ title, accounts }: { title: string; accounts: Account[] 
                   {a.name}
                 </td>
                 <td className="px-6 py-2 text-right font-mono text-gray-900 dark:text-white">
-                  ${Math.abs(a.amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  ${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
               </tr>
             ))}
