@@ -116,7 +116,7 @@ export default function VendorsPage() {
                                   <td className="py-1 text-gray-600">{l.gl}</td>
                                   <td className="py-1 text-gray-600">{l.property}</td>
                                   <td className="py-1 text-right font-mono text-gray-900 dark:text-white">
-                                    ${l.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    ${l.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </td>
                                 </tr>
                               ))
