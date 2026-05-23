@@ -8,8 +8,6 @@ const nav = [
   { href: "/", label: "Executive Dashboard", icon: "📊" },
   { href: "/properties", label: "Properties", icon: "🏢" },
   { href: "/financials", label: "Financial Reports", icon: "💰" },
-  { href: "/cash-flow", label: "Cash Flow", icon: "💵" },
-  { href: "/budget-vs-actuals", label: "Budget / YoY", icon: "📈" },
   { href: "/aged-receivables", label: "Aged Receivables", icon: "⏰" },
   { href: "/lease-expirations", label: "Lease Expirations", icon: "📅" },
   { href: "/rent-roll", label: "Rent Roll", icon: "🏠" },

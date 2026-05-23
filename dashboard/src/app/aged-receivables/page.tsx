@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Tenant {
   tenant: string;
@@ -47,11 +48,27 @@ export default function AgedReceivablesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Aged Receivables
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Outstanding balances by aging bucket</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Aged Receivables
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Outstanding balances by aging bucket</p>
+        </div>
+        {tenants.length > 0 && (
+          <ExportButtons
+            fileName="Aged_Receivables"
+            title="Aged Receivables"
+            headers={["Tenant", "Property", "Unit", "Total", "Current", "31-60", "61-90", "90+"]}
+            rows={tenants.map((t) => [
+              t.tenant, t.property, t.unit,
+              fmt(t.total), t.current !== 0 ? fmt(t.current) : "—",
+              t.days30 !== 0 ? fmt(t.days30) : "—",
+              t.days60 !== 0 ? fmt(t.days60) : "—",
+              t.days90 !== 0 ? fmt(t.days90) : "—",
+            ])}
+          />
+        )}
       </div>
 
       {loading ? (

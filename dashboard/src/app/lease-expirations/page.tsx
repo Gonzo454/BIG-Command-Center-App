@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Lease {
   property: string;
@@ -61,11 +62,27 @@ export default function LeaseExpirationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Lease Expiration Schedule
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">Upcoming lease renewals and expirations</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Lease Expiration Schedule
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Upcoming lease renewals and expirations</p>
+        </div>
+        {buckets && (() => {
+          const allLeases = bucketConfig.flatMap((cfg) => buckets[cfg.key]);
+          return allLeases.length > 0 ? (
+            <ExportButtons
+              fileName="Lease_Expirations"
+              title="Lease Expiration Schedule"
+              headers={["Property", "Unit", "Tenant", "Lease End", "Days Until", "Rent"]}
+              rows={allLeases.map((l) => [
+                l.property, l.unit, l.tenant, l.leaseEnd,
+                l.daysUntil, l.rent > 0 ? fmt(l.rent) : "\u2014",
+              ])}
+            />
+          ) : null;
+        })()}
       </div>
 
       {loading ? (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Check {
   vendor: string;
@@ -65,7 +66,21 @@ export default function VendorsPage() {
             {vendors.length} vendors • ${(data?.totalDisbursed || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} total disbursed
           </p>
         </div>
-        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
+        <div className="flex items-center gap-3">
+          {vendors.length > 0 && (
+            <ExportButtons
+              fileName="Vendors"
+              title="Vendor Disbursements"
+              headers={["Vendor", "Checks", "Total"]}
+              rows={vendors.map((v) => [
+                v.name,
+                v.checks.length,
+                "$" + v.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              ])}
+            />
+          )}
+          <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
+        </div>
       </div>
 
       {loading ? (

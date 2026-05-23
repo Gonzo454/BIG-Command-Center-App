@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Unit {
   property: string;
@@ -55,13 +56,27 @@ export default function RentRollPage() {
             {data?.summary.totalUnits || 0} units • {occupancyRate}% occupancy
           </p>
         </div>
-        <input
-          type="text"
-          placeholder="Search properties, units, tenants..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 text-sm border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 w-72"
-        />
+        <div className="flex items-center gap-3">
+          {filteredUnits.length > 0 && (
+            <ExportButtons
+              fileName="Rent_Roll"
+              title="Rent Roll"
+              headers={["Property", "Unit", "Tenant", "Status", "Market Rent", "Actual Rent", "Lease End", "Balance"]}
+              rows={filteredUnits.map((u) => [
+                u.property, u.unit, u.tenant || "\u2014", u.status || "Vacant",
+                u.marketRent || "\u2014", u.actualRent || "\u2014",
+                u.leaseEnd || "\u2014", u.balance || "\u2014",
+              ])}
+            />
+          )}
+          <input
+            type="text"
+            placeholder="Search properties, units, tenants..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-4 py-2 text-sm border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 w-72"
+          />
+        </div>
       </div>
 
       {loading ? (
