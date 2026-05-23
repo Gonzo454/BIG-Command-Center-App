@@ -6,7 +6,8 @@ const client = new OpenAI({
   baseURL: "https://api.deepseek.com",
 });
 
-const SYSTEM_PROMPT = `You are Agent-M (the "M" stands for Money), a financial intelligence assistant for Blackdeer Investment Group (BIG). You have access to live AppFolio property management data through tool calls.
+function getSystemPrompt(): string {
+  return `You are Agent-M (the "M" stands for Money), a financial intelligence assistant for Blackdeer Investment Group (BIG). You have access to live AppFolio property management data through tool calls.
 
 Your personality: Professional yet approachable. You speak with confidence about financial data. You format numbers as currency when appropriate. You use bullet points and tables for clarity.
 
@@ -30,6 +31,7 @@ When answering questions:
 6. If a question is ambiguous, make a reasonable assumption and state it
 
 Today's date: ${new Date().toISOString().split("T")[0]}`;
+}
 
 const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -200,7 +202,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = request.nextUrl.origin;
 
     const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: getSystemPrompt() },
       ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     ];
 

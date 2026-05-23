@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ProfitGauge } from "@/components/ProfitGauge";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Account {
   name: string;
@@ -90,7 +91,29 @@ export default function PropertyDetailPage() {
             Property Income Statement
           </p>
         </div>
-        <DateRangePicker onRangeChange={handleRangeChange} />
+        <div className="flex items-center gap-3">
+          {data && data.accounts.length > 0 && (
+            <ExportButtons
+              fileName={`Property_PnL_${slug.replace(/[^a-zA-Z0-9]/g, "_")}`}
+              title={`${slug} — Income Statement`}
+              headers={["Account #", "Account Name", "Type", "Amount"]}
+              rows={[
+                ...data.accounts
+                  .filter((a) => a.type === "income")
+                  .sort((a, b) => b.amount - a.amount)
+                  .map((a) => [a.number, a.name, "Income", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
+                ["" , "Total Income", "", `$${data.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ...data.accounts
+                  .filter((a) => a.type === "expense")
+                  .sort((a, b) => b.amount - a.amount)
+                  .map((a) => [a.number, a.name, "Expense", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
+                ["", "Total Expenses", "", `$${data.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                ["", "Net Income", "", `$${data.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ]}
+            />
+          )}
+          <DateRangePicker onRangeChange={handleRangeChange} />
+        </div>
       </div>
 
       {loading ? (
