@@ -28,7 +28,7 @@ export function Sidebar() {
           <p className="text-xs text-gray-400 mt-0.5">Financial Dashboard</p>
         </div>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
         {nav.map((item) => {
           const active = pathname === item.href;
           return (
