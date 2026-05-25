@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       if (!number || amount === 0) continue;
 
       const section = classifySection(number, name);
-      const signedAmount = isExpenseAccount(number) ? -Math.abs(amount) : amount;
+      const signedAmount = section === "operating" && isExpenseAccount(number) ? -Math.abs(amount) : amount;
       sections[section].push({ name, number, amount: signedAmount });
     }
 
