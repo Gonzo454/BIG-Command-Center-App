@@ -32,6 +32,11 @@ function classifySection(accountNumber: string, accountName: string): string {
   return "operating";
 }
 
+function isExpenseAccount(accountNumber: string): boolean {
+  const prefix = accountNumber.charAt(0);
+  return prefix === "6" || prefix === "7";
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const column = params.get("period") === "ytd" ? "fiscal_year_to_date" : "selected_period";
@@ -66,7 +71,8 @@ export async function GET(request: NextRequest) {
       if (!number || amount === 0) continue;
 
       const section = classifySection(number, name);
-      sections[section].push({ name, number, amount });
+      const signedAmount = isExpenseAccount(number) ? -Math.abs(amount) : amount;
+      sections[section].push({ name, number, amount: signedAmount });
     }
 
     const operatingTotal = totalIncome - Math.abs(totalExpense);
