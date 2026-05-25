@@ -34,7 +34,7 @@ function classifySection(accountNumber: string, accountName: string): string {
 
 function isExpenseAccount(accountNumber: string): boolean {
   const prefix = accountNumber.charAt(0);
-  return prefix === "6" || prefix === "7";
+  return prefix === "6" || prefix === "7" || prefix === "8";
 }
 
 export async function GET(request: NextRequest) {
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       if (!number || amount === 0) continue;
 
       const section = classifySection(number, name);
-      const signedAmount = section === "operating" && isExpenseAccount(number) ? -Math.abs(amount) : amount;
+      const signedAmount = (section === "operating" || section === "financing") && isExpenseAccount(number) ? -Math.abs(amount) : amount;
       sections[section].push({ name, number, amount: signedAmount });
     }
 
