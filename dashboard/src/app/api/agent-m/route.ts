@@ -1,10 +1,16 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: (process.env.DEEPSEEK_API_KEY || "").trim(),
-  baseURL: "https://api.deepseek.com",
-});
+let _client: OpenAI | null = null;
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: (process.env.DEEPSEEK_API_KEY || "").trim(),
+      baseURL: "https://api.deepseek.com",
+    });
+  }
+  return _client;
+}
 
 function getSystemPrompt(): string {
   return `You are Agent-M (the "M" stands for Money), a financial intelligence assistant for Blackdeer Investment Group (BIG). You have access to live AppFolio property management data through tool calls.
@@ -206,7 +212,7 @@ export async function POST(request: NextRequest) {
       ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     ];
 
-    let response = await client.chat.completions.create({
+    let response = await getClient().chat.completions.create({
       model: "deepseek-chat",
       messages: openaiMessages,
       tools,
@@ -245,7 +251,7 @@ export async function POST(request: NextRequest) {
 
       openaiMessages.push(...toolResults);
 
-      response = await client.chat.completions.create({
+      response = await getClient().chat.completions.create({
         model: "deepseek-chat",
         messages: openaiMessages,
         tools,

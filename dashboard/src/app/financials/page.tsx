@@ -166,16 +166,34 @@ export default function FinancialsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financial Reports</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {activeTab === "pnl" && "Income Statement (P&L)"}
-            {activeTab === "cashflow" && "Operating, investing & financing activities"}
-            {activeTab === "budget" && (budgetData?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance")}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financial Reports</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {activeTab === "pnl" && "Income Statement (P&L)"}
+          {activeTab === "cashflow" && "Operating, investing & financing activities"}
+          {activeTab === "budget" && (budgetData?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance")}
+        </p>
+      </div>
+
+      {/* Tabs + Controls Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-0">
+        <nav className="flex gap-0 -mb-px">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <span className="mr-1.5">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-wrap items-center gap-2 pb-2">
           {activeTab === "pnl" && pnlData && (
             <ExportButtons
               fileName="PnL_Report"
@@ -235,26 +253,6 @@ export default function FinancialsPage() {
             <DateRangePicker onRangeChange={(from, to) => handleBudgetRange(from, to)} />
           )}
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-0 -mb-px">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <span className="mr-1.5">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </nav>
       </div>
 
       {loading ? (
