@@ -116,7 +116,7 @@ export default function BudgetVsActualsPage() {
 
           {/* YoY Account Tables */}
           <YoYTable title="Income Accounts" accounts={incomeAccounts} />
-          <YoYTable title="Expense Accounts" accounts={expenseAccounts} />
+          <YoYTable title="Expense Accounts" accounts={expenseAccounts} invertColor />
         </>
       )}
     </div>
@@ -196,7 +196,7 @@ function YoYCard({
   );
 }
 
-function YoYTable({ title, accounts }: { title: string; accounts: Account[] }) {
+function YoYTable({ title, accounts, invertColor }: { title: string; accounts: Account[]; invertColor?: boolean }) {
   const sorted = [...accounts]
     .filter((a) => (a.ytd || 0) !== 0 || (a.lastYearYtd || 0) !== 0)
     .sort((a, b) => Math.abs(b.ytd || 0) - Math.abs(a.ytd || 0));
@@ -235,7 +235,7 @@ function YoYTable({ title, accounts }: { title: string; accounts: Account[] }) {
                   {fmt(a.lastYearYtd || 0)}
                 </td>
                 <td className={`px-4 py-2 text-right font-mono font-semibold ${
-                  (a.yoyVariance || 0) >= 0 ? "text-green-600" : "text-red-600"
+                  (invertColor ? (a.yoyVariance || 0) <= 0 : (a.yoyVariance || 0) >= 0) ? "text-green-600" : "text-red-600"
                 }`}>
                   {a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "—"}
                 </td>
