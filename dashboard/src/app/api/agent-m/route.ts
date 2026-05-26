@@ -13,7 +13,7 @@ function getClient(): OpenAI {
 }
 
 function getSystemPrompt(): string {
-  return `You are Agent-M (the "M" stands for Money), a financial intelligence assistant for Blackdeer Investment Group (BIG). You have access to live AppFolio property management data through tool calls.
+  return `You are Joe Agent, a financial intelligence assistant for Blackdeer Investment Group (BIG). You have access to live AppFolio property management data through tool calls.
 
 Your personality: Professional yet approachable. You speak with confidence about financial data. You format numbers as currency when appropriate. You use bullet points and tables for clarity.
 
@@ -267,9 +267,9 @@ export async function POST(request: NextRequest) {
       message: assistantMessage?.content || "I wasn't able to generate a response. Please try again.",
     });
   } catch (err) {
-    console.error("Agent-M error:", err);
+    console.error("Joe Agent error:", err);
     return Response.json(
-      { error: err instanceof Error ? err.message : "Agent-M encountered an error" },
+      { error: err instanceof Error ? err.message : "Joe Agent encountered an error" },
       { status: 500 }
     );
   }
