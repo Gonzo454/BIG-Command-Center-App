@@ -109,7 +109,7 @@ export function AgentM() {
       <button
         onClick={() => setOpen(!open)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all z-[60] group"
-        title="Ask Agent-M"
+        title="Ask Joe Agent"
       >
         {open ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +129,7 @@ export function AgentM() {
               💰
             </div>
             <div className="flex-1">
-              <h3 className="text-white font-bold text-sm">Agent-M</h3>
+              <h3 className="text-white font-bold text-sm">Joe Agent</h3>
               <p className="text-blue-100 text-xs">Financial Intelligence Assistant</p>
             </div>
             <button
@@ -150,7 +150,7 @@ export function AgentM() {
               <div className="space-y-3">
                 <div className="text-center py-4">
                   <p className="text-4xl mb-2">💰</p>
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Hi! I&apos;m Agent-M</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Hi! I&apos;m Joe Agent</p>
                   <p className="text-xs text-gray-500 mt-1">Ask me anything about your portfolio</p>
                 </div>
                 <div className="space-y-2">
@@ -229,7 +229,7 @@ export function AgentM() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={listening ? "Listening..." : "Ask Agent-M about your finances..."}
+                placeholder={listening ? "Listening..." : "Ask Joe Agent about your finances..."}
                 className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                 disabled={loading || listening}
               />
