@@ -13,8 +13,10 @@
     "jspdf-autotable": "^5.0.8",
     "next": "16.2.6",
     "openai": "^6.39.0",
+    "plaid": "^42.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-plaid-link": "^4.1.1",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   },

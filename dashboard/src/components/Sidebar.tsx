@@ -12,6 +12,7 @@ const nav = [
   { href: "/lease-expirations", label: "Lease Expirations", icon: "📅" },
   { href: "/rent-roll", label: "Rent Roll", icon: "🏠" },
   { href: "/vendors", label: "Vendors", icon: "🔧" },
+  { href: "/banking", label: "Banking", icon: "🏦" },
 ];
 
 export function Sidebar() {
