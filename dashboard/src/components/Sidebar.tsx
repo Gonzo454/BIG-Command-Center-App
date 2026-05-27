@@ -19,9 +19,9 @@ export function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col z-50">
-      <div className="p-3 border-b border-gray-700">
-        <div className="bg-white rounded-lg p-2">
-          <Image src="/logo-badge.png" alt="Blackdeer Investment Group — Financial Dashboard" width={384} height={168} className="w-full h-auto" />
+      <div className="px-3 py-2 border-b border-gray-700">
+        <div className="bg-white rounded-md px-2 py-1">
+          <Image src="/logo-badge.png" alt="Blackdeer Investment Group — Financial Dashboard" width={1167} height={376} className="w-full h-auto" />
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
