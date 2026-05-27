@@ -114,7 +114,7 @@ export default function ExecutiveDashboard() {
                 (pnl?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"
               }
             />
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Occupancy
               </p>
@@ -169,7 +169,7 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
         {label}
       </p>
