@@ -114,11 +114,11 @@ export default function ExecutiveDashboard() {
                 (pnl?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"
               }
             />
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Occupancy
               </p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">
+              <p className="text-lg md:text-2xl font-bold text-blue-600 mt-1">
                 {occupancyRate}%
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -169,11 +169,11 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
         {label}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${color}`}>
+      <p className={`text-lg md:text-2xl font-bold mt-1 truncate ${color}`}>
         ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </p>
     </div>
