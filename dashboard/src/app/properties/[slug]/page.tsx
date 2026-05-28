@@ -74,7 +74,7 @@ export default function PropertyDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link
@@ -91,7 +91,9 @@ export default function PropertyDetailPage() {
             Property Income Statement
           </p>
         </div>
-        <DateRangePicker onRangeChange={handleRangeChange} />
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={handleRangeChange} />
+        </div>
       </div>
       {data && data.accounts.length > 0 && (
         <ExportButtons
