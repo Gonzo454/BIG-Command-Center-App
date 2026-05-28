@@ -74,47 +74,47 @@ export default function PropertyDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link
-              href="/properties"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              ← Properties
-            </Link>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {slug}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Property Income Statement
-          </p>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Link
+            href="/properties"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            ← Properties
+          </Link>
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {slug}
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Property Income Statement
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {data && data.accounts.length > 0 && (
+          <ExportButtons
+            fileName={`Property_PnL_${slug.replace(/[^a-zA-Z0-9]/g, "_")}`}
+            title={`${slug} — Income Statement`}
+            headers={["Account #", "Account Name", "Type", "Amount"]}
+            rows={[
+              ...data.accounts
+                .filter((a) => a.type === "income")
+                .sort((a, b) => b.amount - a.amount)
+                .map((a) => [a.number, a.name, "Income", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
+              ["" , "Total Income", "", `$${data.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ...data.accounts
+                .filter((a) => a.type === "expense")
+                .sort((a, b) => b.amount - a.amount)
+                .map((a) => [a.number, a.name, "Expense", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
+              ["", "Total Expenses", "", `$${data.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ["", "Net Income", "", `$${data.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+            ]}
+          />
+        )}
         <div className="ml-auto">
           <DateRangePicker onRangeChange={handleRangeChange} />
         </div>
       </div>
-      {data && data.accounts.length > 0 && (
-        <ExportButtons
-          fileName={`Property_PnL_${slug.replace(/[^a-zA-Z0-9]/g, "_")}`}
-          title={`${slug} — Income Statement`}
-          headers={["Account #", "Account Name", "Type", "Amount"]}
-          rows={[
-            ...data.accounts
-              .filter((a) => a.type === "income")
-              .sort((a, b) => b.amount - a.amount)
-              .map((a) => [a.number, a.name, "Income", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
-            ["" , "Total Income", "", `$${data.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-            ...data.accounts
-              .filter((a) => a.type === "expense")
-              .sort((a, b) => b.amount - a.amount)
-              .map((a) => [a.number, a.name, "Expense", `$${a.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]),
-            ["", "Total Expenses", "", `$${data.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-            ["", "Net Income", "", `$${data.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-          ]}
-        />
-      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
