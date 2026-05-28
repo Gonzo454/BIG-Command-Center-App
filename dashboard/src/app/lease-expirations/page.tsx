@@ -62,28 +62,26 @@ export default function LeaseExpirationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Lease Expiration Schedule
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Upcoming lease renewals and expirations</p>
-        </div>
-        {buckets && (() => {
-          const allLeases = bucketConfig.flatMap((cfg) => buckets[cfg.key]);
-          return allLeases.length > 0 ? (
-            <ExportButtons
-              fileName="Lease_Expirations"
-              title="Lease Expiration Schedule"
-              headers={["Property", "Unit", "Tenant", "Lease End", "Days Until", "Rent"]}
-              rows={allLeases.map((l) => [
-                l.property, l.unit, l.tenant, l.leaseEnd,
-                l.daysUntil, l.rent > 0 ? fmt(l.rent) : "\u2014",
-              ])}
-            />
-          ) : null;
-        })()}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Lease Expiration Schedule
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">Upcoming lease renewals and expirations</p>
       </div>
+      {buckets && (() => {
+        const allLeases = bucketConfig.flatMap((cfg) => buckets[cfg.key]);
+        return allLeases.length > 0 ? (
+          <ExportButtons
+            fileName="Lease_Expirations"
+            title="Lease Expiration Schedule"
+            headers={["Property", "Unit", "Tenant", "Lease End", "Days Until", "Rent"]}
+            rows={allLeases.map((l) => [
+              l.property, l.unit, l.tenant, l.leaseEnd,
+              l.daysUntil, l.rent > 0 ? fmt(l.rent) : "\u2014",
+            ])}
+          />
+        ) : null;
+      })()}
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
@@ -91,17 +89,17 @@ export default function LeaseExpirationsPage() {
         <>
           {/* Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Active Leases</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{summary?.totalLeases || 0}</p>
+              <p className="font-bold text-gray-900 dark:text-white mt-1" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{summary?.totalLeases || 0}</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <p className="text-xs font-medium text-gray-500 uppercase">Expiring Within 90 Days</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">{summary?.expiringWithin90 || 0}</p>
+              <p className="font-bold text-orange-600 mt-1" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{summary?.expiringWithin90 || 0}</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <p className="text-xs font-medium text-gray-500 uppercase">Monthly Rent at Risk</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">
+              <p className="font-bold text-red-600 mt-1" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
                 ${(summary?.totalRentAtRisk || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>

@@ -135,7 +135,7 @@ function SummaryCard({ label, value, highlight }: { label: string; value: number
     : "text-red-600";
   return (
     <div
-      className={`rounded-xl p-5 shadow-sm border ${
+      className={`rounded-xl p-4 md:p-5 shadow-sm border text-center ${
         highlight
           ? "bg-gray-900 dark:bg-gray-700 border-gray-700"
           : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
@@ -144,7 +144,7 @@ function SummaryCard({ label, value, highlight }: { label: string; value: number
       <p className={`text-xs font-medium uppercase tracking-wide ${highlight ? "text-gray-400" : "text-gray-500"}`}>
         {label}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : color}`}>
+      <p className={`font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
         {fmtK(value)}
       </p>
     </div>

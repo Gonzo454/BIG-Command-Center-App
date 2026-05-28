@@ -307,22 +307,20 @@ export default function BankingPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {allAccounts.length > 0 && (
-            <ExportButtons
-              fileName={activeTab === "accounts" ? "Bank_Accounts" : "Bank_Transactions"}
-              title={activeTab === "accounts" ? "Bank Accounts" : "Bank Transactions"}
-              headers={
-                activeTab === "accounts"
-                  ? ["Institution", "Account", "Type", "Subtype", "Mask", "Balance", "Available"]
-                  : ["Date", "Institution", "Description", "Category", "Debit", "Credit", "Status"]
-              }
-              rows={activeTab === "accounts" ? accountExportRows : transactionExportRows}
-            />
-          )}
-          {configured && <PlaidLinkButton onSuccess={handlePlaidSuccess} />}
-        </div>
+        {configured && <PlaidLinkButton onSuccess={handlePlaidSuccess} />}
       </div>
+      {allAccounts.length > 0 && (
+        <ExportButtons
+          fileName={activeTab === "accounts" ? "Bank_Accounts" : "Bank_Transactions"}
+          title={activeTab === "accounts" ? "Bank Accounts" : "Bank Transactions"}
+          headers={
+            activeTab === "accounts"
+              ? ["Institution", "Account", "Type", "Subtype", "Mask", "Balance", "Available"]
+              : ["Date", "Institution", "Description", "Category", "Debit", "Credit", "Status"]
+          }
+          rows={activeTab === "accounts" ? accountExportRows : transactionExportRows}
+        />
+      )}
 
       {!configured && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">

@@ -66,22 +66,20 @@ export default function VendorsPage() {
             {vendors.length} vendors • ${(data?.totalDisbursed || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} total disbursed
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {vendors.length > 0 && (
-            <ExportButtons
-              fileName="Vendors"
-              title="Vendor Disbursements"
-              headers={["Vendor", "Checks", "Total"]}
-              rows={vendors.map((v) => [
-                v.name,
-                v.checks.length,
-                "$" + v.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-              ])}
-            />
-          )}
-          <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
-        </div>
+        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
       </div>
+      {vendors.length > 0 && (
+        <ExportButtons
+          fileName="Vendors"
+          title="Vendor Disbursements"
+          headers={["Vendor", "Checks", "Total"]}
+          rows={vendors.map((v) => [
+            v.name,
+            v.checks.length,
+            "$" + v.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          ])}
+        />
+      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
