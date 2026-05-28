@@ -49,26 +49,26 @@ export default function RentRollPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rent Roll</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {data?.summary.totalUnits || 0} units • {occupancyRate}% occupancy
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {filteredUnits.length > 0 && (
-            <ExportButtons
-              fileName="Rent_Roll"
-              title="Rent Roll"
-              headers={["Property", "Unit", "Tenant", "Status", "Market Rent", "Actual Rent", "Lease End", "Balance"]}
-              rows={filteredUnits.map((u) => [
-                u.property, u.unit, u.tenant || "\u2014", u.status || "Vacant",
-                u.marketRent || "\u2014", u.actualRent || "\u2014",
-                u.leaseEnd || "\u2014", u.balance || "\u2014",
-              ])}
-            />
-          )}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rent Roll</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {data?.summary.totalUnits || 0} units • {occupancyRate}% occupancy
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {filteredUnits.length > 0 && (
+          <ExportButtons
+            fileName="Rent_Roll"
+            title="Rent Roll"
+            headers={["Property", "Unit", "Tenant", "Status", "Market Rent", "Actual Rent", "Lease End", "Balance"]}
+            rows={filteredUnits.map((u) => [
+              u.property, u.unit, u.tenant || "\u2014", u.status || "Vacant",
+              u.marketRent || "\u2014", u.actualRent || "\u2014",
+              u.leaseEnd || "\u2014", u.balance || "\u2014",
+            ])}
+          />
+        )}
+        <div className="ml-auto">
           <input
             type="text"
             placeholder="Search properties, units, tenants..."
@@ -138,9 +138,9 @@ export default function RentRollPage() {
 
 function StatCard({ label, value, color }: { label: string; value: number | string; color?: string }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${color || "text-gray-900 dark:text-white"}`}>{value}</p>
+      <p className={`font-bold mt-1 ${color || "text-gray-900 dark:text-white"}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{value}</p>
     </div>
   );
 }

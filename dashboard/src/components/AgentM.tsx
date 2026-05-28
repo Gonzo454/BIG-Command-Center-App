@@ -108,15 +108,17 @@ export function AgentM() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all z-[60] group"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all z-[60] group overflow-hidden"
         title="Ask Joe Agent"
       >
         {open ? (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <div className="w-full h-full bg-blue-600 flex items-center justify-center">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
         ) : (
-          <span className="text-2xl">💰</span>
+          <img src="/joe-agent-avatar.png" alt="Joe Agent" className="w-full h-full object-cover" />
         )}
       </button>
 
@@ -125,8 +127,8 @@ export function AgentM() {
         <div className="fixed bottom-24 right-6 w-[420px] h-[600px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col z-[60] overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center text-lg">
-              💰
+            <div className="w-9 h-9 rounded-full overflow-hidden">
+              <img src="/joe-agent-avatar.png" alt="Joe Agent" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <h3 className="text-white font-bold text-sm">Joe Agent</h3>
@@ -149,7 +151,9 @@ export function AgentM() {
             {messages.length === 0 && !loading && (
               <div className="space-y-3">
                 <div className="text-center py-4">
-                  <p className="text-4xl mb-2">💰</p>
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden">
+                    <img src="/joe-agent-avatar.png" alt="Joe Agent" className="w-full h-full object-cover" />
+                  </div>
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Hi! I&apos;m Joe Agent</p>
                   <p className="text-xs text-gray-500 mt-1">Ask me anything about your portfolio</p>
                 </div>

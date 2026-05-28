@@ -61,12 +61,12 @@ export default function CashFlowPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cash Flow Statement</h1>
-          <p className="text-sm text-gray-500 mt-1">Operating, investing & financing activities</p>
-        </div>
-        <div className="flex gap-2">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cash Flow Statement</h1>
+        <p className="text-sm text-gray-500 mt-1">Operating, investing & financing activities</p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="ml-auto flex gap-2">
           {(["mtd", "ytd"] as const).map((p) => (
             <button
               key={p}
@@ -135,7 +135,7 @@ function SummaryCard({ label, value, highlight }: { label: string; value: number
     : "text-red-600";
   return (
     <div
-      className={`rounded-xl p-5 shadow-sm border ${
+      className={`rounded-xl p-4 md:p-5 shadow-sm border text-center ${
         highlight
           ? "bg-gray-900 dark:bg-gray-700 border-gray-700"
           : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
@@ -144,7 +144,7 @@ function SummaryCard({ label, value, highlight }: { label: string; value: number
       <p className={`text-xs font-medium uppercase tracking-wide ${highlight ? "text-gray-400" : "text-gray-500"}`}>
         {label}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : color}`}>
+      <p className={`font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
         {fmtK(value)}
       </p>
     </div>

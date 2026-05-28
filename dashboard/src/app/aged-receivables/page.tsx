@@ -48,28 +48,26 @@ export default function AgedReceivablesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Aged Receivables
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Outstanding balances by aging bucket</p>
-        </div>
-        {tenants.length > 0 && (
-          <ExportButtons
-            fileName="Aged_Receivables"
-            title="Aged Receivables"
-            headers={["Tenant", "Property", "Unit", "Total", "Current", "31-60", "61-90", "90+"]}
-            rows={tenants.map((t) => [
-              t.tenant, t.property, t.unit,
-              fmt(t.total), t.current !== 0 ? fmt(t.current) : "—",
-              t.days30 !== 0 ? fmt(t.days30) : "—",
-              t.days60 !== 0 ? fmt(t.days60) : "—",
-              t.days90 !== 0 ? fmt(t.days90) : "—",
-            ])}
-          />
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Aged Receivables
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">Outstanding balances by aging bucket</p>
       </div>
+      {tenants.length > 0 && (
+        <ExportButtons
+          fileName="Aged_Receivables"
+          title="Aged Receivables"
+          headers={["Tenant", "Property", "Unit", "Total", "Current", "31-60", "61-90", "90+"]}
+          rows={tenants.map((t) => [
+            t.tenant, t.property, t.unit,
+            fmt(t.total), t.current !== 0 ? fmt(t.current) : "—",
+            t.days30 !== 0 ? fmt(t.days30) : "—",
+            t.days60 !== 0 ? fmt(t.days60) : "—",
+            t.days90 !== 0 ? fmt(t.days90) : "—",
+          ])}
+        />
+      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
@@ -142,9 +140,9 @@ export default function AgedReceivablesPage() {
 
 function SummaryCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${color}`}>
+      <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(0.875rem, 2vw, 1.25rem)' }}>
         ${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
       </p>
     </div>

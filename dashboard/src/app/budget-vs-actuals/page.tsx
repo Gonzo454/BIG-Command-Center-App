@@ -74,16 +74,18 @@ export default function BudgetVsActualsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {data?.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {data?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance"}
-          </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {data?.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {data?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance"}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
         </div>
-        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
       </div>
 
       {loading ? (
@@ -179,11 +181,11 @@ function YoYCard({
 }) {
   const isPositive = invertColor ? change <= 0 : change >= 0;
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
-      <div className="flex items-end justify-between mt-2">
+      <div className="flex items-end justify-center gap-4 mt-2">
         <div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{fmtK(current)}</p>
+          <p className="font-bold text-gray-900 dark:text-white" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{fmtK(current)}</p>
           <p className="text-xs text-gray-500 mt-1">Last year: {fmtK(lastYear)}</p>
         </div>
         <span

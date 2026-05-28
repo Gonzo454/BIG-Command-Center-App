@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Property {
   name: string;
@@ -79,16 +80,36 @@ export default function ExecutiveDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Executive Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Portfolio performance overview
-          </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Executive Dashboard
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Portfolio performance overview
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {pnl && (
+          <ExportButtons
+            fileName="Executive_Dashboard"
+            title="Executive Dashboard Summary"
+            headers={["Property", "Net Income"]}
+            rows={[
+              ["TOTAL INCOME", `$${(pnl.totalIncome || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ["TOTAL EXPENSES", `$${(pnl.totalExpenses || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ["NET INCOME", `$${(pnl.netIncome || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+              ["OCCUPANCY", `${occupancyRate}% (${rent?.occupied || 0}/${rent?.totalUnits || 0} units)`],
+              ["", ""],
+              ...properties.sort((a, b) => b.netAmount - a.netAmount).map((p) => [
+                p.name,
+                `$${p.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              ]),
+            ]}
+          />
+        )}
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={handleRangeChange} />
         </div>
-        <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
 
       {loading ? (

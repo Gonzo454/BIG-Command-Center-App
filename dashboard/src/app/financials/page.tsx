@@ -175,8 +175,8 @@ export default function FinancialsPage() {
         </p>
       </div>
 
-      {/* Tabs + Controls Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-0">
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="flex gap-0 -mb-px">
           {tabs.map((tab) => (
             <button
@@ -193,7 +193,10 @@ export default function FinancialsPage() {
             </button>
           ))}
         </nav>
-        <div className="flex flex-wrap items-center gap-2 pb-2">
+      </div>
+      {/* Controls Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {activeTab === "pnl" && pnlData && (
             <ExportButtons
               fileName="PnL_Report"
@@ -229,6 +232,8 @@ export default function FinancialsPage() {
               )}
             />
           )}
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {activeTab === "pnl" && (
             <DateRangePicker onRangeChange={handlePnlRange} />
           )}
@@ -392,7 +397,7 @@ function CashFlowTab({ data }: { data: CashFlowData }) {
 function CfSummaryCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
     <div
-      className={`rounded-xl p-5 shadow-sm border ${
+      className={`rounded-xl p-4 md:p-5 shadow-sm border text-center ${
         highlight
           ? "bg-gray-900 dark:bg-gray-700 border-gray-700"
           : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700"
@@ -401,7 +406,7 @@ function CfSummaryCard({ label, value, highlight }: { label: string; value: numb
       <p className={`text-xs font-medium uppercase tracking-wide ${highlight ? "text-gray-400" : "text-gray-500"}`}>
         {label}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : value >= 0 ? "text-green-600" : "text-red-600"}`}>
+      <p className={`font-bold mt-1 ${highlight ? (value >= 0 ? "text-green-400" : "text-red-400") : value >= 0 ? "text-green-600" : "text-red-600"}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
         {fmtK(value)}
       </p>
     </div>
@@ -481,11 +486,11 @@ function BudgetTable({ title, accounts }: { title: string; accounts: BudgetAccou
 function YoYCard({ label, current, lastYear, change, invertColor }: { label: string; current: number; lastYear: number; change: number; invertColor?: boolean }) {
   const isPositive = invertColor ? change <= 0 : change >= 0;
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
-      <div className="flex items-end justify-between mt-2">
+      <div className="flex items-end justify-center gap-4 mt-2">
         <div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{fmtK(current)}</p>
+          <p className="font-bold text-gray-900 dark:text-white" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{fmtK(current)}</p>
           <p className="text-xs text-gray-500 mt-1">Last year: {fmtK(lastYear)}</p>
         </div>
         <span className={`text-lg font-bold ${isPositive ? "text-green-600" : "text-red-600"}`}>
@@ -543,9 +548,9 @@ function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[
 /* ── Shared ── */
 function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+      <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{value}</p>
     </div>
   );
 }
