@@ -74,16 +74,18 @@ export default function BudgetVsActualsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {data?.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {data?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance"}
-          </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {data?.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {data?.hasBudget ? "Variance analysis by account" : "Current YTD vs prior year performance"}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
         </div>
-        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
       </div>
 
       {loading ? (

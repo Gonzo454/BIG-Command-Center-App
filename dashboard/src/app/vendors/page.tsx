@@ -59,27 +59,29 @@ export default function VendorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendors</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {vendors.length} vendors • ${(data?.totalDisbursed || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} total disbursed
-          </p>
-        </div>
-        <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendors</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {vendors.length} vendors • ${(data?.totalDisbursed || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} total disbursed
+        </p>
       </div>
-      {vendors.length > 0 && (
-        <ExportButtons
-          fileName="Vendors"
-          title="Vendor Disbursements"
-          headers={["Vendor", "Checks", "Total"]}
-          rows={vendors.map((v) => [
-            v.name,
-            v.checks.length,
-            "$" + v.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          ])}
-        />
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {vendors.length > 0 && (
+          <ExportButtons
+            fileName="Vendors"
+            title="Vendor Disbursements"
+            headers={["Vendor", "Checks", "Total"]}
+            rows={vendors.map((v) => [
+              v.name,
+              v.checks.length,
+              "$" + v.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            ])}
+          />
+        )}
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={(from, to) => fetchData(from, to)} />
+        </div>
+      </div>
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>

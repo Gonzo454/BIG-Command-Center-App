@@ -49,33 +49,35 @@ export default function RentRollPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rent Roll</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {data?.summary.totalUnits || 0} units • {occupancyRate}% occupancy
-          </p>
-        </div>
-        <input
-          type="text"
-          placeholder="Search properties, units, tenants..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 text-sm border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 w-72"
-        />
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rent Roll</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {data?.summary.totalUnits || 0} units • {occupancyRate}% occupancy
+        </p>
       </div>
-      {filteredUnits.length > 0 && (
-        <ExportButtons
-          fileName="Rent_Roll"
-          title="Rent Roll"
-          headers={["Property", "Unit", "Tenant", "Status", "Market Rent", "Actual Rent", "Lease End", "Balance"]}
-          rows={filteredUnits.map((u) => [
-            u.property, u.unit, u.tenant || "\u2014", u.status || "Vacant",
-            u.marketRent || "\u2014", u.actualRent || "\u2014",
-            u.leaseEnd || "\u2014", u.balance || "\u2014",
-          ])}
-        />
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {filteredUnits.length > 0 && (
+          <ExportButtons
+            fileName="Rent_Roll"
+            title="Rent Roll"
+            headers={["Property", "Unit", "Tenant", "Status", "Market Rent", "Actual Rent", "Lease End", "Balance"]}
+            rows={filteredUnits.map((u) => [
+              u.property, u.unit, u.tenant || "\u2014", u.status || "Vacant",
+              u.marketRent || "\u2014", u.actualRent || "\u2014",
+              u.leaseEnd || "\u2014", u.balance || "\u2014",
+            ])}
+          />
+        )}
+        <div className="ml-auto">
+          <input
+            type="text"
+            placeholder="Search properties, units, tenants..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-4 py-2 text-sm border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600 w-72"
+          />
+        </div>
+      </div>
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>

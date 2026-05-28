@@ -175,8 +175,8 @@ export default function FinancialsPage() {
         </p>
       </div>
 
-      {/* Tabs + Controls Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-0">
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="flex gap-0 -mb-px">
           {tabs.map((tab) => (
             <button
@@ -193,7 +193,47 @@ export default function FinancialsPage() {
             </button>
           ))}
         </nav>
-        <div className="flex flex-wrap items-center gap-2 pb-2">
+      </div>
+      {/* Controls Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {activeTab === "pnl" && pnlData && (
+            <ExportButtons
+              fileName="PnL_Report"
+              title="Income Statement (P&L)"
+              headers={["Account #", "Account Name", "Type", "Amount"]}
+              rows={(pnlData.accounts || []).map((a) => [a.number, a.name, a.type, fmt(a.amount)])}
+            />
+          )}
+          {activeTab === "cashflow" && cfData && (
+            <ExportButtons
+              fileName="Cash_Flow"
+              title="Cash Flow Statement"
+              headers={["Section", "Account #", "Account Name", "Amount"]}
+              rows={[
+                ...cfData.operating.items.map((i) => ["Operating", i.number, i.name, fmt(i.amount)]),
+                ...cfData.investing.items.map((i) => ["Investing", i.number, i.name, fmt(i.amount)]),
+                ...cfData.financing.items.map((i) => ["Financing", i.number, i.name, fmt(i.amount)]),
+              ]}
+            />
+          )}
+          {activeTab === "budget" && budgetData && (
+            <ExportButtons
+              fileName="Budget_YoY"
+              title={budgetData.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
+              headers={budgetData.hasBudget
+                ? ["Account #", "Account Name", "Type", "Actual", "Budget", "Variance", "Variance %"]
+                : ["Account #", "Account Name", "Type", "This Month", "YTD", "Last Year YTD", "YoY Change"]
+              }
+              rows={(budgetData.accounts || []).map((a) =>
+                budgetData.hasBudget
+                  ? [a.number, a.name, a.type, fmt(a.actual), fmt(a.budget), fmt(a.variance || 0), fmtPct(a.percentVariance || 0)]
+                  : [a.number, a.name, a.type, fmt(a.actual), fmt(a.ytd || 0), fmt(a.lastYearYtd || 0), a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "N/A"]
+              )}
+            />
+          )}
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {activeTab === "pnl" && (
             <DateRangePicker onRangeChange={handlePnlRange} />
           )}
@@ -219,41 +259,6 @@ export default function FinancialsPage() {
           )}
         </div>
       </div>
-      {activeTab === "pnl" && pnlData && (
-        <ExportButtons
-          fileName="PnL_Report"
-          title="Income Statement (P&L)"
-          headers={["Account #", "Account Name", "Type", "Amount"]}
-          rows={(pnlData.accounts || []).map((a) => [a.number, a.name, a.type, fmt(a.amount)])}
-        />
-      )}
-      {activeTab === "cashflow" && cfData && (
-        <ExportButtons
-          fileName="Cash_Flow"
-          title="Cash Flow Statement"
-          headers={["Section", "Account #", "Account Name", "Amount"]}
-          rows={[
-            ...cfData.operating.items.map((i) => ["Operating", i.number, i.name, fmt(i.amount)]),
-            ...cfData.investing.items.map((i) => ["Investing", i.number, i.name, fmt(i.amount)]),
-            ...cfData.financing.items.map((i) => ["Financing", i.number, i.name, fmt(i.amount)]),
-          ]}
-        />
-      )}
-      {activeTab === "budget" && budgetData && (
-        <ExportButtons
-          fileName="Budget_YoY"
-          title={budgetData.hasBudget ? "Budget vs Actuals" : "Year-over-Year Comparison"}
-          headers={budgetData.hasBudget
-            ? ["Account #", "Account Name", "Type", "Actual", "Budget", "Variance", "Variance %"]
-            : ["Account #", "Account Name", "Type", "This Month", "YTD", "Last Year YTD", "YoY Change"]
-          }
-          rows={(budgetData.accounts || []).map((a) =>
-            budgetData.hasBudget
-              ? [a.number, a.name, a.type, fmt(a.actual), fmt(a.budget), fmt(a.variance || 0), fmtPct(a.percentVariance || 0)]
-              : [a.number, a.name, a.type, fmt(a.actual), fmt(a.ytd || 0), fmt(a.lastYearYtd || 0), a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "N/A"]
-          )}
-        />
-      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>

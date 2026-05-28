@@ -79,16 +79,18 @@ export default function ExecutiveDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Executive Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Portfolio performance overview
-          </p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Executive Dashboard
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Portfolio performance overview
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="ml-auto">
+          <DateRangePicker onRangeChange={handleRangeChange} />
         </div>
-        <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
 
       {loading ? (
