@@ -50,8 +50,8 @@ const BIG_EXPENSE_ACCOUNTS: Record<string, string> = {
   "7440-0000-00": "Computer Software & License Fees",
   // Professional services
   "7302-0000-00": "Consulting Service",
-  "7605-0000-00": "Legal & Evictions",
-  "7610-0000-00": "Accounting & Tax Services",
+  // 7605-0000-00 Legal & Evictions — removed: primarily property-level legal
+  // 7610-0000-00 Accounting & Tax Services — removed: Baker Tilly tax prep for Joe's entities
   "7610-1000-00": "AppFolio",
   "7620-1000-00": "Permits & Licenses",
   // Employee & misc
@@ -59,8 +59,7 @@ const BIG_EXPENSE_ACCOUNTS: Record<string, string> = {
   "7700-0000-00": "Miscellaneous Expense - Non-recoverable",
   "7800-0000-00": "Bank Fees",
   "7802-0000-00": "Late Fees",
-  // Management fee BIG pays out
-  "7301-0000-00": "Management Fee",
+  // 7301-0000-00 Management Fee — removed: inter-company or property-level
 };
 
 function isBigRevenue(accountNumber: string): boolean {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
 import { DateRangePicker } from "@/components/DateRangePicker";
 
@@ -26,6 +26,14 @@ interface Account {
   lastYearAmount: number;
 }
 
+interface Transaction {
+  date: string;
+  vendor: string;
+  property: string;
+  description: string;
+  amount: number;
+}
+
 const fmt = (n: number) =>
   "$" +
   Math.abs(n).toLocaleString(undefined, {
@@ -33,8 +41,7 @@ const fmt = (n: number) =>
     maximumFractionDigits: 2,
   });
 
-const pct = (n: number) =>
-  (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
+const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 
 export default function BigDashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -42,11 +49,15 @@ export default function BigDashboardPage() {
   const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodLabel, setPeriodLabel] = useState("YTD");
+  const [dateFrom, setDateFrom] = useState<string | undefined>();
+  const [dateTo, setDateTo] = useState<string | undefined>();
   const initialized = useRef(false);
 
   const fetchData = useCallback(
     (from?: string, to?: string, period?: string) => {
       setLoading(true);
+      setDateFrom(from);
+      setDateTo(to);
       const params = new URLSearchParams();
       if (from) params.set("from", from);
       if (to) params.set("to", to);
@@ -196,195 +207,34 @@ export default function BigDashboardPage() {
           </div>
 
           {/* Revenue Table */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-green-50 dark:bg-green-900/20">
-              <h3 className="font-semibold text-green-700">
-                Revenue — {revenueAccounts.length} accounts
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Account
-                    </th>
-                    <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Number
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      {periodLabel}
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Last Year
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      YoY Change
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {revenueAccounts.map((a) => {
-                    const yoy =
-                      a.lastYearAmount !== 0
-                        ? ((a.amount - a.lastYearAmount) /
-                            Math.abs(a.lastYearAmount)) *
-                          100
-                        : 0;
-                    return (
-                      <tr
-                        key={a.number}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-750"
-                      >
-                        <td className="px-4 py-2 text-gray-900 dark:text-white">
-                          {a.name}
-                        </td>
-                        <td className="px-4 py-2 text-gray-500 font-mono text-xs">
-                          {a.number}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono text-gray-900 dark:text-white">
-                          {fmt(a.amount)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono text-gray-500">
-                          {fmt(a.lastYearAmount)}
-                        </td>
-                        <td
-                          className={`px-4 py-2 text-right font-mono font-medium ${
-                            yoy > 0
-                              ? "text-green-600"
-                              : yoy < 0
-                              ? "text-red-600"
-                              : "text-gray-400"
-                          }`}
-                        >
-                          {a.lastYearAmount !== 0 ? pct(yoy) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="bg-green-50 dark:bg-green-900/20 font-bold">
-                    <td className="px-4 py-2 text-gray-900 dark:text-white">
-                      Total Revenue
-                    </td>
-                    <td className="px-4 py-2" />
-                    <td className="px-4 py-2 text-right font-mono text-gray-900 dark:text-white">
-                      {fmt(summary.totalRevenue)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-gray-500">
-                      {fmt(summary.totalRevenueLY)}
-                    </td>
-                    <td
-                      className={`px-4 py-2 text-right font-mono ${
-                        summary.revenueChange >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {pct(summary.revenueChange)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AccountTable
+            title="Revenue"
+            titleColor="green"
+            accounts={revenueAccounts}
+            periodLabel={periodLabel}
+            totalLabel="Total Revenue"
+            totalAmount={summary.totalRevenue}
+            totalLY={summary.totalRevenueLY}
+            totalChange={summary.revenueChange}
+            isExpense={false}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+          />
 
           {/* Expenses Table */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-              <h3 className="font-semibold text-red-700">
-                Expenses — {expenseAccounts.length} accounts
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Account
-                    </th>
-                    <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Number
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      {periodLabel}
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      Last Year
-                    </th>
-                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
-                      YoY Change
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {expenseAccounts
-                    .slice()
-                    .sort(
-                      (a, b) => Math.abs(b.amount) - Math.abs(a.amount)
-                    )
-                    .map((a) => {
-                      const absAmt = Math.abs(a.amount);
-                      const absLY = Math.abs(a.lastYearAmount);
-                      const yoy =
-                        absLY !== 0
-                          ? ((absAmt - absLY) / absLY) * 100
-                          : 0;
-                      return (
-                        <tr
-                          key={a.number}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-750"
-                        >
-                          <td className="px-4 py-2 text-gray-900 dark:text-white">
-                            {a.name}
-                          </td>
-                          <td className="px-4 py-2 text-gray-500 font-mono text-xs">
-                            {a.number}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-red-600">
-                            {fmt(absAmt)}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-gray-500">
-                            {fmt(absLY)}
-                          </td>
-                          <td
-                            className={`px-4 py-2 text-right font-mono font-medium ${
-                              yoy > 0
-                                ? "text-red-600"
-                                : yoy < 0
-                                ? "text-green-600"
-                                : "text-gray-400"
-                            }`}
-                          >
-                            {absLY !== 0 ? pct(yoy) : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  <tr className="bg-red-50 dark:bg-red-900/20 font-bold">
-                    <td className="px-4 py-2 text-gray-900 dark:text-white">
-                      Total Expenses
-                    </td>
-                    <td className="px-4 py-2" />
-                    <td className="px-4 py-2 text-right font-mono text-red-600">
-                      {fmt(summary.totalExpenses)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-gray-500">
-                      {fmt(summary.totalExpensesLY)}
-                    </td>
-                    <td
-                      className={`px-4 py-2 text-right font-mono ${
-                        summary.expenseChange > 0
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {pct(summary.expenseChange)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AccountTable
+            title="Expenses"
+            titleColor="red"
+            accounts={expenseAccounts}
+            periodLabel={periodLabel}
+            totalLabel="Total Expenses"
+            totalAmount={summary.totalExpenses}
+            totalLY={summary.totalExpensesLY}
+            totalChange={summary.expenseChange}
+            isExpense
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+          />
 
           {/* Net Income Bar */}
           <div
@@ -424,6 +274,255 @@ export default function BigDashboardPage() {
     </div>
   );
 }
+
+/* ── Account Table with expandable drill-down ── */
+
+function AccountTable({
+  title,
+  titleColor,
+  accounts,
+  periodLabel,
+  totalLabel,
+  totalAmount,
+  totalLY,
+  totalChange,
+  isExpense,
+  dateFrom,
+  dateTo,
+}: {
+  title: string;
+  titleColor: "green" | "red";
+  accounts: Account[];
+  periodLabel: string;
+  totalLabel: string;
+  totalAmount: number;
+  totalLY: number;
+  totalChange: number;
+  isExpense: boolean;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Transaction[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  function toggleDrillDown(accountNum: string) {
+    if (expanded === accountNum) {
+      setExpanded(null);
+      setDetail([]);
+      return;
+    }
+    setExpanded(accountNum);
+    setDetailLoading(true);
+    const params = new URLSearchParams({ account: accountNum });
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    fetch(`/api/big-management/detail?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d) => setDetail(d.transactions || []))
+      .catch(() => setDetail([]))
+      .finally(() => setDetailLoading(false));
+  }
+
+  const sorted = isExpense
+    ? accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+    : accounts;
+
+  const bg =
+    titleColor === "green"
+      ? "bg-green-50 dark:bg-green-900/20"
+      : "bg-red-50 dark:bg-red-900/20";
+  const textColor = titleColor === "green" ? "text-green-700" : "text-red-700";
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div
+        className={`px-6 py-3 border-b border-gray-100 dark:border-gray-700 ${bg}`}
+      >
+        <h3 className={`font-semibold ${textColor}`}>
+          {title} — {accounts.length} accounts
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300 w-6" />
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
+                Account
+              </th>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
+                Number
+              </th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
+                {periodLabel}
+              </th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
+                Last Year
+              </th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">
+                YoY Change
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {sorted.map((a) => {
+              const amt = isExpense ? Math.abs(a.amount) : a.amount;
+              const ly = isExpense
+                ? Math.abs(a.lastYearAmount)
+                : a.lastYearAmount;
+              const yoy = ly !== 0 ? ((amt - ly) / ly) * 100 : 0;
+              const isOpen = expanded === a.number;
+
+              return (
+                <Fragment key={a.number}>
+                  <tr
+                    className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                    onClick={() => toggleDrillDown(a.number)}
+                  >
+                    <td className="px-4 py-2 text-gray-400 text-xs">
+                      {isOpen ? "▼" : "▶"}
+                    </td>
+                    <td className="px-4 py-2 text-gray-900 dark:text-white">
+                      {a.name}
+                    </td>
+                    <td className="px-4 py-2 text-gray-500 font-mono text-xs">
+                      {a.number}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right font-mono ${
+                        isExpense
+                          ? "text-red-600"
+                          : "text-gray-900 dark:text-white"
+                      }`}
+                    >
+                      {fmt(amt)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-500">
+                      {fmt(ly)}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right font-mono font-medium ${
+                        isExpense
+                          ? yoy > 0
+                            ? "text-red-600"
+                            : yoy < 0
+                            ? "text-green-600"
+                            : "text-gray-400"
+                          : yoy > 0
+                          ? "text-green-600"
+                          : yoy < 0
+                          ? "text-red-600"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {ly !== 0 ? pct(yoy) : "—"}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <div className="bg-gray-50 dark:bg-gray-900 px-6 py-3 border-t border-gray-200 dark:border-gray-600">
+                          {detailLoading ? (
+                            <p className="text-sm text-gray-500 py-2">
+                              Loading transactions...
+                            </p>
+                          ) : detail.length === 0 ? (
+                            <p className="text-sm text-gray-400 py-2">
+                              No transactions found for this period
+                            </p>
+                          ) : (
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-gray-500">
+                                  <th className="text-left py-1 pr-3 font-medium">
+                                    Date
+                                  </th>
+                                  <th className="text-left py-1 pr-3 font-medium">
+                                    Vendor / Payee
+                                  </th>
+                                  <th className="text-left py-1 pr-3 font-medium">
+                                    Property / Entity
+                                  </th>
+                                  <th className="text-left py-1 pr-3 font-medium">
+                                    Description
+                                  </th>
+                                  <th className="text-right py-1 font-medium">
+                                    Amount
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {detail.map((t, i) => (
+                                  <tr
+                                    key={i}
+                                    className="hover:bg-gray-100 dark:hover:bg-gray-800"
+                                  >
+                                    <td className="py-1.5 pr-3 text-gray-500 whitespace-nowrap">
+                                      {t.date || "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-gray-900 dark:text-white font-medium">
+                                      {t.vendor}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-gray-600 dark:text-gray-300">
+                                      {t.property || "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-gray-500 truncate max-w-[200px]">
+                                      {t.description || "—"}
+                                    </td>
+                                    <td className="py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                                      {fmt(t.amount)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+            <tr className={`${bg} font-bold`}>
+              <td className="px-4 py-2" />
+              <td className="px-4 py-2 text-gray-900 dark:text-white">
+                {totalLabel}
+              </td>
+              <td className="px-4 py-2" />
+              <td
+                className={`px-4 py-2 text-right font-mono ${
+                  isExpense ? "text-red-600" : "text-gray-900 dark:text-white"
+                }`}
+              >
+                {fmt(totalAmount)}
+              </td>
+              <td className="px-4 py-2 text-right font-mono text-gray-500">
+                {fmt(totalLY)}
+              </td>
+              <td
+                className={`px-4 py-2 text-right font-mono ${
+                  isExpense
+                    ? totalChange > 0
+                      ? "text-red-600"
+                      : "text-green-600"
+                    : totalChange >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {pct(totalChange)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── KPI Card ── */
 
 function KpiCard({
   label,
