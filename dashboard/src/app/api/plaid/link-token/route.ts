@@ -13,7 +13,7 @@ export async function POST() {
     const client = getPlaidClient();
     const response = await client.linkTokenCreate({
       user: { client_user_id: "big-dashboard-user" },
-      client_name: "BIG Financial Dashboard",
+      client_name: "BIG Central Control",
       products: [Products.Auth, Products.Transactions, Products.Liabilities],
       country_codes: [CountryCode.Us],
       language: "en",
