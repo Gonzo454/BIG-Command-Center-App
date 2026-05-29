@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BIG Financial Dashboard",
-  description: "Blackdeer Investment Group — Executive Financial Dashboard",
+  title: "BIG Central Control",
+  description: "Blackdeer Investment Group — Central Control Dashboard",
 };
 
 export default function RootLayout({
