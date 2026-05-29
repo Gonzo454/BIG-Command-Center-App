@@ -86,16 +86,16 @@ export default function AgedReceivablesPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+                <thead className="bg-blue-50 dark:bg-blue-900/30">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Tenant</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Property</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Unit</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">Current</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">31-60</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">61-90</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">90+</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Tenant</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Unit</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Total</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Current</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">31-60</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">61-90</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">90+</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

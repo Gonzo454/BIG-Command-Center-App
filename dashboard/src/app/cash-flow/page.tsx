@@ -178,10 +178,10 @@ function CashFlowSection({
       </div>
       <div className="max-h-80 overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+          <thead className="bg-blue-50 dark:bg-blue-900/30 sticky top-0">
             <tr>
-              <th className="text-left px-6 py-2 font-medium text-gray-500">Account</th>
-              <th className="text-right px-6 py-2 font-medium text-gray-500">Amount</th>
+              <th className="text-left px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
