@@ -305,14 +305,16 @@ function AccountTable({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [detail, setDetail] = useState<Transaction[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedAccountTotal, setExpandedAccountTotal] = useState(0);
 
-  function toggleDrillDown(accountNum: string) {
+  function toggleDrillDown(accountNum: string, accountAmount: number) {
     if (expanded === accountNum) {
       setExpanded(null);
       setDetail([]);
       return;
     }
     setExpanded(accountNum);
+    setExpandedAccountTotal(Math.abs(accountAmount));
     setDetailLoading(true);
     const params = new URLSearchParams({ account: accountNum });
     if (dateFrom) params.set("from", dateFrom);
@@ -378,7 +380,7 @@ function AccountTable({
                 <Fragment key={a.number}>
                   <tr
                     className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
-                    onClick={() => toggleDrillDown(a.number)}
+                    onClick={() => toggleDrillDown(a.number, a.amount)}
                   >
                     <td className="px-4 py-2 text-gray-400 text-xs">
                       {isOpen ? "▼" : "▶"}
@@ -475,6 +477,31 @@ function AccountTable({
                                     </td>
                                   </tr>
                                 ))}
+                                {(() => {
+                                  const detailSum = detail.reduce((s, t) => s + t.amount, 0);
+                                  const remainder = expandedAccountTotal - detailSum;
+                                  if (Math.abs(remainder) < 0.01) return null;
+                                  return (
+                                    <tr className="bg-gray-100 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-600">
+                                      <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">—</td>
+                                      <td colSpan={3} className="py-1.5 pr-3 text-gray-500 italic">
+                                        Payroll, journal entries & other
+                                      </td>
+                                      <td className="py-1.5 text-right font-mono text-gray-500 italic">
+                                        {fmt(remainder)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })()}
+                                <tr className="border-t-2 border-gray-300 dark:border-gray-500 font-semibold">
+                                  <td className="py-1.5 pr-3" />
+                                  <td colSpan={3} className="py-1.5 pr-3 text-gray-700 dark:text-gray-200">
+                                    Total
+                                  </td>
+                                  <td className="py-1.5 text-right font-mono text-gray-900 dark:text-white">
+                                    {fmt(expandedAccountTotal)}
+                                  </td>
+                                </tr>
                               </tbody>
                             </table>
                           )}
