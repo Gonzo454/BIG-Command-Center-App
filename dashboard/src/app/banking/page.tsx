@@ -426,7 +426,7 @@ export default function BankingPage() {
                 </div>
               </div>
               <table className="w-full text-sm">
-                <thead className="bg-blue-50 dark:bg-blue-900/30">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Account</th>
                     <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Type</th>
@@ -481,7 +481,7 @@ export default function BankingPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-blue-50 dark:bg-blue-900/30">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Date</th>
                   <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Description</th>

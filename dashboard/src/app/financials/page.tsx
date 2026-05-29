@@ -302,7 +302,7 @@ function AccountTable({ title, accounts }: { title: string; accounts: Account[] 
       </div>
       <div className="max-h-96 overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="bg-blue-50 dark:bg-blue-900/30 sticky top-0">
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
               <th className="text-left px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
               <th className="text-right px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
@@ -359,7 +359,7 @@ function CashFlowTab({ data }: { data: CashFlowData }) {
           </div>
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-blue-50 dark:bg-blue-900/30 sticky top-0">
+              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
                   <th className="text-left px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
                   <th className="text-right px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
@@ -451,7 +451,7 @@ function BudgetTable({ title, accounts }: { title: string; accounts: BudgetAccou
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-blue-50 dark:bg-blue-900/30">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
               <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Actual</th>
@@ -515,7 +515,7 @@ function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[
       </div>
       <div className="max-h-96 overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="bg-blue-50 dark:bg-blue-900/30 sticky top-0">
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
               <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
               <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">This Month</th>
