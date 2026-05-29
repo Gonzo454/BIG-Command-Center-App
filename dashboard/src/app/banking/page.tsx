@@ -428,11 +428,11 @@ export default function BankingPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Account</th>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Type</th>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Number</th>
-                    <th className="text-right px-6 py-3 font-medium text-gray-500">Current Balance</th>
-                    <th className="text-right px-6 py-3 font-medium text-gray-500">Available</th>
+                    <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+                    <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Type</th>
+                    <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Number</th>
+                    <th className="text-right px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Current Balance</th>
+                    <th className="text-right px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Available</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -483,12 +483,12 @@ export default function BankingPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500">Category</th>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500">Institution</th>
-                  <th className="text-right px-6 py-3 font-medium text-gray-500">Amount</th>
-                  <th className="text-center px-6 py-3 font-medium text-gray-500">Status</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Date</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Description</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Category</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Institution</th>
+                  <th className="text-right px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
+                  <th className="text-center px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

@@ -53,10 +53,10 @@ export default function PropertiesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-medium text-gray-500 dark:text-gray-300">Property</th>
-                  <th className="text-right px-6 py-3 font-medium text-gray-500 dark:text-gray-300">Net Amount</th>
-                  <th className="text-right px-6 py-3 font-medium text-gray-500 dark:text-gray-300">Ending Balance</th>
-                  <th className="text-center px-6 py-3 font-medium text-gray-500 dark:text-gray-300">Status</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
+                  <th className="text-right px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Net Amount</th>
+                  <th className="text-right px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Ending Balance</th>
+                  <th className="text-center px-6 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

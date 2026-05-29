@@ -304,8 +304,8 @@ function AccountTable({ title, accounts }: { title: string; accounts: Account[] 
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
-              <th className="text-left px-6 py-2 font-medium text-gray-500">Account</th>
-              <th className="text-right px-6 py-2 font-medium text-gray-500">Amount</th>
+              <th className="text-left px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -361,8 +361,8 @@ function CashFlowTab({ data }: { data: CashFlowData }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
-                  <th className="text-left px-6 py-2 font-medium text-gray-500">Account</th>
-                  <th className="text-right px-6 py-2 font-medium text-gray-500">Amount</th>
+                  <th className="text-left px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+                  <th className="text-right px-6 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -453,11 +453,11 @@ function BudgetTable({ title, accounts }: { title: string; accounts: BudgetAccou
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="text-left px-4 py-2 font-medium text-gray-500">Account</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">Actual</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">Budget</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">Variance</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">%</th>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Actual</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Budget</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Variance</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">%</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -517,11 +517,11 @@ function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
-              <th className="text-left px-4 py-2 font-medium text-gray-500">Account</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">This Month</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">YTD</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">Last Year YTD</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-500">YoY Change</th>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">This Month</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">YTD</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Last Year YTD</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">YoY Change</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

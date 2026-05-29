@@ -95,14 +95,14 @@ export default function RentRollPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Property</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Unit</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Tenant</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">Market Rent</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">Actual Rent</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">Lease End</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">Balance</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Unit</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Tenant</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Market Rent</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Actual Rent</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Lease End</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
