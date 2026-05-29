@@ -97,21 +97,24 @@ export default function BudgetVsActualsPage() {
   const expenseAccounts = data?.accounts.filter((a) => a.type === "expense") || [];
   const yoy = data?.yoySummary;
 
-  // Compute operating metrics
-  const operatingIncome = incomeAccounts
-    .filter((a) => mode === "all" || !isExcluded(a.number))
+  // Use API-authoritative totals in "all" mode; client-computed sums in "operating" mode
+  const filteredIncome = incomeAccounts
+    .filter((a) => !isExcluded(a.number))
     .reduce((sum, a) => sum + (a.ytd || 0), 0);
-  const operatingIncomeLY = incomeAccounts
-    .filter((a) => mode === "all" || !isExcluded(a.number))
+  const filteredIncomeLY = incomeAccounts
+    .filter((a) => !isExcluded(a.number))
     .reduce((sum, a) => sum + (a.lastYearYtd || 0), 0);
-  const totalExpensesYtd = expenseAccounts.reduce((sum, a) => sum + (a.ytd || 0), 0);
-  const totalExpensesLY = expenseAccounts.reduce((sum, a) => sum + (a.lastYearYtd || 0), 0);
+
+  const operatingIncome = mode === "all" && yoy ? yoy.totalIncome : filteredIncome;
+  const operatingIncomeLY = mode === "all" && yoy ? yoy.lastYearIncome : filteredIncomeLY;
+  const totalExpensesYtd = yoy ? yoy.totalExpenses : expenseAccounts.reduce((sum, a) => sum + Math.abs(a.ytd || 0), 0);
+  const totalExpensesLY = yoy ? yoy.lastYearExpenses : expenseAccounts.reduce((sum, a) => sum + Math.abs(a.lastYearYtd || 0), 0);
   const debtServiceYtd = expenseAccounts
     .filter((a) => isDebtService(a.number))
-    .reduce((sum, a) => sum + (a.ytd || 0), 0);
+    .reduce((sum, a) => sum + Math.abs(a.ytd || 0), 0);
   const debtServiceLY = expenseAccounts
     .filter((a) => isDebtService(a.number))
-    .reduce((sum, a) => sum + (a.lastYearYtd || 0), 0);
+    .reduce((sum, a) => sum + Math.abs(a.lastYearYtd || 0), 0);
 
   const noi = operatingIncome - totalExpensesYtd;
   const noiLY = operatingIncomeLY - totalExpensesLY;

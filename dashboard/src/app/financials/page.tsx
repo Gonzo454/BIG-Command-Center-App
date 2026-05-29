@@ -82,6 +82,24 @@ const fmtK = (n: number) =>
 
 const fmtPct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 
+// Non-recurring / inter-company accounts to exclude in Operating mode
+const NON_RECURRING_PREFIXES = ["5756", "5757"];
+const INTERCO_PREFIXES = ["5820-1"];
+const DEBT_SERVICE_PREFIXES = ["8510", "8520", "8530"];
+
+function isNonRecurring(acctNumber: string): boolean {
+  return NON_RECURRING_PREFIXES.some((p) => acctNumber.startsWith(p));
+}
+function isInterco(acctNumber: string): boolean {
+  return INTERCO_PREFIXES.some((p) => acctNumber.startsWith(p));
+}
+function isExcluded(acctNumber: string): boolean {
+  return isNonRecurring(acctNumber) || isInterco(acctNumber);
+}
+function isDebtService(acctNumber: string): boolean {
+  return DEBT_SERVICE_PREFIXES.some((p) => acctNumber.startsWith(p));
+}
+
 const tabs: { key: Tab; label: string; icon: string }[] = [
   { key: "pnl", label: "P&L", icon: "💰" },
   { key: "cashflow", label: "Cash Flow", icon: "💵" },
@@ -95,6 +113,7 @@ export default function FinancialsPage() {
   const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [cfPeriod, setCfPeriod] = useState<"mtd" | "ytd">("mtd");
+  const [budgetMode, setBudgetMode] = useState<"all" | "operating">("operating");
   const initialized = useRef(false);
 
   const fetchPnl = useCallback(async (from?: string, to?: string, period?: string) => {
@@ -255,7 +274,36 @@ export default function FinancialsPage() {
             </div>
           )}
           {activeTab === "budget" && (
-            <DateRangePicker onRangeChange={(from, to) => handleBudgetRange(from, to)} />
+            <>
+              {budgetData && !budgetData.hasBudget && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">View</span>
+                  <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setBudgetMode("all")}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        budgetMode === "all"
+                          ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      All items
+                    </button>
+                    <button
+                      onClick={() => setBudgetMode("operating")}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        budgetMode === "operating"
+                          ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      Operating only
+                    </button>
+                  </div>
+                </div>
+              )}
+              <DateRangePicker onRangeChange={(from, to) => handleBudgetRange(from, to)} />
+            </>
           )}
         </div>
       </div>
@@ -266,7 +314,7 @@ export default function FinancialsPage() {
         <>
           {activeTab === "pnl" && pnlData && <PnlTab data={pnlData} />}
           {activeTab === "cashflow" && cfData && <CashFlowTab data={cfData} />}
-          {activeTab === "budget" && budgetData && <BudgetTab data={budgetData} />}
+          {activeTab === "budget" && budgetData && <BudgetTab data={budgetData} mode={budgetMode} />}
         </>
       )}
     </div>
@@ -281,9 +329,9 @@ function PnlTab({ data }: { data: PnlData }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KpiCard label="Total Income" value={fmtK(data.totalIncome)} color="text-green-600" />
-        <KpiCard label="Total Expenses" value={fmtK(data.totalExpenses)} color="text-red-600" />
-        <KpiCard label="Net Income" value={fmtK(data.netIncome)} color={data.netIncome >= 0 ? "text-green-600" : "text-red-600"} />
+        <SimpleKpiCard label="Total Income" value={fmtK(data.totalIncome)} color="text-green-600" />
+        <SimpleKpiCard label="Total Expenses" value={fmtK(data.totalExpenses)} color="text-red-600" />
+        <SimpleKpiCard label="Net Income" value={fmtK(data.netIncome)} color={data.netIncome >= 0 ? "text-green-600" : "text-red-600"} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AccountTable title="Income" accounts={incomeAccounts} />
@@ -414,7 +462,7 @@ function CfSummaryCard({ label, value, highlight }: { label: string; value: numb
 }
 
 /* ── Budget / YoY Tab ── */
-function BudgetTab({ data }: { data: BudgetData }) {
+function BudgetTab({ data, mode }: { data: BudgetData; mode: "all" | "operating" }) {
   const incomeAccounts = data.accounts.filter((a) => a.type === "income");
   const expenseAccounts = data.accounts.filter((a) => a.type === "expense");
   const yoy = data.yoySummary;
@@ -428,17 +476,165 @@ function BudgetTab({ data }: { data: BudgetData }) {
     );
   }
 
+  // Use API-authoritative totals in "all" mode; client-computed sums in "operating" mode
+  const filteredIncome = incomeAccounts
+    .filter((a) => !isExcluded(a.number))
+    .reduce((sum, a) => sum + (a.ytd || 0), 0);
+  const filteredIncomeLY = incomeAccounts
+    .filter((a) => !isExcluded(a.number))
+    .reduce((sum, a) => sum + (a.lastYearYtd || 0), 0);
+
+  const operatingIncome = mode === "all" && yoy ? yoy.totalIncome : filteredIncome;
+  const operatingIncomeLY = mode === "all" && yoy ? yoy.lastYearIncome : filteredIncomeLY;
+  const totalExpensesYtd = yoy ? yoy.totalExpenses : expenseAccounts.reduce((sum, a) => sum + Math.abs(a.ytd || 0), 0);
+  const totalExpensesLY = yoy ? yoy.lastYearExpenses : expenseAccounts.reduce((sum, a) => sum + Math.abs(a.lastYearYtd || 0), 0);
+  const debtServiceYtd = expenseAccounts
+    .filter((a) => isDebtService(a.number))
+    .reduce((sum, a) => sum + Math.abs(a.ytd || 0), 0);
+  const debtServiceLY = expenseAccounts
+    .filter((a) => isDebtService(a.number))
+    .reduce((sum, a) => sum + Math.abs(a.lastYearYtd || 0), 0);
+
+  const noi = operatingIncome - totalExpensesYtd;
+  const noiLY = operatingIncomeLY - totalExpensesLY;
+  const noiChange = noiLY !== 0 ? ((noi - noiLY) / Math.abs(noiLY)) * 100 : 0;
+  const opexRatio = operatingIncome > 0 ? (totalExpensesYtd / operatingIncome) * 100 : 0;
+  const opexRatioLY = operatingIncomeLY > 0 ? (totalExpensesLY / operatingIncomeLY) * 100 : 0;
+  const dscr = debtServiceYtd > 0 ? noi / debtServiceYtd : 0;
+  const dscrLY = debtServiceLY > 0 ? noiLY / debtServiceLY : 0;
+  const incomeYoY = operatingIncomeLY > 0
+    ? ((operatingIncome - operatingIncomeLY) / operatingIncomeLY) * 100
+    : 0;
+
+  const noiWarning = noi < 0;
+  const opexWarning = opexRatio > 70;
+  const dscrWarning = debtServiceYtd > 0 && dscr < 1.25;
+
   return (
     <>
-      {yoy && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <YoYCard label="Total Income" current={yoy.totalIncome} lastYear={yoy.lastYearIncome} change={yoy.incomeChange} />
-          <YoYCard label="Total Expenses" current={yoy.totalExpenses} lastYear={yoy.lastYearExpenses} change={yoy.expenseChange} invertColor />
+      {/* Operating KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <OperatingKpiCard
+          label="Operating NOI"
+          value={fmtK(noi)}
+          sub={`LY: ${fmtK(noiLY)}`}
+          change={fmtPct(noiChange)}
+          positive={noiChange >= 0}
+          warning={noiWarning}
+          warningText={noiWarning ? "Negative NOI" : undefined}
+        />
+        <OperatingKpiCard
+          label="OpEx Ratio"
+          value={opexRatio.toFixed(1) + "%"}
+          sub={`LY: ${opexRatioLY.toFixed(1)}%`}
+          change={(opexRatio - opexRatioLY >= 0 ? "+" : "") + (opexRatio - opexRatioLY).toFixed(1) + "pp"}
+          positive={opexRatio <= opexRatioLY}
+          warning={opexWarning}
+          warningText={opexWarning ? "Above 70% threshold" : undefined}
+        />
+        <OperatingKpiCard
+          label="Debt Coverage"
+          value={debtServiceYtd > 0 ? dscr.toFixed(2) + "x" : "N/A"}
+          sub={debtServiceLY > 0 ? `LY: ${dscrLY.toFixed(2)}x` : ""}
+          change={debtServiceYtd > 0 && debtServiceLY > 0 ? (dscr - dscrLY >= 0 ? "+" : "") + (dscr - dscrLY).toFixed(2) + "x" : ""}
+          positive={dscr >= dscrLY}
+          warning={dscrWarning}
+          warningText={dscrWarning ? (dscr < 0 ? "Negative — NOI does not cover debt" : "Below 1.25x lender minimum") : undefined}
+        />
+        <OperatingKpiCard
+          label="Income YoY"
+          value={fmtPct(incomeYoY)}
+          sub={`${fmtK(operatingIncome)} YTD`}
+          change={mode === "operating" ? "excl. non-recurring" : "includes one-time items"}
+          positive={incomeYoY >= 0}
+          neutral
+        />
+      </div>
+
+      {/* Info box in operating mode */}
+      {mode === "operating" && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-blue-800 dark:text-blue-300">
+            <strong>Operating mode:</strong> Non-recurring items (property sales, gains on disposal) and inter-company fees are excluded from totals and KPIs.
+            {operatingIncomeLY > 0 && yoy && (
+              <> Recurring income growth is <strong>{fmtPct(incomeYoY)}</strong> vs the reported {fmtPct(yoy.incomeChange)}.</>
+            )}
+          </p>
         </div>
       )}
-      <YoYTable title="Income Accounts" accounts={incomeAccounts} />
-      <YoYTable title="Expense Accounts" accounts={expenseAccounts} />
+
+      {/* YoY Summary Cards */}
+      {yoy && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <YoYCard
+            label={mode === "operating" ? "Operating Income" : "Total Income"}
+            current={operatingIncome}
+            lastYear={operatingIncomeLY}
+            change={incomeYoY}
+          />
+          <YoYCard
+            label="Total Expenses"
+            current={totalExpensesYtd}
+            lastYear={totalExpensesLY}
+            change={totalExpensesLY > 0 ? ((totalExpensesYtd - totalExpensesLY) / totalExpensesLY) * 100 : 0}
+            invertColor
+          />
+        </div>
+      )}
+
+      {/* YoY Account Tables */}
+      <YoYTable title="Income Accounts" accounts={incomeAccounts} mode={mode} />
+      <YoYTable title="Expense Accounts" accounts={expenseAccounts} invertColor mode={mode} />
     </>
+  );
+}
+
+function OperatingKpiCard({
+  label,
+  value,
+  sub,
+  change,
+  positive,
+  warning,
+  warningText,
+  neutral,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  change: string;
+  positive: boolean;
+  warning?: boolean;
+  warningText?: string;
+  neutral?: boolean;
+}) {
+  return (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border text-center ${
+      warning ? "border-red-300 dark:border-red-700" : "border-gray-100 dark:border-gray-700"
+    }`}>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="font-bold mt-1 text-gray-900 dark:text-white" style={{ fontSize: "clamp(1rem, 2.5vw, 1.5rem)" }}>
+        {value}
+      </p>
+      <p className="text-xs text-gray-500 mt-1">
+        {sub}
+        {change && (
+          <span className={`ml-1.5 font-medium ${
+            neutral ? "text-gray-400" : positive ? "text-green-600" : "text-red-600"
+          }`}>
+            {change}
+          </span>
+        )}
+      </p>
+      {warning && warningText && (
+        <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+          ⚠ {warningText}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -501,7 +697,7 @@ function YoYCard({ label, current, lastYear, change, invertColor }: { label: str
   );
 }
 
-function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[] }) {
+function YoYTable({ title, accounts, invertColor, mode }: { title: string; accounts: BudgetAccount[]; invertColor?: boolean; mode: "all" | "operating" }) {
   const sorted = [...accounts]
     .filter((a) => (a.ytd || 0) !== 0 || (a.lastYearYtd || 0) !== 0)
     .sort((a, b) => Math.abs(b.ytd || 0) - Math.abs(a.ytd || 0));
@@ -525,19 +721,42 @@ function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {sorted.map((a) => (
-              <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                  <span className="text-xs text-gray-400 mr-2">{a.number}</span>{a.name}
-                </td>
-                <td className="px-4 py-2 text-right font-mono text-gray-900 dark:text-white">{fmt(a.actual)}</td>
-                <td className="px-4 py-2 text-right font-mono text-gray-900 dark:text-white">{fmt(a.ytd || 0)}</td>
-                <td className="px-4 py-2 text-right font-mono text-gray-500">{fmt(a.lastYearYtd || 0)}</td>
-                <td className={`px-4 py-2 text-right font-mono font-semibold ${(a.yoyVariance || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "—"}
-                </td>
-              </tr>
-            ))}
+            {sorted.map((a) => {
+              const excluded = mode === "operating" && isExcluded(a.number);
+              return (
+                <tr key={a.number} className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${excluded ? "opacity-40" : ""}`}>
+                  <td className={`px-4 py-2 text-gray-700 dark:text-gray-300 ${excluded ? "line-through" : ""}`}>
+                    <span className="text-xs text-gray-400 mr-2">{a.number}</span>
+                    {a.name}
+                    {excluded && isNonRecurring(a.number) && (
+                      <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
+                        non-recurring
+                      </span>
+                    )}
+                    {excluded && isInterco(a.number) && (
+                      <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
+                        inter-co
+                      </span>
+                    )}
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
+                    {fmt(a.actual)}
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
+                    {fmt(a.ytd || 0)}
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono text-gray-500 ${excluded ? "line-through" : ""}`}>
+                    {fmt(a.lastYearYtd || 0)}
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono font-semibold ${
+                    excluded ? "text-gray-400" :
+                    (invertColor ? (a.yoyVariance || 0) <= 0 : (a.yoyVariance || 0) >= 0) ? "text-green-600" : "text-red-600"
+                  }`}>
+                    {a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -546,7 +765,7 @@ function YoYTable({ title, accounts }: { title: string; accounts: BudgetAccount[
 }
 
 /* ── Shared ── */
-function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
+function SimpleKpiCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
