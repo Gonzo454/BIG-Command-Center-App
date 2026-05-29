@@ -137,9 +137,9 @@ export default function LeaseExpirationsPage() {
             </div>
           )}
 
-          {/* Bucket Tables */}
+          {/* Bucket Tables — least overdue at top, expired at bottom */}
           {buckets &&
-            bucketConfig.map((cfg) => {
+            [...bucketConfig].reverse().map((cfg) => {
               const leases = buckets[cfg.key];
               if (leases.length === 0) return null;
               return (
