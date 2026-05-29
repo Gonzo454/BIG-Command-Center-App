@@ -3,13 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { logout } from "@/app/actions/auth";
-
-interface SessionInfo {
-  name: string;
-  role: string;
-}
 
 const financialNav = [
   { href: "/", label: "Executive Dashboard", icon: "📊" },
@@ -22,28 +15,14 @@ const financialNav = [
   { href: "/banking", label: "Banking", icon: "🏦" },
 ];
 
-const prospectNav = [
+const salesNav = [
   { href: "/prospects", label: "Prospect Dashboard", icon: "🎯" },
   { href: "/prospects/search", label: "Search Prospects", icon: "🔍" },
+  { href: "/prospects/pipeline", label: "Sales Pipeline", icon: "📈" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    fetch("/api/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setSession)
-      .catch(() => setSession(null));
-  }, []);
-
-  function handleLogout() {
-    startTransition(() => {
-      logout();
-    });
-  }
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col z-50">
@@ -86,7 +65,7 @@ export function Sidebar() {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 mb-2">
           Sales &amp; Marketing
         </p>
-        {prospectNav.map((item) => {
+        {salesNav.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/prospects" && pathname.startsWith(item.href));
@@ -107,23 +86,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-700">
-        {session && (
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-medium text-white">{session.name}</p>
-              <p className="text-xs text-gray-400 capitalize">{session.role}</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              disabled={isPending}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-        <p className="text-xs text-gray-500">Data refreshes every 5 min</p>
+      <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
+        Data refreshes every 5 min
       </div>
     </aside>
   );
