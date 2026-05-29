@@ -84,6 +84,8 @@ interface AccountEntry {
   name: string;
   number: string;
   amount: number;
+  mtd: number;
+  ytd: number;
   lastYearAmount: number;
 }
 
@@ -100,12 +102,14 @@ function extractBigAccounts(
     if (!num || !name) continue;
 
     const amount = parseAmount(r[column]);
+    const mtd = parseAmount(r.month_to_date);
+    const ytd = parseAmount(r.year_to_date);
     const lastYearAmount = parseAmount(r.last_year_to_date);
 
     if (isBigRevenue(num)) {
-      revenue.push({ name, number: num, amount, lastYearAmount });
+      revenue.push({ name, number: num, amount, mtd, ytd, lastYearAmount });
     } else if (isBigExpense(num)) {
-      expenses.push({ name, number: num, amount, lastYearAmount });
+      expenses.push({ name, number: num, amount, mtd, ytd, lastYearAmount });
     }
   }
 
@@ -170,6 +174,8 @@ function buildResponse(
         name: a.name,
         number: a.number,
         amount: a.amount,
+        mtd: a.mtd,
+        ytd: a.ytd,
         lastYearAmount: a.lastYearAmount,
       })),
     expenseAccounts: expenses
@@ -178,6 +184,8 @@ function buildResponse(
         name: a.name,
         number: a.number,
         amount: a.amount,
+        mtd: a.mtd,
+        ytd: a.ytd,
         lastYearAmount: a.lastYearAmount,
       })),
     period: { from, to, method },

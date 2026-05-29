@@ -6,9 +6,10 @@ import { ExportButtons } from "@/components/ExportButtons";
 interface Account {
   name: string;
   number: string;
+  amount: number;
   mtd: number;
   ytd: number;
-  lastYearYtd: number;
+  lastYearAmount: number;
 }
 
 interface Summary {
@@ -74,7 +75,7 @@ export default function BigPnlPage() {
       section: "Expense",
       ytd: Math.abs(a.ytd),
       mtd: Math.abs(a.mtd),
-      lastYearYtd: Math.abs(a.lastYearYtd),
+      lastYearAmount: Math.abs(a.lastYearAmount),
     })),
   ];
 
@@ -101,7 +102,7 @@ export default function BigPnlPage() {
               a.number,
               fmt(a.mtd),
               fmt(a.ytd),
-              fmt(a.lastYearYtd),
+              fmt(a.lastYearAmount),
             ])}
           />
         )}
@@ -172,8 +173,8 @@ export default function BigPnlPage() {
                 </tr>
                 {revenueAccounts.map((a) => {
                   const yoy =
-                    a.lastYearYtd !== 0
-                      ? ((a.ytd - a.lastYearYtd) / Math.abs(a.lastYearYtd)) *
+                    a.lastYearAmount !== 0
+                      ? ((a.ytd - a.lastYearAmount) / Math.abs(a.lastYearAmount)) *
                         100
                       : 0;
                   return (
@@ -194,7 +195,7 @@ export default function BigPnlPage() {
                         {fmt(a.ytd)}
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-gray-500">
-                        {fmt(a.lastYearYtd)}
+                        {fmt(a.lastYearAmount)}
                       </td>
                       <td
                         className={`px-4 py-2 text-right font-mono text-sm ${
@@ -205,7 +206,7 @@ export default function BigPnlPage() {
                             : "text-gray-400"
                         }`}
                       >
-                        {a.lastYearYtd !== 0 ? pct(yoy) : "—"}
+                        {a.lastYearAmount !== 0 ? pct(yoy) : "—"}
                       </td>
                     </tr>
                   );
@@ -255,7 +256,7 @@ export default function BigPnlPage() {
                   .sort((a, b) => Math.abs(b.ytd) - Math.abs(a.ytd))
                   .map((a) => {
                     const absYtd = Math.abs(a.ytd);
-                    const absLY = Math.abs(a.lastYearYtd);
+                    const absLY = Math.abs(a.lastYearAmount);
                     const yoy =
                       absLY !== 0 ? ((absYtd - absLY) / absLY) * 100 : 0;
                     return (
