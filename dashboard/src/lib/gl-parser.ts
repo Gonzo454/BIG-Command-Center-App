@@ -32,7 +32,17 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 function getGLPath(): string {
-  return path.join(process.cwd(), "data", "general_ledger.xlsx");
+  // Try multiple paths — Vercel serverless has different cwd than local dev
+  const candidates = [
+    path.join(process.cwd(), "data", "general_ledger.xlsx"),
+    path.join(__dirname, "..", "..", "data", "general_ledger.xlsx"),
+    path.join(__dirname, "..", "..", "..", "data", "general_ledger.xlsx"),
+    path.resolve("data", "general_ledger.xlsx"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return candidates[0]; // will error with a clear message
 }
 
 export function parseGL(): GLTransaction[] {
