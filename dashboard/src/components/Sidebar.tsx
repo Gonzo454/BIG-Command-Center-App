@@ -57,7 +57,9 @@ function NavSection({
             }`}
           >
             {item.icon === "gear-up" ? (
-              <img src="/icon-big-mgmt.png" alt="" className="w-5 h-5" />
+              <span className="inline-flex items-center justify-center w-7 h-7 bg-white rounded-md flex-shrink-0">
+                <img src="/icon-big-mgmt.png" alt="" className="w-6 h-6 object-contain" />
+              </span>
             ) : (
               <span className="text-lg">{item.icon}</span>
             )}
