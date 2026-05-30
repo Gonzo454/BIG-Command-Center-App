@@ -8,18 +8,21 @@ interface SummaryData {
     netIncome: number;
     occupancyRate: number;
     propertyCount: number;
+    monthlyTrend?: number[];
   };
   big: {
     feeRevenue: number;
     totalExpenses: number;
     margin: number;
     propertiesManaged: number;
+    monthlyTrend?: number[];
   };
   hotel: {
     roomRevenue: number;
     occupancyRate: number;
     adr: number;
     revpar: number;
+    monthlyTrend?: number[];
   };
   alerts: {
     leasesExpiring: number;
@@ -32,6 +35,33 @@ const fmtK = (n: number) =>
   (n < 0 ? "-" : "") +
   "$" +
   Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const h = 32;
+  const w = 100;
+  const step = w / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  });
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-2" preserveAspectRatio="none">
+      <polyline
+        points={points.join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function CommandCenterPage() {
   const [data, setData] = useState<SummaryData | null>(null);
@@ -94,11 +124,14 @@ export default function CommandCenterPage() {
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {fmtK(data.jrw.netIncome)}
             </p>
-            <p className="text-xs text-gray-400 mb-3">Net Income · YTD</p>
+            <p className="text-xs text-gray-400 mb-2">Net Income · YTD</p>
             <div className="flex justify-between text-xs text-gray-500">
               <span>{data.jrw.occupancyRate}% occ.</span>
               <span>{data.jrw.propertyCount} properties</span>
             </div>
+            {data.jrw.monthlyTrend && (
+              <Sparkline data={data.jrw.monthlyTrend} color="#22c55e" />
+            )}
           </div>
         </Link>
 
@@ -117,11 +150,14 @@ export default function CommandCenterPage() {
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {fmtK(data.big.feeRevenue)}
             </p>
-            <p className="text-xs text-gray-400 mb-3">Fee Revenue · YTD</p>
+            <p className="text-xs text-gray-400 mb-2">Fee Revenue · YTD</p>
             <div className="flex justify-between text-xs text-gray-500">
               <span>{data.big.margin}% margin</span>
               <span>{data.big.propertiesManaged} managed</span>
             </div>
+            {data.big.monthlyTrend && (
+              <Sparkline data={data.big.monthlyTrend} color="#f59e0b" />
+            )}
           </div>
         </Link>
 
@@ -140,11 +176,14 @@ export default function CommandCenterPage() {
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {fmtK(data.hotel.roomRevenue)}
             </p>
-            <p className="text-xs text-gray-400 mb-3">Room Revenue · YTD</p>
+            <p className="text-xs text-gray-400 mb-2">Room Revenue · YTD</p>
             <div className="flex justify-between text-xs text-gray-500">
               <span>${data.hotel.adr} ADR</span>
               <span>{data.hotel.occupancyRate}% occ.</span>
             </div>
+            {data.hotel.monthlyTrend && (
+              <Sparkline data={data.hotel.monthlyTrend} color="#a855f7" />
+            )}
           </div>
         </Link>
       </div>
@@ -155,10 +194,16 @@ export default function CommandCenterPage() {
           <span>🔔</span> Needs Attention
         </p>
         <div className="flex flex-wrap gap-2">
-          {data.alerts.leasesExpiring > 0 && (
+          {data.alerts.leasesExpiring > 0 ? (
             <Link href="/lease-expirations">
               <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100 transition-colors cursor-pointer">
                 {data.alerts.leasesExpiring} leases expiring &lt; 90d
+              </span>
+            </Link>
+          ) : (
+            <Link href="/lease-expirations">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100 transition-colors cursor-pointer">
+                No leases expiring &lt; 90d
               </span>
             </Link>
           )}
