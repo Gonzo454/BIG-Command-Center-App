@@ -323,7 +323,9 @@ export function computeAccountBreakdown(
         revenueMap[t.account] = (revenueMap[t.account] || 0) + (t.credit - t.debit);
       }
     } else if (prefix === "6" || prefix === "7") {
-      expenseMap[t.account] = (expenseMap[t.account] || 0) + (t.debit - t.credit);
+      if (!t.account.startsWith("6600") && !t.account.startsWith("6650")) {
+        expenseMap[t.account] = (expenseMap[t.account] || 0) + (t.debit - t.credit);
+      }
     }
   }
 
