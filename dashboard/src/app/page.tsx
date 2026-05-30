@@ -42,7 +42,7 @@ const fmtK = (n: number) =>
   "$" +
   Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-function Sparkline({ data, color }: { data: number[]; color: string }) {
+function Sparkline({ data }: { data: number[] }) {
   if (!data || data.length < 2) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -55,6 +55,9 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
     const y = h - ((v - min) / range) * (h - 4) - 2;
     return `${x},${y}`;
   });
+  // Green if trending up (last > first), red if down
+  const trending = data[data.length - 1] >= data[0];
+  const color = trending ? "#22c55e" : "#ef4444";
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-2" preserveAspectRatio="none">
       <polyline
@@ -141,7 +144,7 @@ export default function CommandCenterPage() {
               <span>{data.jrw.propertyCount} properties</span>
             </div>
             {data.jrw.monthlyTrend && (
-              <Sparkline data={data.jrw.monthlyTrend} color="#22c55e" />
+              <Sparkline data={data.jrw.monthlyTrend} />
             )}
           </div>
         </Link>
@@ -167,7 +170,7 @@ export default function CommandCenterPage() {
               <span>{data.big.propertiesManaged} managed</span>
             </div>
             {data.big.monthlyTrend && (
-              <Sparkline data={data.big.monthlyTrend} color="#f59e0b" />
+              <Sparkline data={data.big.monthlyTrend} />
             )}
           </div>
         </Link>
@@ -193,7 +196,7 @@ export default function CommandCenterPage() {
               <span>{fmtK(data.hotel.totalRevenue)} total rev.</span>
             </div>
             {data.hotel.monthlyTrend && (
-              <Sparkline data={data.hotel.monthlyTrend} color="#a855f7" />
+              <Sparkline data={data.hotel.monthlyTrend} />
             )}
           </div>
         </Link>

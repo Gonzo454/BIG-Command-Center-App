@@ -174,6 +174,10 @@ export function computeEntityPnL(
     if (prefix === "4" || prefix === "5") {
       if (acct.startsWith("5756")) {
         e.gainOnSale += t.credit - t.debit;
+      } else if (acct.startsWith("5875") || acct.startsWith("5873")) {
+        // Hotel labor (5875) and merchant fees (5873) are operating expenses
+        // despite being in the 5xxx range — they're costs, not revenue
+        e.opex += t.debit - t.credit;
       } else {
         e.income += t.credit - t.debit;
       }
@@ -259,11 +263,19 @@ export function computeMonthlyTrend(year: number) {
       const prefix = t.account.charAt(0);
 
       if (prefix === "4" || prefix === "5") {
-        // Income for the section
-        const amount = t.credit - t.debit;
-        if (section === "jrw") monthData.jrw += amount;
-        else if (section === "big") monthData.big += amount;
-        else monthData.hotel += amount;
+        if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
+          // Hotel labor + merchant fees are expenses
+          const amount = t.debit - t.credit;
+          if (section === "jrw") monthData.jrw -= amount;
+          else if (section === "big") monthData.big -= amount;
+          else monthData.hotel -= amount;
+        } else if (!t.account.startsWith("5756")) {
+          // Income for the section
+          const amount = t.credit - t.debit;
+          if (section === "jrw") monthData.jrw += amount;
+          else if (section === "big") monthData.big += amount;
+          else monthData.hotel += amount;
+        }
       } else if (prefix === "6" || prefix === "7") {
         // Expense reduces NOI/net
         const amount = t.debit - t.credit;
@@ -319,7 +331,12 @@ export function computeAccountBreakdown(
 
     const prefix = t.account.charAt(0);
     if (prefix === "4" || prefix === "5") {
-      if (!t.account.startsWith("5756")) {
+      if (t.account.startsWith("5756")) {
+        // gain on sale — skip
+      } else if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
+        // Hotel labor + merchant fees → expense
+        expenseMap[t.account] = (expenseMap[t.account] || 0) + (t.debit - t.credit);
+      } else {
         revenueMap[t.account] = (revenueMap[t.account] || 0) + (t.credit - t.debit);
       }
     } else if (prefix === "6" || prefix === "7") {
