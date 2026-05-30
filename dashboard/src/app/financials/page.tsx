@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ExportButtons } from "@/components/ExportButtons";
 
@@ -334,21 +334,53 @@ function PnlTab({ data }: { data: PnlData }) {
         <SimpleKpiCard label="Net Income" value={fmtK(data.netIncome)} color={data.netIncome >= 0 ? "text-green-600" : "text-red-600"} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AccountTable title="Income" accounts={incomeAccounts} />
-        <AccountTable title="Expenses" accounts={expenseAccounts} />
+        <AccountTable title="Income" accounts={incomeAccounts} dateFrom={data.period?.from} dateTo={data.period?.to} />
+        <AccountTable title="Expenses" accounts={expenseAccounts} dateFrom={data.period?.from} dateTo={data.period?.to} />
       </div>
     </>
   );
 }
 
-function AccountTable({ title, accounts }: { title: string; accounts: Account[] }) {
+interface DetailTransaction {
+  date: string;
+  vendor: string;
+  property: string;
+  description: string;
+  amount: number;
+}
+
+function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; accounts: Account[]; dateFrom?: string; dateTo?: string }) {
   const sorted = [...accounts].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<DetailTransaction[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedTotal, setExpandedTotal] = useState(0);
+
+  function toggleDrillDown(accountNum: string, accountAmount: number) {
+    if (expanded === accountNum) {
+      setExpanded(null);
+      setDetail([]);
+      return;
+    }
+    setExpanded(accountNum);
+    setExpandedTotal(Math.abs(accountAmount));
+    setDetailLoading(true);
+    const params = new URLSearchParams({ account: accountNum });
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    fetch(`/api/property-pnl/detail?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d) => setDetail(d.transactions || []))
+      .catch(() => setDetail([]))
+      .finally(() => setDetailLoading(false));
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
       </div>
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-[500px] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
@@ -357,17 +389,79 @@ function AccountTable({ title, accounts }: { title: string; accounts: Account[] 
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {sorted.map((a) => (
-              <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                <td className="px-6 py-2 text-gray-700 dark:text-gray-300">
-                  <span className="text-xs text-gray-400 mr-2">{a.number}</span>
-                  {a.name}
-                </td>
-                <td className="px-6 py-2 text-right font-mono text-gray-900 dark:text-white">
-                  ${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-              </tr>
-            ))}
+            {sorted.map((a) => {
+              const isOpen = expanded === a.number;
+              return (
+                <Fragment key={a.number}>
+                  <tr
+                    className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                    onClick={() => toggleDrillDown(a.number, a.amount)}
+                  >
+                    <td className="px-6 py-2 text-gray-700 dark:text-gray-300">
+                      <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
+                      <span className="text-xs text-gray-400 mr-2">{a.number}</span>
+                      {a.name}
+                    </td>
+                    <td className="px-6 py-2 text-right font-mono text-gray-900 dark:text-white">
+                      {fmt(Math.abs(a.amount))}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={2} className="p-0">
+                        <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
+                          {detailLoading ? (
+                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                          ) : detail.length === 0 ? (
+                            <p className="text-xs text-gray-400 py-1">No transactions found</p>
+                          ) : (
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-gray-500">
+                                  <th className="text-left py-1 pr-2 font-medium">Date</th>
+                                  <th className="text-left py-1 pr-2 font-medium">Vendor / Payee</th>
+                                  <th className="text-left py-1 pr-2 font-medium">Property</th>
+                                  <th className="text-left py-1 pr-2 font-medium">Description</th>
+                                  <th className="text-right py-1 font-medium">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {detail.map((t, i) => (
+                                  <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    <td className="py-1 pr-2 text-gray-500 whitespace-nowrap">{t.date || "—"}</td>
+                                    <td className="py-1 pr-2 text-gray-900 dark:text-white font-medium">{t.vendor}</td>
+                                    <td className="py-1 pr-2 text-gray-600 dark:text-gray-300">{t.property || "—"}</td>
+                                    <td className="py-1 pr-2 text-gray-500 truncate max-w-[150px]">{t.description || "—"}</td>
+                                    <td className="py-1 text-right font-mono text-gray-900 dark:text-white">{fmt(t.amount)}</td>
+                                  </tr>
+                                ))}
+                                {(() => {
+                                  const detailSum = detail.reduce((s, t) => s + t.amount, 0);
+                                  const remainder = expandedTotal - detailSum;
+                                  if (Math.abs(remainder) < 0.01) return null;
+                                  return (
+                                    <tr className="bg-gray-100 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-600">
+                                      <td className="py-1 pr-2 text-gray-400">—</td>
+                                      <td colSpan={3} className="py-1 pr-2 text-gray-500 italic">Payroll, journal entries & other</td>
+                                      <td className="py-1 text-right font-mono text-gray-500 italic">{fmt(remainder)}</td>
+                                    </tr>
+                                  );
+                                })()}
+                                <tr className="border-t-2 border-gray-300 dark:border-gray-500 font-semibold">
+                                  <td className="py-1 pr-2" />
+                                  <td colSpan={3} className="py-1 pr-2 text-gray-700 dark:text-gray-200">Total</td>
+                                  <td className="py-1 text-right font-mono text-gray-900 dark:text-white">{fmt(expandedTotal)}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
