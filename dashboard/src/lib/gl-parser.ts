@@ -279,6 +279,67 @@ export function computeMonthlyTrend(year: number) {
   return months;
 }
 
+/**
+ * Get per-account breakdown for a given section (big/hotel/jrw).
+ * Returns revenue and expense accounts with amounts, for detail pages.
+ */
+export function computeAccountBreakdown(
+  section: Section,
+  fromDate?: string,
+  toDate?: string
+): { revenue: { account: string; name: string; amount: number }[]; expenses: { account: string; name: string; amount: number }[] } {
+  const transactions = parseGL();
+  const fromSerial = fromDate ? dateToSerial(fromDate) : 0;
+  const toSerial = toDate ? dateToSerial(toDate) : 99999;
+
+  const revenueMap: Record<string, number> = {};
+  const expenseMap: Record<string, number> = {};
+
+  // Build account name lookup from GL headers
+  const accountNames: Record<string, string> = {};
+  const filePath = getGLPath();
+  const wb = XLSX.readFile(filePath);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    if (!row || row.length < 2) continue;
+    const prop = String(row[0] || "");
+    if (/^\d{4}-\d{4}/.test(prop)) {
+      const parts = prop.split(" - ");
+      let acctNum = parts[0].trim();
+      if (acctNum.endsWith("-00")) acctNum = acctNum.slice(0, -3);
+      accountNames[acctNum] = parts.slice(1).join(" - ").trim() || acctNum;
+    }
+  }
+
+  for (const t of transactions) {
+    if (t.date > 0 && (t.date < fromSerial || t.date > toSerial)) continue;
+    if (classifyEntity(t.entity) !== section) continue;
+
+    const prefix = t.account.charAt(0);
+    if (prefix === "4" || prefix === "5") {
+      if (!t.account.startsWith("5756")) {
+        revenueMap[t.account] = (revenueMap[t.account] || 0) + (t.credit - t.debit);
+      }
+    } else if (prefix === "6" || prefix === "7") {
+      expenseMap[t.account] = (expenseMap[t.account] || 0) + (t.debit - t.credit);
+    }
+  }
+
+  const revenue = Object.entries(revenueMap)
+    .filter(([, amount]) => amount !== 0)
+    .map(([account, amount]) => ({ account, name: accountNames[account] || account, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const expenses = Object.entries(expenseMap)
+    .filter(([, amount]) => amount !== 0)
+    .map(([account, amount]) => ({ account, name: accountNames[account] || account, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  return { revenue, expenses };
+}
+
 export function dateToSerial(isoDate: string): number {
   const d = new Date(isoDate + "T00:00:00Z");
   // Excel serial: days since 1899-12-30

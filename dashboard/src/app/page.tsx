@@ -159,9 +159,9 @@ export default function CommandCenterPage() {
               BIG Management
             </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-              {fmtK(data.big.feeRevenue)}
+              {fmtK(data.big.totalIncome)}
             </p>
-            <p className="text-xs text-gray-400 mb-2">Fee Revenue · {data.period.basis}</p>
+            <p className="text-xs text-gray-400 mb-2">Total Revenue · {data.period.basis}</p>
             <div className="flex justify-between text-xs text-gray-500">
               <span className={data.big.margin < 0 ? "text-red-500" : ""}>{data.big.margin}% margin</span>
               <span>{data.big.propertiesManaged} managed</span>
