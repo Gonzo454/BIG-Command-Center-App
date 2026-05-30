@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BIG Central Control",
-  description: "Blackdeer Investment Group — Central Control Dashboard",
+  title: "Command Center",
+  description: "Executive command center — JRW Portfolio, BIG Management, Badger Hotel",
 };
 
 export default function RootLayout({

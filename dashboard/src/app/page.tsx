@@ -1,202 +1,239 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { ProfitGauge } from "@/components/ProfitGauge";
-import { DateRangePicker } from "@/components/DateRangePicker";
-import { ExportButtons } from "@/components/ExportButtons";
+import Link from "next/link";
 
-interface Property {
-  name: string;
-  netAmount: number;
+interface SummaryData {
+  jrw: {
+    noi: number;
+    occupancyRate: number;
+    propertyCount: number;
+    monthlyTrend?: number[];
+  };
+  big: {
+    feeRevenue: number;
+    totalIncome: number;
+    totalExpenses: number;
+    netIncome: number;
+    margin: number;
+    propertiesManaged: number;
+    monthlyTrend?: number[];
+  };
+  hotel: {
+    roomRevenue: number;
+    totalRevenue: number;
+    gop: number;
+    monthlyTrend?: number[];
+  };
+  alerts: {
+    leasesExpiring: number;
+    agedReceivables: number;
+    feeReconciliationGap: number;
+  };
+  period: {
+    from: string;
+    to: string;
+    basis: string;
+  };
 }
 
-interface PnlData {
-  totalIncome: number;
-  totalExpenses: number;
-  netIncome: number;
+const fmtK = (n: number) =>
+  (n < 0 ? "-" : "") +
+  "$" +
+  Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const h = 32;
+  const w = 100;
+  const step = w / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  });
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-2" preserveAspectRatio="none">
+      <polyline
+        points={points.join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-interface RentSummary {
-  totalUnits: number;
-  occupied: number;
-  vacant: number;
-}
-
-export default function ExecutiveDashboard() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [pnl, setPnl] = useState<PnlData | null>(null);
-  const [rent, setRent] = useState<RentSummary | null>(null);
+export default function CommandCenterPage() {
+  const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const initialized = useRef(false);
 
-  async function fetchData(from?: string, to?: string, period?: string) {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-      if (period) params.set("period", period);
-      const qs = params.toString() ? `?${params.toString()}` : "";
-      const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch("/api/account-totals"),
-        fetch(`/api/income-statement${qs}`),
-        fetch("/api/rent-roll"),
-      ]);
-
-      const propData = await propRes.json();
-      const pnlData = await pnlRes.json();
-      const rentData = await rentRes.json();
-
-      setProperties(propData.properties || []);
-      setPnl(pnlData);
-      setRent(rentData.summary || null);
-    } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchData();
-    }
+    if (initialized.current) return;
+    initialized.current = true;
+
+    fetch("/api/command-center")
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  function handleRangeChange(from: string, to: string, period: string) {
-    setDateRange({ from, to });
-    fetchData(from, to, period);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-gray-500">Loading Command Center...</p>
+      </div>
+    );
   }
 
-  const maxAbsolute = Math.max(
-    ...properties.map((p) => Math.abs(p.netAmount)),
-    1
-  );
-
-  const occupancyRate = rent ? Math.round((rent.occupied / rent.totalUnits) * 100) : 0;
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-gray-500">Failed to load data</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Executive Dashboard
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Portfolio performance overview
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Command Center
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Three businesses, run independently
+          </p>
+        </div>
+        <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+          {data.period.basis} · {data.period.from} to {data.period.to}
+        </span>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {pnl && (
-          <ExportButtons
-            fileName="Executive_Dashboard"
-            title="Executive Dashboard Summary"
-            headers={["Property", "Net Income"]}
-            rows={[
-              ["TOTAL INCOME", `$${(pnl.totalIncome || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-              ["TOTAL EXPENSES", `$${(pnl.totalExpenses || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-              ["NET INCOME", `$${(pnl.netIncome || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-              ["OCCUPANCY", `${occupancyRate}% (${rent?.occupied || 0}/${rent?.totalUnits || 0} units)`],
-              ["", ""],
-              ...properties.sort((a, b) => b.netAmount - a.netAmount).map((p) => [
-                p.name,
-                `$${p.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-              ]),
-            ]}
-          />
-        )}
-        <div className="ml-auto">
-          <DateRangePicker onRangeChange={handleRangeChange} />
+
+      {/* Three Business Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* JRW Portfolio */}
+        <Link href="/jrw/dashboard" className="block group">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+                <span className="text-lg">🏢</span>
+              </div>
+              <span className="text-gray-400 group-hover:text-green-600 transition-colors">→</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              JRW Portfolio
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              {fmtK(data.jrw.noi)}
+            </p>
+            <p className="text-xs text-gray-400 mb-2">NOI · {data.period.basis}</p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{data.jrw.occupancyRate}% occ.</span>
+              <span>{data.jrw.propertyCount} properties</span>
+            </div>
+            {data.jrw.monthlyTrend && (
+              <Sparkline data={data.jrw.monthlyTrend} color="#22c55e" />
+            )}
+          </div>
+        </Link>
+
+        {/* BIG Management */}
+        <Link href="/big/dashboard" className="block group">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-amber-200 transition-all cursor-pointer h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
+                <img src="/logo-white.png" alt="" className="w-5 h-6 object-contain invert dark:invert-0" />
+              </div>
+              <span className="text-gray-400 group-hover:text-amber-600 transition-colors">→</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              BIG Management
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              {fmtK(data.big.feeRevenue)}
+            </p>
+            <p className="text-xs text-gray-400 mb-2">Fee Revenue · {data.period.basis}</p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span className={data.big.margin < 0 ? "text-red-500" : ""}>{data.big.margin}% margin</span>
+              <span>{data.big.propertiesManaged} managed</span>
+            </div>
+            {data.big.monthlyTrend && (
+              <Sparkline data={data.big.monthlyTrend} color="#f59e0b" />
+            )}
+          </div>
+        </Link>
+
+        {/* Badger Hotel */}
+        <Link href="/hotel/dashboard" className="block group">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-purple-200 transition-all cursor-pointer h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
+                <span className="text-lg">🛎️</span>
+              </div>
+              <span className="text-gray-400 group-hover:text-purple-600 transition-colors">→</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              Badger Hotel
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              {fmtK(data.hotel.roomRevenue)}
+            </p>
+            <p className="text-xs text-gray-400 mb-2">Room Revenue · {data.period.basis}</p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{fmtK(data.hotel.gop)} GOP</span>
+              <span>{fmtK(data.hotel.totalRevenue)} total rev.</span>
+            </div>
+            {data.hotel.monthlyTrend && (
+              <Sparkline data={data.hotel.monthlyTrend} color="#a855f7" />
+            )}
+          </div>
+        </Link>
+      </div>
+
+      {/* Needs Attention Strip */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3 flex items-center gap-2">
+          <span>🔔</span> Needs Attention
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {data.alerts.leasesExpiring > 0 ? (
+            <Link href="/lease-expirations">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100 transition-colors cursor-pointer">
+                {data.alerts.leasesExpiring} leases expiring &lt; 90d
+              </span>
+            </Link>
+          ) : (
+            <Link href="/lease-expirations">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100 transition-colors cursor-pointer">
+                No leases expiring &lt; 90d
+              </span>
+            </Link>
+          )}
+          {data.alerts.agedReceivables > 0 && (
+            <Link href="/aged-receivables">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100 transition-colors cursor-pointer">
+                {fmtK(data.alerts.agedReceivables)} aged receivables
+              </span>
+            </Link>
+          )}
+          {data.alerts.feeReconciliationGap > 0 && (
+            <Link href="/big/dashboard">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100 transition-colors cursor-pointer">
+                Fee reconciliation off {fmtK(data.alerts.feeReconciliationGap)}
+              </span>
+            </Link>
+          )}
         </div>
       </div>
-
-      {loading ? (
-        <div className="text-center py-20 text-gray-500">Loading...</div>
-      ) : (
-        <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <KpiCard
-              label="Total Income"
-              value={pnl?.totalIncome || 0}
-              color="text-green-600"
-            />
-            <KpiCard
-              label="Total Expenses"
-              value={pnl?.totalExpenses || 0}
-              color="text-red-600"
-            />
-            <KpiCard
-              label="Net Income"
-              value={pnl?.netIncome || 0}
-              color={
-                (pnl?.netIncome || 0) >= 0 ? "text-green-600" : "text-red-600"
-              }
-            />
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Occupancy
-              </p>
-              <p className="font-bold text-blue-600 mt-1" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
-                {occupancyRate}%
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {rent?.occupied || 0} / {rent?.totalUnits || 0} units
-              </p>
-            </div>
-          </div>
-
-          {/* Property Profitability Gauges */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Property Profitability
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {properties
-                .sort((a, b) => b.netAmount - a.netAmount)
-                .map((p) => (
-                  <ProfitGauge
-                    key={p.name}
-                    name={p.name}
-                    netIncome={p.netAmount}
-                    maxAbsolute={maxAbsolute}
-                    href={`/properties/${encodeURIComponent(p.name)}`}
-                  />
-                ))}
-            </div>
-          </div>
-
-          {/* Date range info */}
-          {dateRange.from && (
-            <p className="text-xs text-gray-400 text-right">
-              Period: {dateRange.from} → {dateRange.to}
-            </p>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-        {label}
-      </p>
-      <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
-        ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-      </p>
     </div>
   );
 }
