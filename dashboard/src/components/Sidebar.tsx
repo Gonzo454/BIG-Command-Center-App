@@ -83,11 +83,18 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-black text-white flex flex-col z-50">
       <div className="p-4 border-b border-gray-600">
-        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <Link
+          href="/"
+          className={`flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 transition-colors ${
+            pathname === "/"
+              ? "bg-[#E07B2A] text-white"
+              : "text-white hover:bg-[#E07B2A]/20 hover:text-[#E07B2A]"
+          }`}
+        >
           <img src="/command-center-icon.png" alt="" className="w-9 h-9 rounded-lg object-contain" />
           <div>
-            <p className="text-sm font-semibold text-white leading-tight">Command Center</p>
-            <p className="text-[10px] text-gray-400">Executive overview</p>
+            <p className="text-sm font-semibold leading-tight">Command Center</p>
+            <p className={`text-[10px] ${pathname === "/" ? "text-white/70" : "text-gray-400"}`}>Executive overview</p>
           </div>
         </Link>
       </div>
