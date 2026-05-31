@@ -55,11 +55,13 @@ export async function GET() {
     // Aged receivables
     const agedReceivables = arRows.reduce((sum, r) => sum + parseAmount(r.total_amount), 0);
 
-    // Fee reconciliation — internal entities only (excludes external clients
-    // like Metro Crossing, Station 955, GC Real Estate from the gap calc)
+    // Fee reconciliation — excludes billback properties (Metro Crossing,
+    // Station 955, GC Real Estate) whose reimbursements flow through BIG's
+    // 5820 accounts but aren't earned management fees
     const feeRecon = computeFeeReconciliation(ytdFrom, ytdTo);
 
-    const propertyCount = 14;
+    const jrwPropertyCount = 17; // 14 BIG-managed + 3 MN-managed (Metro Crossing, Station 955, GC Real Estate)
+    const bigManagedCount = 14;
 
     // Hotel room revenue: specifically 4400-1000 + 4400-2000 from GL (entity = Badger Hotel)
     const glData = parseGL();
@@ -79,7 +81,7 @@ export async function GET() {
         noi: Math.round(sections.jrw.noi),
         netIncome: Math.round(sections.jrw.netIncome),
         occupancyRate,
-        propertyCount,
+        propertyCount: jrwPropertyCount,
         monthlyTrend: jrwTrend,
       },
       big: {
@@ -88,7 +90,7 @@ export async function GET() {
         totalExpenses: Math.round(sections.big.opex),
         netIncome: Math.round(sections.big.netIncome),
         margin: bigMargin,
-        propertiesManaged: propertyCount,
+        propertiesManaged: bigManagedCount,
         monthlyTrend: bigTrend,
       },
       hotel: {
@@ -102,8 +104,6 @@ export async function GET() {
         leasesExpiring,
         agedReceivables: Math.round(agedReceivables),
         feeReconciliationGap: feeRecon.internalGap,
-        externalFeeIncome: feeRecon.externalFeeIncome,
-        externalClientCount: feeRecon.externalClientCount,
       },
       period: {
         from: ytdFrom,

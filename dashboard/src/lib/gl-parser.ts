@@ -382,13 +382,14 @@ function isInternalPayer(payee: string, entityNames: Set<string>): boolean {
 }
 
 /**
- * Fee reconciliation — internal entities only.
+ * Fee reconciliation — BIG-managed entities only.
  *
- * Compares BIG's management/asset-fee income (5820) from *internal* payers
- * against the matching expense (6300 + 7301 + 7300) booked by JRW/Hotel entities.
- * Payers that don't match any GL entity (e.g. Metro Crossing, Station 955,
- * GC Real Estate) are classified as external third-party management clients
- * and excluded from the reconciliation so the gap is a real integrity signal.
+ * Compares BIG's management/asset-fee income (5820) from payers that match
+ * a GL entity against the matching expense (6300 + 7301 + 7300) booked by
+ * those JRW/Hotel entities. Payers without a GL entity (Metro Crossing,
+ * Station 955, GC Real Estate) are Joe's properties managed by an outside
+ * MN company — their 5820 amounts are billback reimbursements, not earned
+ * management fees, and are excluded so the gap is a real integrity signal.
  */
 export function computeFeeReconciliation(fromDate?: string, toDate?: string) {
   const transactions = parseGL();

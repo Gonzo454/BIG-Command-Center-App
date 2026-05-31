@@ -29,8 +29,6 @@ interface SummaryData {
     leasesExpiring: number;
     agedReceivables: number;
     feeReconciliationGap: number;
-    externalFeeIncome?: number;
-    externalClientCount?: number;
   };
   period: {
     from: string;
@@ -241,13 +239,7 @@ export default function CommandCenterPage() {
               Fee recon balanced
             </span>
           )}
-          {(data.alerts.externalFeeIncome ?? 0) > 0 && (
-            <Link href="/big/dashboard">
-              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100 transition-colors cursor-pointer">
-                {fmtK(data.alerts.externalFeeIncome ?? 0)} external mgmt revenue · {data.alerts.externalClientCount ?? 0} clients
-              </span>
-            </Link>
-          )}
+
         </div>
       </div>
     </div>
