@@ -46,7 +46,7 @@ function NavSection({
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 mb-2 flex items-center gap-2">
         {label}
         {badge && (
-          <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-medium normal-case">
+          <span className="text-[9px] bg-[#E07B2A]/20 text-[#E07B2A] px-1.5 py-0.5 rounded font-medium normal-case">
             {badge}
           </span>
         )}
@@ -63,7 +63,7 @@ function NavSection({
             href={item.href}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               active
-                ? "bg-blue-600 text-white"
+                ? "bg-[#E07B2A] text-white"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`}
           >
@@ -87,14 +87,7 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col z-50">
       <div className="p-4 border-b border-gray-700">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-content-center text-white font-bold text-sm shadow-lg">
-            <svg viewBox="0 0 36 36" className="w-full h-full p-1.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="4" y="4" width="12" height="12" rx="2" />
-              <rect x="20" y="4" width="12" height="12" rx="2" />
-              <rect x="4" y="20" width="12" height="12" rx="2" />
-              <rect x="20" y="20" width="12" height="12" rx="2" />
-            </svg>
-          </div>
+          <img src="/command-center-icon.png" alt="" className="w-9 h-9 rounded-lg object-contain" />
           <div>
             <p className="text-sm font-semibold text-white leading-tight">Command Center</p>
             <p className="text-[10px] text-gray-400">Executive overview</p>
