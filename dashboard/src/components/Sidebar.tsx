@@ -12,16 +12,13 @@ const jrwNav = [
   { href: "/rent-roll", label: "Rent Roll", icon: "🏠" },
   { href: "/vendors", label: "Vendors", icon: "🔧" },
   { href: "/banking", label: "Banking", icon: "🏦" },
+  { href: "/hotel/dashboard", label: "Hotel Dashboard", icon: "🛎️" },
+  { href: "/hotel/pnl", label: "Hotel P&L", icon: "📋" },
 ];
 
 const bigNav = [
   { href: "/big/dashboard", label: "Management Dashboard", icon: "deer" },
   { href: "/big/pnl", label: "P&L Statement", icon: "📋" },
-];
-
-const hotelNav = [
-  { href: "/hotel/dashboard", label: "Hotel Dashboard", icon: "🛎️" },
-  { href: "/hotel/pnl", label: "Hotel P&L", icon: "📋" },
 ];
 
 const salesNav = [
@@ -101,10 +98,6 @@ export function Sidebar() {
         <div className="my-4 border-t border-gray-600" />
 
         <NavSection label="BIG Management" items={bigNav} pathname={pathname} />
-
-        <div className="my-4 border-t border-gray-600" />
-
-        <NavSection label="Badger Hotel" items={hotelNav} pathname={pathname} badge="new" />
 
         <div className="my-4 border-t border-gray-600" />
 
