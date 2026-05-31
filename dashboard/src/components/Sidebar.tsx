@@ -64,7 +64,7 @@ function NavSection({
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               active
                 ? "bg-[#E07B2A] text-white"
-                : "text-gray-300 hover:bg-gray-900 hover:text-white"
+                : "text-gray-300 hover:bg-[#E07B2A]/20 hover:text-[#E07B2A]"
             }`}
           >
             {item.icon === "deer" ? (
@@ -85,7 +85,7 @@ export function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-black text-white flex flex-col z-50">
-      <div className="p-4 border-b border-gray-800">
+      <div className="p-4 border-b border-gray-600">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <img src="/command-center-icon.png" alt="" className="w-9 h-9 rounded-lg object-contain" />
           <div>
