@@ -43,7 +43,7 @@ function NavSection({
 }) {
   return (
     <>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 mb-2 flex items-center gap-2">
+      <p className="text-xs font-semibold text-[#E07B2A] uppercase tracking-wider px-4 mb-2 flex items-center gap-2">
         {label}
         {badge && (
           <span className="text-[9px] bg-[#E07B2A]/20 text-[#E07B2A] px-1.5 py-0.5 rounded font-medium normal-case">
@@ -64,7 +64,7 @@ function NavSection({
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               active
                 ? "bg-[#E07B2A] text-white"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                : "text-gray-300 hover:bg-gray-900 hover:text-white"
             }`}
           >
             {item.icon === "deer" ? (
@@ -84,8 +84,8 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col z-50">
-      <div className="p-4 border-b border-gray-700">
+    <aside className="fixed left-0 top-0 h-full w-64 bg-black text-white flex flex-col z-50">
+      <div className="p-4 border-b border-gray-800">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <img src="/command-center-icon.png" alt="" className="w-9 h-9 rounded-lg object-contain" />
           <div>
@@ -98,15 +98,15 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
         <NavSection label="JRW Portfolio" items={jrwNav} pathname={pathname} />
 
-        <div className="my-4 border-t border-gray-700" />
+        <div className="my-4 border-t border-gray-800" />
 
         <NavSection label="BIG Management" items={bigNav} pathname={pathname} />
 
-        <div className="my-4 border-t border-gray-700" />
+        <div className="my-4 border-t border-gray-800" />
 
         <NavSection label="Badger Hotel" items={hotelNav} pathname={pathname} badge="new" />
 
-        <div className="my-4 border-t border-gray-700" />
+        <div className="my-4 border-t border-gray-800" />
 
         <NavSection
           label="Sales &amp; Marketing"
@@ -115,7 +115,7 @@ export function Sidebar() {
         />
       </nav>
 
-      <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
+      <div className="p-4 border-t border-gray-800 text-xs text-gray-500">
         Data refreshes every 5 min
       </div>
     </aside>

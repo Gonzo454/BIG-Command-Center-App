@@ -30,7 +30,7 @@ aside::-webkit-scrollbar {
   width: 6px;
 }
 aside::-webkit-scrollbar-track {
-  background: #111827;
+  background: #000000;
 }
 aside::-webkit-scrollbar-thumb {
   background: #E07B2A;
@@ -45,7 +45,7 @@ aside nav::-webkit-scrollbar {
   width: 6px;
 }
 aside nav::-webkit-scrollbar-track {
-  background: #111827;
+  background: #000000;
 }
 aside nav::-webkit-scrollbar-thumb {
   background: #E07B2A;
