@@ -152,8 +152,8 @@ export default function CommandCenterPage() {
         </div>
       </div>
 
-      {/* Three Business Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* Two Business Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* JRW Portfolio */}
         <Link href="/jrw/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
@@ -207,34 +207,6 @@ export default function CommandCenterPage() {
             </div>
             {data.big.monthlyTrend && (
               <Sparkline data={data.big.monthlyTrend} />
-            )}
-          </div>
-        </Link>
-
-        {/* Badger Hotel */}
-        <Link href="/hotel/dashboard" className="block group">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-purple-200 transition-all cursor-pointer h-full">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
-                <span className="text-lg">🛎️</span>
-              </div>
-              <span className="text-gray-400 group-hover:text-purple-600 transition-colors">→</span>
-            </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              Badger Hotel
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-              {fmtK(data.hotel.roomRevenue)}
-            </p>
-            <p className="text-xs text-gray-400 mb-2">
-              {ownershipView ? "Joe's 64.6% Share" : "Room Revenue"} · {data.period.basis}
-            </p>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{fmtK(data.hotel.gop)} GOP</span>
-              <span>{fmtK(data.hotel.totalRevenue)} total rev.</span>
-            </div>
-            {data.hotel.monthlyTrend && (
-              <Sparkline data={data.hotel.monthlyTrend} />
             )}
           </div>
         </Link>
