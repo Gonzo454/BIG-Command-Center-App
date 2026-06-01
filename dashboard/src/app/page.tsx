@@ -56,9 +56,7 @@ function Sparkline({ data }: { data: number[] }) {
     const y = h - ((v - min) / range) * (h - 4) - 2;
     return `${x},${y}`;
   });
-  // Green if trending up (last > first), red if down
-  const trending = data[data.length - 1] >= data[0];
-  const color = trending ? "#22c55e" : "#ef4444";
+  const color = "#22c55e";
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-2" preserveAspectRatio="none">
       <polyline
