@@ -1,5 +1,7 @@
+import { NextRequest } from "next/server";
 import { fetchReport, parseAmount, firstOfYear, today } from "@/lib/appfolio";
 import { computeSectionPnL } from "@/lib/gl-parser";
+import { getOwnership } from "@/lib/ownership";
 
 interface AccountTotalRow {
   property_name?: string;
@@ -7,8 +9,9 @@ interface AccountTotalRow {
   ending_balance?: string;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const ownershipView = request.nextUrl.searchParams.get("view") === "joe";
     const rows = await fetchReport<AccountTotalRow>("account_totals");
 
     const properties = rows
@@ -29,7 +32,16 @@ export async function GET() {
       });
     }
 
-    return Response.json({ properties });
+    const result = properties.map((p) => {
+      const pct = getOwnership(p.name);
+      return {
+        ...p,
+        netAmount: ownershipView ? Math.round(p.netAmount * pct) : p.netAmount,
+        ownershipPct: pct,
+      };
+    });
+
+    return Response.json({ properties: result, ownershipView });
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : "Unknown error" },

@@ -28,6 +28,7 @@ export default function ExecutiveDashboard() {
   const [rent, setRent] = useState<RentSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [ownershipView, setOwnershipView] = useState(false);
   const initialized = useRef(false);
 
   async function fetchData(from?: string, to?: string, period?: string) {
@@ -39,7 +40,7 @@ export default function ExecutiveDashboard() {
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
       const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch("/api/account-totals"),
+        fetch(`/api/account-totals${ownershipView ? "?view=joe" : ""}`),
         fetch(`/api/income-statement${qs}`),
         fetch("/api/rent-roll"),
       ]);
@@ -65,6 +66,12 @@ export default function ExecutiveDashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    if (initialized.current) {
+      fetchData(dateRange.from || undefined, dateRange.to || undefined);
+    }
+  }, [ownershipView]);
+
   function handleRangeChange(from: string, to: string, period: string) {
     setDateRange({ from, to });
     fetchData(from, to, period);
@@ -79,13 +86,43 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Executive Dashboard
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          JRW Portfolio performance overview
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Executive Dashboard
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            JRW Portfolio performance overview
+          </p>
+        </div>
+        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+          <button
+            onClick={() => setOwnershipView(false)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all ${
+              !ownershipView
+                ? "bg-[#E07B2A] text-white"
+                : "bg-white text-gray-500 hover:bg-[#E07B2A]/10 hover:text-[#E07B2A] dark:bg-gray-700 dark:text-gray-400"
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            Portfolio View
+          </button>
+          <button
+            onClick={() => setOwnershipView(true)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all border-l border-gray-200 dark:border-gray-600 ${
+              ownershipView
+                ? "bg-[#E07B2A] text-white"
+                : "bg-white text-gray-500 hover:bg-[#E07B2A]/10 hover:text-[#E07B2A] dark:bg-gray-700 dark:text-gray-400"
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            Joe&apos;s Share
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         {pnl && (

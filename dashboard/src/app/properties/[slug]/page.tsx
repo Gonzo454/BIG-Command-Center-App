@@ -52,6 +52,7 @@ export default function PropertyDetailPage() {
   const initialized = useRef(false);
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
+  const [ownershipView, setOwnershipView] = useState(false);
 
   async function fetchData(from?: string, to?: string, period?: string) {
     setLoading(true);
@@ -64,6 +65,7 @@ export default function PropertyDetailPage() {
       if (from) qp.set("from", from);
       if (to) qp.set("to", to);
       if (period) qp.set("period", period);
+      if (ownershipView) qp.set("view", "joe");
 
       const res = await fetch(`/api/property-pnl?${qp.toString()}`);
       if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -83,6 +85,12 @@ export default function PropertyDetailPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (initialized.current) {
+      fetchData(dateFrom, dateTo);
+    }
+  }, [ownershipView]);
+
   function handleRangeChange(from: string, to: string, period: string) {
     fetchData(from, to, period);
   }
@@ -93,21 +101,51 @@ export default function PropertyDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Link
-            href="/properties"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            ← Properties
-          </Link>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Link
+              href="/properties"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              ← Properties
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {slug}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Property Income Statement
+          </p>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {slug}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Property Income Statement
-        </p>
+        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+          <button
+            onClick={() => setOwnershipView(false)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all ${
+              !ownershipView
+                ? "bg-[#E07B2A] text-white"
+                : "bg-white text-gray-500 hover:bg-[#E07B2A]/10 hover:text-[#E07B2A] dark:bg-gray-700 dark:text-gray-400"
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            Portfolio View
+          </button>
+          <button
+            onClick={() => setOwnershipView(true)}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all border-l border-gray-200 dark:border-gray-600 ${
+              ownershipView
+                ? "bg-[#E07B2A] text-white"
+                : "bg-white text-gray-500 hover:bg-[#E07B2A]/10 hover:text-[#E07B2A] dark:bg-gray-700 dark:text-gray-400"
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+            </svg>
+            Joe&apos;s Share
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         {data && data.accounts.length > 0 && (

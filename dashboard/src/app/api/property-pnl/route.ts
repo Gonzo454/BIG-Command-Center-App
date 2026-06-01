@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { fetchReport, firstOfMonth, today, parseAmount } from "@/lib/appfolio";
+import { getOwnership } from "@/lib/ownership";
 
 interface IncomeRow {
   account_name?: string;
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
   const from = params.get("from") || firstOfMonth();
   const to = params.get("to") || today();
   const period = params.get("period") || "mtd";
+  const ownershipView = params.get("view") === "joe";
 
   if (!propertyName) {
     return Response.json({ error: "property parameter required" }, { status: 400 });
@@ -97,13 +99,15 @@ export async function GET(request: NextRequest) {
         posted_on_to: to,
         properties: propertyFilter,
       });
-      const { totalIncome, totalExpenses, accounts } = extractTotals(rows, "year_to_date");
+      const extracted = extractTotals(rows, "year_to_date");
+      const pct = ownershipView ? getOwnership(propertyName) : 1;
       return Response.json({
         propertyName,
-        totalIncome,
-        totalExpenses,
-        netIncome: totalIncome - totalExpenses,
-        accounts,
+        totalIncome: Math.round(extracted.totalIncome * pct),
+        totalExpenses: Math.round(extracted.totalExpenses * pct),
+        netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
+        accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        ownershipPct: pct,
         period: { from, to, method: "year_to_date" },
       });
     }
@@ -114,13 +118,15 @@ export async function GET(request: NextRequest) {
         posted_on_to: to,
         properties: propertyFilter,
       });
-      const { totalIncome, totalExpenses, accounts } = extractTotals(rows, "month_to_date");
+      const extracted = extractTotals(rows, "month_to_date");
+      const pct = ownershipView ? getOwnership(propertyName) : 1;
       return Response.json({
         propertyName,
-        totalIncome,
-        totalExpenses,
-        netIncome: totalIncome - totalExpenses,
-        accounts,
+        totalIncome: Math.round(extracted.totalIncome * pct),
+        totalExpenses: Math.round(extracted.totalExpenses * pct),
+        netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
+        accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        ownershipPct: pct,
         period: { from, to, method: "month_to_date" },
       });
     }
@@ -157,11 +163,15 @@ export async function GET(request: NextRequest) {
       }))
       .filter((a) => a.amount !== 0);
 
+    const pct = ownershipView ? getOwnership(propertyName) : 1;
+    const adjIncome = Math.round(totalIncome * pct);
+    const adjExpenses = Math.round(totalExpenses * pct);
+
     return Response.json({
       propertyName,
-      totalIncome,
-      totalExpenses,
-      netIncome: totalIncome - totalExpenses,
+      totalIncome: adjIncome,
+      totalExpenses: adjExpenses,
+      netIncome: adjIncome - adjExpenses,
       accounts,
       period: { from, to, method: "ytd_subtraction" },
     });
