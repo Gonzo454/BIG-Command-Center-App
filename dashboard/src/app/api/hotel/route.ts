@@ -115,8 +115,8 @@ function buildResponse(revenue: AccountEntry[], expenses: AccountEntry[], from: 
   const totalExpenses = expenses.reduce((s, a) => s + a.amount, 0);
   const totalExpensesMtd = expenses.reduce((s, a) => s + a.mtd, 0);
   const totalExpensesLY = expenses.reduce((s, a) => s + a.lastYearAmount, 0);
-  const netIncome = totalRevenue + totalExpenses;
-  const netIncomeLY = totalRevenueLY + totalExpensesLY;
+  const netIncome = totalRevenue - Math.abs(totalExpenses);
+  const netIncomeLY = totalRevenueLY - Math.abs(totalExpensesLY);
 
   return Response.json({
     revenueAccounts: revenue.filter((a) => a.amount !== 0 || a.lastYearAmount !== 0),

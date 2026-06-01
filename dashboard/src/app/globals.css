@@ -24,3 +24,33 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Sidebar scrollbar — match sidebar background */
+aside::-webkit-scrollbar {
+  width: 6px;
+}
+aside::-webkit-scrollbar-track {
+  background: #000000;
+}
+aside::-webkit-scrollbar-thumb {
+  background: #E07B2A;
+  border-radius: 3px;
+}
+aside::-webkit-scrollbar-thumb:hover {
+  background: #c96a22;
+}
+
+/* Nav overflow scrollbar */
+aside nav::-webkit-scrollbar {
+  width: 6px;
+}
+aside nav::-webkit-scrollbar-track {
+  background: #000000;
+}
+aside nav::-webkit-scrollbar-thumb {
+  background: #E07B2A;
+  border-radius: 3px;
+}
+aside nav::-webkit-scrollbar-thumb:hover {
+  background: #c96a22;
+}

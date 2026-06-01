@@ -65,8 +65,14 @@ export default function PropertiesPage() {
                   .map((p) => (
                     <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer">
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                        <Link href={`/properties/${encodeURIComponent(p.name)}`} className="text-blue-600 hover:underline">
+                        <Link
+                          href={p.name === "Badger Hotel Group" ? "/hotel/dashboard" : `/properties/${encodeURIComponent(p.name)}`}
+                          className="text-blue-600 hover:underline"
+                        >
                           {p.name}
+                          {p.name === "Badger Hotel Group" && (
+                            <span className="ml-2 text-xs text-gray-400">🛎️</span>
+                          )}
                         </Link>
                       </td>
                       <td className={`px-6 py-4 text-right font-mono ${p.netAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
