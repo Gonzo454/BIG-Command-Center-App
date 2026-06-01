@@ -75,11 +75,11 @@ export const OWNERSHIP: Record<string, OwnershipEntry> = {
     pfsName: "Honey Creek IV",
   },
 
-  // BIG Management (corporate entity)
+  // BIG Management (corporate entity) — Joe is 100% owner
   "Blackdeer Investment Group": {
-    joePct: 0.51,
+    joePct: 1.0,
     gstPct: 0.0,
-    combined: 0.51,
+    combined: 1.0,
     pfsName: "Blackdeer Investment Group",
   },
 
