@@ -13,11 +13,11 @@ export function ProfitGauge({ name, netIncome, maxAbsolute, href }: ProfitGaugeP
   const clamped = Math.max(-1, Math.min(1, netIncome / (maxAbsolute || 1)));
   const angle = clamped * 90; // -90 to +90 degrees
   const color =
-    netIncome > 0
-      ? netIncome / maxAbsolute > 0.5
-        ? "#22c55e"
-        : "#eab308"
-      : "#ef4444";
+    netIncome > 5000
+      ? "#22c55e"
+      : netIncome < -5000
+        ? "#ef4444"
+        : "#eab308";
 
   const content = (
     <div className={`bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center ${href ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all" : ""}`}>
