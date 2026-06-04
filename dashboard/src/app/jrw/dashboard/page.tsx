@@ -277,7 +277,7 @@ export default function ExecutiveDashboard() {
                     name={p.name}
                     netIncome={p.netAmount}
                     maxAbsolute={maxAbsolute}
-                    href={`/properties/${encodeURIComponent(p.name)}`}
+                    href={p.name === "Badger Hotel Group" ? "/hotel/dashboard" : `/properties/${encodeURIComponent(p.name)}`}
                   />
                 ))}
             </div>

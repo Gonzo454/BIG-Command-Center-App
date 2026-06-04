@@ -13,8 +13,6 @@ const jrwNav = [
   { href: "/rent-roll", label: "Rent Roll", icon: "🏠" },
   { href: "/vendors", label: "Vendors", icon: "🔧" },
   { href: "/banking", label: "Banking", icon: "🏦" },
-  { href: "/hotel/dashboard", label: "Hotel Dashboard", icon: "🛎️" },
-  { href: "/hotel/pnl", label: "Hotel P&L", icon: "📋" },
 ];
 
 const bigNav = [
