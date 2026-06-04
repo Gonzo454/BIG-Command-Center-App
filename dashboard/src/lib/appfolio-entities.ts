@@ -1,0 +1,26 @@
+/**
+ * AppFolio property IDs for entities that don't appear in the
+ * account_totals report but DO exist in general_ledger and
+ * check_register_detail. These are "management" entities that
+ * AppFolio treats as properties internally.
+ *
+ * Discovered via check_register_detail → property_id field.
+ */
+export const ENTITY_PROPERTY_IDS = {
+  big: 33, // Blackdeer Investment Group
+  hotel: 26, // Badger Hotel Group
+} as const;
+
+export type ManagedEntity = keyof typeof ENTITY_PROPERTY_IDS;
+
+/**
+ * Entity classification by property name — mirrors the GL parser's
+ * classifyEntity logic.
+ */
+export function classifyEntityByName(
+  propertyName: string
+): "big" | "hotel" | "jrw" {
+  if (propertyName.startsWith("Blackdeer Investment Group")) return "big";
+  if (propertyName.startsWith("Badger Hotel Group")) return "hotel";
+  return "jrw";
+}

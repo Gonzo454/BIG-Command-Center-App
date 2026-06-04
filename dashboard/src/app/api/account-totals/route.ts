@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { fetchReport, parseAmount, firstOfYear, today } from "@/lib/appfolio";
-import { computeSectionPnL } from "@/lib/gl-parser";
+import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 
 interface AccountTotalRow {
@@ -9,10 +9,23 @@ interface AccountTotalRow {
   ending_balance?: string;
 }
 
+interface IncomeRow {
+  account_name?: string;
+  year_to_date?: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const ownershipView = request.nextUrl.searchParams.get("view") === "joe";
-    const rows = await fetchReport<AccountTotalRow>("account_totals");
+
+    const [rows, hotelIS] = await Promise.all([
+      fetchReport<AccountTotalRow>("account_totals"),
+      fetchReport<IncomeRow>("income_statement", {
+        posted_on_from: firstOfYear(),
+        posted_on_to: today(),
+        properties: { properties_ids: [ENTITY_PROPERTY_IDS.hotel] },
+      }),
+    ]);
 
     const properties = rows
       .filter((r) => r.property_name && r.property_name.trim())
@@ -22,12 +35,19 @@ export async function GET(request: NextRequest) {
         endingBalance: parseAmount(r.ending_balance),
       }));
 
-    // Badger Hotel Group is not in AppFolio account_totals — inject from GL
+    // Badger Hotel Group is not in AppFolio account_totals — inject from live income_statement
     if (!properties.some((p) => p.name === "Badger Hotel Group")) {
-      const sections = computeSectionPnL(firstOfYear(), today());
+      let hotelIncome = 0;
+      let hotelExpenses = 0;
+      for (const row of hotelIS) {
+        const name = (row.account_name || "").toLowerCase().trim();
+        const amount = parseAmount(row.year_to_date);
+        if (name === "total income") hotelIncome = amount;
+        if (name === "total expense" || name === "total expenses") hotelExpenses = Math.abs(amount);
+      }
       properties.push({
         name: "Badger Hotel Group",
-        netAmount: Math.round(sections.hotel.noi),
+        netAmount: Math.round(hotelIncome - hotelExpenses),
         endingBalance: 0,
       });
     }
