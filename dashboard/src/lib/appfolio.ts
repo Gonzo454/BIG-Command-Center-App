@@ -77,16 +77,6 @@ export function centralNowExported(): Date {
   return centralNow();
 }
 
-export function cachedJson(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
-    },
-  });
-}
-
 export function parseAmount(v: string | number | null | undefined): number {
   if (v === undefined || v === null || v === "") return 0;
   const n =
