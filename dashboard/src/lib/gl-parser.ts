@@ -457,6 +457,57 @@ export function computeFeeReconciliation(fromDate?: string, toDate?: string) {
   };
 }
 
+/**
+ * Get individual GL transactions for a specific account and section.
+ * Used for drill-down detail views.
+ */
+export function getAccountTransactions(
+  section: Section,
+  accountPrefix: string,
+  fromDate?: string,
+  toDate?: string
+): { date: string; payee: string; entity: string; description: string; amount: number }[] {
+  const transactions = parseGL();
+  const fromSerial = fromDate ? dateToSerial(fromDate) : 0;
+  const toSerial = toDate ? dateToSerial(toDate) : 99999;
+
+  const results: { date: string; payee: string; entity: string; description: string; amount: number }[] = [];
+
+  for (const t of transactions) {
+    if (t.date > 0 && (t.date < fromSerial || t.date > toSerial)) continue;
+    if (classifyEntity(t.entity) !== section) continue;
+    if (!t.account.startsWith(accountPrefix)) continue;
+
+    const net = t.account.charAt(0) === "4" || t.account.charAt(0) === "5"
+      ? t.credit - t.debit
+      : t.debit - t.credit;
+    if (net === 0) continue;
+
+    // Convert Excel serial to ISO date string
+    const epoch = new Date("1899-12-30T00:00:00Z").getTime();
+    const dateMs = epoch + t.date * 86400000;
+    const d = new Date(dateMs);
+    const dateStr = t.date > 0
+      ? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`
+      : "";
+
+    results.push({
+      date: dateStr,
+      payee: t.payee,
+      entity: t.entity,
+      description: t.description,
+      amount: Math.round(net * 100) / 100,
+    });
+  }
+
+  results.sort((a, b) => {
+    if (a.date && b.date) return b.date.localeCompare(a.date);
+    return Math.abs(b.amount) - Math.abs(a.amount);
+  });
+
+  return results;
+}
+
 export function dateToSerial(isoDate: string): number {
   const d = new Date(isoDate + "T00:00:00Z");
   // Excel serial: days since 1899-12-30

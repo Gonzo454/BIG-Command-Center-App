@@ -78,7 +78,12 @@ export default function BigPnlPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    load();
+    const d = new Date();
+    const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const mtdTo = d.toISOString().split("T")[0];
+    setFrom(mtdFrom);
+    setTo(mtdTo);
+    load(mtdFrom, mtdTo, "mtd");
   }, [load]);
 
   function handleRangeChange(fromDate: string, toDate: string, period: string) {
