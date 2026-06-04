@@ -1,22 +1,11 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfYear, today } from "@/lib/appfolio";
-import { ENTITY_PROPERTY_IDS, ManagedEntity } from "@/lib/appfolio-entities";
-
-interface GLRow {
-  account_name?: string;
-  property_name?: string;
-  post_date?: string;
-  party_name?: string;
-  debit?: string;
-  credit?: string;
-  remarks?: string;
-  type?: string;
-}
+import { firstOfYear, today } from "@/lib/appfolio";
+import { parseGL, classifyEntity, dateToSerial, Section } from "@/lib/gl-parser";
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const account = params.get("account");
-  const entity = (params.get("entity") || "big") as ManagedEntity;
+  const entity = (params.get("entity") || "big") as Section;
   const from = params.get("from") || firstOfYear();
   const to = params.get("to") || today();
 
@@ -31,12 +20,9 @@ export async function GET(request: NextRequest) {
     // Strip trailing "-00" suffix to get the account prefix (e.g. "6304-0000-00" → "6304-0000")
     const prefix = account.replace(/-00$/, "");
 
-    const propertyId = ENTITY_PROPERTY_IDS[entity] || ENTITY_PROPERTY_IDS.big;
-    const rows = await fetchReport<GLRow>("general_ledger", {
-      from_date: from,
-      to_date: to,
-      properties: { properties_ids: [propertyId] },
-    });
+    const allTransactions = parseGL();
+    const fromSerial = dateToSerial(from);
+    const toSerial = dateToSerial(to);
 
     const transactions: {
       date: string;
@@ -46,43 +32,39 @@ export async function GET(request: NextRequest) {
       amount: number;
     }[] = [];
 
-    for (const r of rows) {
-      // Extract account number from "6304-0000-00 - Salaries & Wages"
-      const acctField = (r.account_name || "").trim();
-      const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
-      if (!acctMatch) continue;
+    for (const t of allTransactions) {
+      if (t.date > 0 && (t.date < fromSerial || t.date > toSerial)) continue;
+      if (classifyEntity(t.entity) !== entity) continue;
+      if (!t.account.startsWith(prefix)) continue;
 
-      let rowAccount = acctMatch[1];
-      if (rowAccount.endsWith("-00")) rowAccount = rowAccount.slice(0, -3);
-
-      if (!rowAccount.startsWith(prefix)) continue;
-
-      const debit = parseFloat(r.debit || "0") || 0;
-      const credit = parseFloat(r.credit || "0") || 0;
-
-      // Determine net amount using same sign logic as the summary
-      const acctPrefix = rowAccount.charAt(0);
+      const acctPrefix = t.account.charAt(0);
       let net: number;
       if (acctPrefix === "4" || acctPrefix === "5") {
-        if (rowAccount.startsWith("5875") || rowAccount.startsWith("5873")) {
-          net = debit - credit; // hotel labor/merchant = expense
-        } else if (rowAccount.startsWith("5756")) {
+        if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
+          net = t.debit - t.credit; // hotel labor/merchant = expense
+        } else if (t.account.startsWith("5756")) {
           continue; // gain on sale — skip
         } else {
-          net = credit - debit; // revenue
+          net = t.credit - t.debit; // revenue
         }
-      } else if (rowAccount.startsWith("6600") || rowAccount.startsWith("6650")) {
+      } else if (t.account.startsWith("6600") || t.account.startsWith("6650")) {
         continue; // depreciation/amortization — skip
       } else {
-        net = debit - credit; // expenses
+        net = t.debit - t.credit; // expenses
       }
       if (net === 0) continue;
 
+      // Convert Excel serial date to ISO string
+      const dateObj = new Date((t.date - 25569) * 86400000);
+      const isoDate = t.date > 0
+        ? `${dateObj.getUTCFullYear()}-${String(dateObj.getUTCMonth() + 1).padStart(2, "0")}-${String(dateObj.getUTCDate()).padStart(2, "0")}`
+        : "";
+
       transactions.push({
-        date: r.post_date || "",
-        vendor: r.party_name || "—",
-        property: r.property_name || "",
-        description: r.remarks || "",
+        date: isoDate,
+        vendor: t.payee || "—",
+        property: t.entity || "",
+        description: t.description || "",
         amount: net,
       });
     }
