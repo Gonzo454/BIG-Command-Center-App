@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { fetchReport, firstOfYear, today } from "@/lib/appfolio";
-import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
+import { ENTITY_PROPERTY_IDS, ManagedEntity } from "@/lib/appfolio-entities";
 
 interface GLRow {
   account_name?: string;
@@ -16,6 +16,7 @@ interface GLRow {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const account = params.get("account");
+  const entity = (params.get("entity") || "big") as ManagedEntity;
   const from = params.get("from") || firstOfYear();
   const to = params.get("to") || today();
 
@@ -30,10 +31,11 @@ export async function GET(request: NextRequest) {
     // Strip trailing "-00" suffix to get the account prefix (e.g. "6304-0000-00" → "6304-0000")
     const prefix = account.replace(/-00$/, "");
 
+    const propertyId = ENTITY_PROPERTY_IDS[entity] || ENTITY_PROPERTY_IDS.big;
     const rows = await fetchReport<GLRow>("general_ledger", {
       from_date: from,
       to_date: to,
-      properties: { properties_ids: [ENTITY_PROPERTY_IDS.big] },
+      properties: { properties_ids: [propertyId] },
     });
 
     const transactions: {

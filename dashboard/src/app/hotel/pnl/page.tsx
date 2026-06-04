@@ -152,7 +152,7 @@ function AccountPanel({
     setExpanded(accountNum);
     setExpandedAccountTotal(Math.abs(accountAmount));
     setDetailLoading(true);
-    const params = new URLSearchParams({ account: accountNum });
+    const params = new URLSearchParams({ account: accountNum, entity: "hotel" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     fetch(`/api/big-management/detail?${params.toString()}`)

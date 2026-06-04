@@ -356,7 +356,7 @@ export async function GET(request: NextRequest) {
         monthlyTrend: bigTrend,
       },
       hotel: {
-        roomRevenue: hotelRoomRevenue * hotelPct,
+        roomRevenue: hotelRoomRevenue,
         totalRevenue: Math.round(hotelPnL.income * hotelPct),
         gop: Math.round(hotelPnL.noi * hotelPct),
         netIncome: Math.round(hotelPnL.netIncome * hotelPct),
