@@ -73,3 +73,18 @@ export function parseAmount(v: string | number | null | undefined): number {
     typeof v === "string" ? parseFloat(v.replace(/[,$]/g, "")) : parseFloat(String(v));
   return isNaN(n) ? 0 : n;
 }
+
+/**
+ * Return a JSON Response with Vercel CDN edge caching headers.
+ * s-maxage=60: serve from edge cache for 60s
+ * stale-while-revalidate=300: serve stale for 5min while refreshing in background
+ */
+export function cachedJson(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
+    },
+  });
+}

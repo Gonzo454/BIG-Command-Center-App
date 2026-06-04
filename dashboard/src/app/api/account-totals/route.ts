@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, parseAmount, firstOfYear, today } from "@/lib/appfolio";
+import { fetchReport, parseAmount, firstOfYear, today, cachedJson } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return Response.json({ properties: result, ownershipView });
+    return cachedJson({ properties: result, ownershipView });
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : "Unknown error" },

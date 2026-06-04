@@ -47,19 +47,37 @@ const fmtShort = (n: number) =>
 
 const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 
+interface BigDashCache {
+  summary: Summary;
+  revenueAccounts: Account[];
+  expenseAccounts: Account[];
+}
+
 export default function BigDashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [revenueAccounts, setRevenueAccounts] = useState<Account[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [periodLabel, setPeriodLabel] = useState("MTD");
   const [dateFrom, setDateFrom] = useState<string | undefined>();
   const [dateTo, setDateTo] = useState<string | undefined>();
   const initialized = useRef(false);
+  const dataCache = useRef<Map<string, BigDashCache>>(new Map());
 
   const fetchData = useCallback(
     (from?: string, to?: string, period?: string) => {
-      setLoading(true);
+      const key = `${from || "default"}:${to || "default"}:${period || "mtd"}`;
+      const cached = dataCache.current.get(key);
+      if (cached) {
+        setSummary(cached.summary);
+        setRevenueAccounts(cached.revenueAccounts);
+        setExpenseAccounts(cached.expenseAccounts);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setDateFrom(from);
       setDateTo(to);
       const params = new URLSearchParams();
@@ -70,12 +88,18 @@ export default function BigDashboardPage() {
       fetch(`/api/big-management${qs}`)
         .then((r) => r.json())
         .then((d) => {
-          setSummary(d.summary || null);
-          setRevenueAccounts(d.revenueAccounts || []);
-          setExpenseAccounts(d.expenseAccounts || []);
+          const data: BigDashCache = {
+            summary: d.summary || null,
+            revenueAccounts: d.revenueAccounts || [],
+            expenseAccounts: d.expenseAccounts || [],
+          };
+          dataCache.current.set(key, data);
+          setSummary(data.summary);
+          setRevenueAccounts(data.revenueAccounts);
+          setExpenseAccounts(data.expenseAccounts);
         })
         .catch(console.error)
-        .finally(() => setLoading(false));
+        .finally(() => { setLoading(false); setRefreshing(false); });
     },
     []
   );
@@ -87,6 +111,14 @@ export default function BigDashboardPage() {
     const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const mtdTo = d.toISOString().split("T")[0];
     fetchData(mtdFrom, mtdTo, "mtd");
+    // Prefetch QTD and YTD
+    const q = Math.floor(d.getMonth() / 3) * 3;
+    const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+    const ytdFrom = `${d.getFullYear()}-01-01`;
+    setTimeout(() => {
+      fetchData(qtdFrom, mtdTo, "qtd");
+      fetchData(ytdFrom, mtdTo, "ytd");
+    }, 1000);
   }, [fetchData]);
 
   function handleRangeChange(from: string, to: string, period: string) {
@@ -141,6 +173,12 @@ export default function BigDashboardPage() {
         </div>
       </div>
 
+      {refreshing && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+          <div className="h-full bg-teal-500 animate-pulse w-full" />
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
       ) : !summary ? (
@@ -148,7 +186,7 @@ export default function BigDashboardPage() {
           No data available
         </div>
       ) : (
-        <>
+        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           {/* KPI Cards + Profitability Gauge */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <KpiCard
@@ -235,7 +273,7 @@ export default function BigDashboardPage() {
               </p>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

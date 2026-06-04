@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, parseAmount } from "@/lib/appfolio";
+import { fetchReport, parseAmount, cachedJson } from "@/lib/appfolio";
 
 interface CashFlowRow {
   account_name?: string;
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     const investingTotal = sections.investing.reduce((s, a) => s + a.amount, 0);
     const financingTotal = sections.financing.reduce((s, a) => s + a.amount, 0);
 
-    return Response.json({
+    return cachedJson({
       operating: {
         items: sections.operating.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)),
         total: operatingTotal,

@@ -39,18 +39,37 @@ const fmtK = (n: number) =>
   "$" +
   Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+interface HotelPnlData {
+  summary: Summary;
+  revenueAccounts: Account[];
+  expenseAccounts: Account[];
+}
+
 export default function HotelPnlPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [revenueAccounts, setRevenueAccounts] = useState<Account[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const initialized = useRef(false);
+  const dataCache = useRef<Map<string, HotelPnlData>>(new Map());
 
   const load = useCallback(
     (fromDate?: string, toDate?: string, period?: string) => {
-      setLoading(true);
+      const key = `${fromDate || "default"}:${toDate || "default"}:${period || "ytd"}`;
+      const cached = dataCache.current.get(key);
+      if (cached) {
+        setSummary(cached.summary);
+        setRevenueAccounts(cached.revenueAccounts);
+        setExpenseAccounts(cached.expenseAccounts);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const params = new URLSearchParams();
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
@@ -59,21 +78,52 @@ export default function HotelPnlPage() {
       fetch(`/api/hotel${qs}`)
         .then((r) => r.json())
         .then((d) => {
-          setSummary(d.summary || null);
-          setRevenueAccounts(d.revenueAccounts || []);
-          setExpenseAccounts(d.expenseAccounts || []);
+          const data: HotelPnlData = {
+            summary: d.summary || null,
+            revenueAccounts: d.revenueAccounts || [],
+            expenseAccounts: d.expenseAccounts || [],
+          };
+          dataCache.current.set(key, data);
+          setSummary(data.summary);
+          setRevenueAccounts(data.revenueAccounts);
+          setExpenseAccounts(data.expenseAccounts);
         })
         .catch(console.error)
-        .finally(() => setLoading(false));
+        .finally(() => { setLoading(false); setRefreshing(false); });
     },
     []
   );
+
+  const prefetch = useCallback((fromDate: string, toDate: string, period: string) => {
+    const key = `${fromDate}:${toDate}:${period}`;
+    if (dataCache.current.has(key)) return;
+    const params = new URLSearchParams({ from: fromDate, to: toDate, period });
+    fetch(`/api/hotel?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        dataCache.current.set(key, {
+          summary: d.summary || null,
+          revenueAccounts: d.revenueAccounts || [],
+          expenseAccounts: d.expenseAccounts || [],
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
     load();
-  }, [load]);
+    const d = new Date();
+    const todayStr = d.toISOString().split("T")[0];
+    const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const q = Math.floor(d.getMonth() / 3) * 3;
+    const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+    setTimeout(() => {
+      prefetch(mtdFrom, todayStr, "mtd");
+      prefetch(qtdFrom, todayStr, "qtd");
+    }, 1000);
+  }, [load, prefetch]);
 
   function handleRangeChange(fromDate: string, toDate: string, period: string) {
     setFrom(fromDate);
@@ -115,23 +165,29 @@ export default function HotelPnlPage() {
         </div>
       </div>
 
+      {refreshing && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+          <div className="h-full bg-teal-500 animate-pulse w-full" />
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
       ) : !summary ? (
         <div className="text-center py-20 text-gray-500">No data available</div>
       ) : (
-        <>
+        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <KpiCard label="Total Revenue" value={fmtK(totalRevenue)} color="text-green-600" />
             <KpiCard label="Total Expenses" value={fmtK(totalExpenses)} color="text-red-600" />
             <KpiCard label="Net Income" value={fmtK(netIncome)} color={netIncome >= 0 ? "text-green-600" : "text-red-600"} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <AccountPanel title="Revenue" accounts={revenueAccounts} total={totalRevenue} isExpense={false} from={from} to={to} />
             <AccountPanel title="Expenses" accounts={expenseAccounts} total={totalExpenses} isExpense from={from} to={to} />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

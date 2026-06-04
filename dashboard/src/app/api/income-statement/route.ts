@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfMonth, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfMonth, today, parseAmount, cachedJson } from "@/lib/appfolio";
 
 interface IncomeRow {
   account_name?: string;
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         posted_on_to: to,
       });
       const { totalIncome, totalExpenses, accounts } = extractTotals(rows, "year_to_date");
-      return Response.json({
+      return cachedJson({
         totalIncome,
         totalExpenses,
         netIncome: totalIncome - totalExpenses,
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         posted_on_to: to,
       });
       const { totalIncome, totalExpenses, accounts } = extractTotals(rows, "month_to_date");
-      return Response.json({
+      return cachedJson({
         totalIncome,
         totalExpenses,
         netIncome: totalIncome - totalExpenses,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
       }))
       .filter((a) => a.amount !== 0);
 
-    return Response.json({
+    return cachedJson({
       totalIncome,
       totalExpenses,
       netIncome: totalIncome - totalExpenses,

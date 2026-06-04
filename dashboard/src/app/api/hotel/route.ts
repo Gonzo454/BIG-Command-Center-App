@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfYear, firstOfMonth, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfYear, firstOfMonth, today, parseAmount, cachedJson } from "@/lib/appfolio";
 
 interface IncomeRow {
   account_name?: string;
@@ -118,7 +118,7 @@ function buildResponse(revenue: AccountEntry[], expenses: AccountEntry[], from: 
   const netIncome = totalRevenue - Math.abs(totalExpenses);
   const netIncomeLY = totalRevenueLY - Math.abs(totalExpensesLY);
 
-  return Response.json({
+  return cachedJson({
     revenueAccounts: revenue.filter((a) => a.amount !== 0 || a.lastYearAmount !== 0),
     expenseAccounts: expenses.filter((a) => a.amount !== 0 || a.lastYearAmount !== 0),
     summary: {

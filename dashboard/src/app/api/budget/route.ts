@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfMonth, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfMonth, today, parseAmount, cachedJson } from "@/lib/appfolio";
 
 interface BudgetRow {
   account_name?: string;
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         }))
         .filter((a) => a.actual !== 0 || a.budget !== 0);
 
-      return Response.json({ hasBudget: true, accounts, period: { from, to } });
+      return cachedJson({ hasBudget: true, accounts, period: { from, to } });
     }
 
     // Fallback: use income_statement for YoY comparison
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return Response.json({
+    return cachedJson({
       hasBudget: false,
       accounts,
       yoySummary: {

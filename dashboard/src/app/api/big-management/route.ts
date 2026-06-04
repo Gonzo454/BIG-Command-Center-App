@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfYear, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfYear, today, parseAmount, cachedJson } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 
 interface IncomeRow {
@@ -119,7 +119,7 @@ function buildResponse(extracted: ExtractedTotals, from: string, to: string, met
   const netIncomeLY = extracted.totalRevenueLY - extracted.totalExpensesLY;
   const otherRevenue = extracted.totalRevenue - extracted.mgmtFees - extracted.commissions;
 
-  return Response.json({
+  return cachedJson({
     summary: {
       totalRevenue: Math.round(extracted.totalRevenue * 100) / 100,
       totalRevenueLY: Math.round(extracted.totalRevenueLY * 100) / 100,

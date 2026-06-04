@@ -23,17 +23,35 @@ interface RentSummary {
   vacant: number;
 }
 
+interface DashboardCache {
+  properties: Property[];
+  pnl: PnlData;
+  rent: RentSummary | null;
+}
+
 export default function ExecutiveDashboard() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [pnl, setPnl] = useState<PnlData | null>(null);
   const [rent, setRent] = useState<RentSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [ownershipView, setOwnershipView] = useState(false);
   const initialized = useRef(false);
+  const dataCache = useRef<Map<string, DashboardCache>>(new Map());
 
   async function fetchData(from?: string, to?: string, period?: string) {
-    setLoading(true);
+    const key = `${from || "default"}:${to || "default"}:${period || "mtd"}`;
+    const cached = dataCache.current.get(key);
+    if (cached) {
+      setProperties(cached.properties);
+      setPnl(cached.pnl);
+      setRent(cached.rent);
+      setLoading(false);
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams();
       if (from) params.set("from", from);
@@ -50,13 +68,20 @@ export default function ExecutiveDashboard() {
       const pnlData = await pnlRes.json();
       const rentData = await rentRes.json();
 
-      setProperties(propData.properties || []);
-      setPnl(pnlData);
-      setRent(rentData.summary || null);
+      const data: DashboardCache = {
+        properties: propData.properties || [],
+        pnl: pnlData,
+        rent: rentData.summary || null,
+      };
+      dataCache.current.set(key, data);
+      setProperties(data.properties);
+      setPnl(data.pnl);
+      setRent(data.rent);
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -64,6 +89,16 @@ export default function ExecutiveDashboard() {
     if (!initialized.current) {
       initialized.current = true;
       fetchData();
+      // Prefetch QTD and YTD in background
+      const d = new Date();
+      const todayStr = d.toISOString().split("T")[0];
+      const q = Math.floor(d.getMonth() / 3) * 3;
+      const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+      const ytdFrom = `${d.getFullYear()}-01-01`;
+      setTimeout(() => {
+        fetchData(qtdFrom, todayStr, "qtd");
+        fetchData(ytdFrom, todayStr, "ytd");
+      }, 1500);
     }
   }, []);
 
@@ -167,10 +202,16 @@ export default function ExecutiveDashboard() {
         </div>
       </div>
 
+      {refreshing && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+          <div className="h-full bg-teal-500 animate-pulse w-full" />
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
       ) : (
-        <>
+        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <KpiCard
               label="Total Income"
@@ -226,7 +267,7 @@ export default function ExecutiveDashboard() {
               Period: {dateRange.from} → {dateRange.to}
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   );

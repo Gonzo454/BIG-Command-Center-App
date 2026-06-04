@@ -33,6 +33,12 @@ interface Summary {
   netIncomeChange: number;
 }
 
+interface PnlData {
+  summary: Summary;
+  revenueAccounts: Account[];
+  expenseAccounts: Account[];
+}
+
 const fmt = (n: number) =>
   "$" +
   Math.abs(n).toLocaleString(undefined, {
@@ -50,13 +56,28 @@ export default function BigPnlPage() {
   const [revenueAccounts, setRevenueAccounts] = useState<Account[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const initialized = useRef(false);
+  const dataCache = useRef<Map<string, PnlData>>(new Map());
 
   const load = useCallback(
-    (fromDate?: string, toDate?: string, period?: string) => {
-      setLoading(true);
+    (fromDate?: string, toDate?: string, period?: string, cacheKey?: string) => {
+      const key = cacheKey || `${fromDate || "default"}:${toDate || "default"}:${period || "ytd"}`;
+
+      // If we have cached data, show it instantly and refresh in background
+      const cached = dataCache.current.get(key);
+      if (cached) {
+        setSummary(cached.summary);
+        setRevenueAccounts(cached.revenueAccounts);
+        setExpenseAccounts(cached.expenseAccounts);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const params = new URLSearchParams();
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
@@ -65,21 +86,59 @@ export default function BigPnlPage() {
       fetch(`/api/big-management${qs}`)
         .then((r) => r.json())
         .then((d) => {
-          setSummary(d.summary || null);
-          setRevenueAccounts(d.revenueAccounts || []);
-          setExpenseAccounts(d.expenseAccounts || []);
+          const data: PnlData = {
+            summary: d.summary || null,
+            revenueAccounts: d.revenueAccounts || [],
+            expenseAccounts: d.expenseAccounts || [],
+          };
+          dataCache.current.set(key, data);
+          setSummary(data.summary);
+          setRevenueAccounts(data.revenueAccounts);
+          setExpenseAccounts(data.expenseAccounts);
         })
         .catch(console.error)
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          setRefreshing(false);
+        });
     },
     []
   );
 
+  // Background prefetch for other periods
+  const prefetch = useCallback((fromDate: string, toDate: string, period: string) => {
+    const key = `${fromDate}:${toDate}:${period}`;
+    if (dataCache.current.has(key)) return;
+    const params = new URLSearchParams({ from: fromDate, to: toDate, period });
+    fetch(`/api/big-management?${params.toString()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        dataCache.current.set(key, {
+          summary: d.summary || null,
+          revenueAccounts: d.revenueAccounts || [],
+          expenseAccounts: d.expenseAccounts || [],
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    load();
-  }, [load]);
+    load(undefined, undefined, "ytd", "default:default:ytd");
+
+    // Prefetch MTD and QTD in background after initial load
+    const d = new Date();
+    const todayStr = d.toISOString().split("T")[0];
+    const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const q = Math.floor(d.getMonth() / 3) * 3;
+    const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+
+    setTimeout(() => {
+      prefetch(mtdFrom, todayStr, "mtd");
+      prefetch(qtdFrom, todayStr, "qtd");
+    }, 1000);
+  }, [load, prefetch]);
 
   function handleRangeChange(fromDate: string, toDate: string, period: string) {
     setFrom(fromDate);
@@ -113,6 +172,13 @@ export default function BigPnlPage() {
         </p>
       </div>
 
+      {/* Refresh indicator bar */}
+      {refreshing && (
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+          <div className="h-full bg-teal-500 animate-pulse w-full" />
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         {allRows.length > 0 && (
           <ExportButtons
@@ -139,7 +205,7 @@ export default function BigPnlPage() {
       ) : !summary ? (
         <div className="text-center py-20 text-gray-500">No data available</div>
       ) : (
-        <>
+        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <KpiCard label="Total Revenue" value={fmtK(totalRevenue)} color="text-green-600" />
@@ -152,7 +218,7 @@ export default function BigPnlPage() {
           </div>
 
           {/* Two-column layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <AccountPanel
               title="Income"
               accounts={revenueAccounts}
@@ -170,7 +236,7 @@ export default function BigPnlPage() {
               to={to}
             />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

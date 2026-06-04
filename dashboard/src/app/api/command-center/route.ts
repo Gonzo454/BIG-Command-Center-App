@@ -1,4 +1,4 @@
-import { fetchReport, firstOfYear, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfYear, today, parseAmount, cachedJson } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS, classifyEntityByName } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 import { NextRequest } from "next/server";
@@ -338,7 +338,7 @@ export async function GET(request: NextRequest) {
     const jrwPropertyCount = 17;
     const bigManagedCount = 14;
 
-    return Response.json({
+    return cachedJson({
       jrw: {
         noi: Math.round(jrwNoi),
         netIncome: Math.round(jrwNetIncome),
