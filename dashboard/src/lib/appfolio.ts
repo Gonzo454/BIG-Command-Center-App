@@ -67,6 +67,26 @@ export async function fetchReport<T = Record<string, unknown>>(
   return rows as T[];
 }
 
+export function firstOfQuarter(): string {
+  const d = centralNow();
+  const q = Math.floor(d.getMonth() / 3) * 3;
+  return `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+}
+
+export function centralNowExported(): Date {
+  return centralNow();
+}
+
+export function cachedJson(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
+    },
+  });
+}
+
 export function parseAmount(v: string | number | null | undefined): number {
   if (v === undefined || v === null || v === "") return 0;
   const n =

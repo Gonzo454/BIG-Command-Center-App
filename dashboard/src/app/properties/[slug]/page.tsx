@@ -30,6 +30,26 @@ interface PropertyPnl {
   accounts: Account[];
 }
 
+interface KPIProperty {
+  name: string;
+  revenue: number;
+  expenses: number;
+  noi: number;
+  noiMargin: number;
+  netAfterDebt: number;
+  totalUnits: number;
+  occupied: number;
+  vacant: number;
+  occupancyRate: number;
+  vacancyLoss: number;
+  laborPercent: number;
+  laborTotal: number;
+  debtService: number;
+  dscr: number;
+  oer: number;
+  status: "Strong" | "Watch" | "Concern";
+}
+
 const fmt = (n: number) =>
   "$" +
   Math.abs(n).toLocaleString(undefined, {
@@ -47,6 +67,7 @@ export default function PropertyDetailPage() {
     slug = rawSlug;
   }
   const [data, setData] = useState<PropertyPnl | null>(null);
+  const [kpi, setKpi] = useState<KPIProperty | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
@@ -82,6 +103,16 @@ export default function PropertyDetailPage() {
     if (!initialized.current) {
       initialized.current = true;
       fetchData();
+      fetch("/api/kpi-dashboard")
+        .then((r) => r.json())
+        .then((d) => {
+          const match = (d.properties || []).find(
+            (c: KPIProperty & { slug: string }) =>
+              c.name === slug || c.slug === slug.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+          );
+          if (match) setKpi(match);
+        })
+        .catch(console.error);
     }
   }, []);
 
@@ -111,12 +142,24 @@ export default function PropertyDetailPage() {
               ← Properties
             </Link>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {slug}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {slug}
+            </h1>
+            {kpi && (
+              <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${kpi.status === "Strong" ? "bg-emerald-100 text-emerald-800" : kpi.status === "Watch" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+                {kpi.status}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-1">
-            Property Income Statement
+            Financial Dashboard
           </p>
+          {kpi && (
+            <p className="text-sm text-gray-400 mt-0.5">
+              Est. {kpi.occupancyRate}% Occupancy &middot; {kpi.occupied}/{kpi.totalUnits} units
+            </p>
+          )}
         </div>
         <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
           <button
@@ -179,30 +222,53 @@ export default function PropertyDetailPage() {
         <div className="text-center py-20 text-red-500">{error}</div>
       ) : data ? (
         <>
-          {/* KPI + Gauge */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiCard
-              label="Total Income"
+              label="Total Revenue"
               value={data.totalIncome}
-              color="text-green-600"
+              color="text-gray-900 dark:text-white"
             />
+            <KpiCard
+              label="NOI"
+              value={data.netIncome}
+              color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
+            />
+            {kpi ? (
+              <KpiCard
+                label="Net After Debt Svc"
+                value={kpi.netAfterDebt}
+                color={kpi.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}
+              />
+            ) : (
+              <KpiCard
+                label="Net Income"
+                value={data.netIncome}
+                color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
+              />
+            )}
             <KpiCard
               label="Total Expenses"
               value={data.totalExpenses}
               color="text-red-600"
             />
-            <KpiCard
-              label="Net Income"
-              value={data.netIncome}
-              color={data.netIncome >= 0 ? "text-green-600" : "text-red-600"}
-            />
-            <div className="flex items-center justify-center">
-              <ProfitGauge
-                name="Profitability"
-                netIncome={data.netIncome}
-                maxAbsolute={Math.max(data.totalIncome, data.totalExpenses, 1)}
-              />
+          </div>
+
+          {/* Financial Health Metrics */}
+          {kpi && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <MiniMetric label="NOI Margin" value={`${kpi.noiMargin}%`} target="25–35%" good={kpi.noiMargin >= 25} />
+              <MiniMetric label="DSCR" value={kpi.dscr > 0 ? `${kpi.dscr}x` : "—"} target="≥1.25x" good={kpi.dscr >= 1.25 || kpi.dscr === 0} />
+              <MiniMetric label="OER" value={`${kpi.oer}%`} target="65–70%" good={kpi.oer <= 70} />
+              <MiniMetric label="Labor %" value={`${kpi.laborPercent}%`} target="45–50%" good={kpi.laborPercent <= 50} />
+              <MiniMetric label="Vacancy Loss" value={`$${Math.abs(kpi.vacancyLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} target="Minimize" good={kpi.vacancyLoss < 50000} />
             </div>
+          )}
+
+          {/* Revenue & Expense Breakdown Bars */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <BreakdownPanel title="Revenue Breakdown" accounts={incomeAccounts} total={data.totalIncome} color="emerald" />
+            <BreakdownPanel title="Expense Breakdown" accounts={expenseAccounts} total={data.totalExpenses} color="red" />
           </div>
 
           {/* Income / Expense Tables */}
@@ -403,6 +469,52 @@ function KpiCard({
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
         ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </p>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value, target, good }: { label: string; value: string; target: string; good: boolean }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+      <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className={`text-lg font-bold mt-0.5 ${good ? "text-emerald-600" : "text-amber-600"}`}>{value}</p>
+      <p className="text-[10px] text-gray-400">Target: {target}</p>
+    </div>
+  );
+}
+
+function BreakdownPanel({ title, accounts, total, color }: { title: string; accounts: Account[]; total: number; color: "emerald" | "red" }) {
+  const sorted = accounts.slice().sort((a, b) => b.amount - a.amount).slice(0, 8);
+  const barColor = color === "emerald" ? "bg-emerald-500" : "bg-red-400";
+  const totalColor = color === "emerald" ? "text-emerald-600" : "text-red-600";
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <span className={`font-mono text-sm font-bold ${totalColor}`}>
+          ${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </span>
+      </div>
+      <div className="p-4">
+        {sorted.map((a) => {
+          const pct = total > 0 ? (a.amount / total) * 100 : 0;
+          return (
+            <div key={a.number} className="mb-3">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-700 dark:text-gray-300 truncate mr-2">{a.name}</span>
+                <span className="font-mono text-gray-600 whitespace-nowrap">
+                  ${Math.abs(a.amount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  <span className="text-gray-400 text-xs ml-1">({pct.toFixed(0)}%)</span>
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className={`h-full ${barColor} rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
