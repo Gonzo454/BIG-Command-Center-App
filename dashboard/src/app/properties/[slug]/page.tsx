@@ -32,6 +32,11 @@ interface PropertyPnl {
 
 interface KPIProperty {
   name: string;
+  slug: string;
+  assetClass: string;
+  assetClassLabel: string;
+  managedOnly: boolean;
+  ownershipPct: number;
   revenue: number;
   expenses: number;
   noi: number;
@@ -41,13 +46,25 @@ interface KPIProperty {
   occupied: number;
   vacant: number;
   occupancyRate: number;
+  totalSqft: number;
+  occupiedSqft: number;
   vacancyLoss: number;
-  laborPercent: number;
-  laborTotal: number;
   debtService: number;
   dscr: number;
   oer: number;
+  walt: number | null;
+  leaseExposure12mo: number;
+  rentPerSf: number | null;
+  collectionRate: number;
+  delinquent: number;
   status: "Strong" | "Watch" | "Concern";
+  targets: {
+    oer: string;
+    noiMargin: string;
+    dscrMin: number;
+    waltYears: number | null;
+    occupancy: number;
+  };
 }
 
 const fmt = (n: number) =>
@@ -156,9 +173,12 @@ export default function PropertyDetailPage() {
             Financial Dashboard
           </p>
           {kpi && (
-            <p className="text-sm text-gray-400 mt-0.5">
-              Est. {kpi.occupancyRate}% Occupancy &middot; {kpi.occupied}/{kpi.totalUnits} units
-            </p>
+            <>
+              <p className="text-xs text-gray-400 mt-1">
+                <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-2">{kpi.assetClassLabel}</span>
+                {kpi.occupancyRate}% Occupancy &middot; {kpi.totalSqft > 0 ? `${kpi.occupiedSqft.toLocaleString()} / ${kpi.totalSqft.toLocaleString()} SF` : `${kpi.occupied}/${kpi.totalUnits} units`}
+              </p>
+            </>
           )}
         </div>
         <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
@@ -254,13 +274,23 @@ export default function PropertyDetailPage() {
             />
           </div>
 
-          {/* Financial Health Metrics */}
+          {/* Financial Health Metrics — CRE per asset class */}
           {kpi && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <MiniMetric label="NOI Margin" value={`${kpi.noiMargin}%`} target="25–35%" good={kpi.noiMargin >= 25} />
-              <MiniMetric label="DSCR" value={kpi.dscr > 0 ? `${kpi.dscr}x` : "—"} target="≥1.25x" good={kpi.dscr >= 1.25 || kpi.dscr === 0} />
-              <MiniMetric label="OER" value={`${kpi.oer}%`} target="65–70%" good={kpi.oer <= 70} />
-              <MiniMetric label="Labor %" value={`${kpi.laborPercent}%`} target="45–50%" good={kpi.laborPercent <= 50} />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <MiniMetric label="NOI Margin" value={`${kpi.noiMargin}%`} target={kpi.targets.noiMargin} good={kpi.noiMargin >= parseFloat(kpi.targets.noiMargin)} />
+              <MiniMetric label="DSCR" value={kpi.dscr > 0 ? `${kpi.dscr}x` : "—"} target={`≥${kpi.targets.dscrMin}x`} good={kpi.dscr >= kpi.targets.dscrMin || kpi.dscr === 0} />
+              <MiniMetric label="OER" value={`${kpi.oer}%`} target={kpi.targets.oer} good={kpi.oer <= parseFloat(kpi.targets.oer.split("–")[1])} />
+              <MiniMetric label="Occupancy" value={`${kpi.occupancyRate}%`} target={`≥${kpi.targets.occupancy}%`} good={kpi.occupancyRate >= kpi.targets.occupancy} />
+              {kpi.walt !== null && (
+                <MiniMetric label="WALT" value={`${kpi.walt} yrs`} target={kpi.targets.waltYears ? `≥${kpi.targets.waltYears} yrs` : "—"} good={!kpi.targets.waltYears || kpi.walt >= kpi.targets.waltYears} />
+              )}
+              <MiniMetric label="Collection" value={`${kpi.collectionRate}%`} target="≥95%" good={kpi.collectionRate >= 95} />
+              {kpi.leaseExposure12mo > 0 && (
+                <MiniMetric label="Lease Exp. 12mo" value={`${kpi.leaseExposure12mo}%`} target="<25%" good={kpi.leaseExposure12mo < 25} />
+              )}
+              {kpi.rentPerSf !== null && (
+                <MiniMetric label="Rent/SF" value={`$${kpi.rentPerSf.toFixed(2)}`} target="In-place" good={true} />
+              )}
               <MiniMetric label="Vacancy Loss" value={`$${Math.abs(kpi.vacancyLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} target="Minimize" good={kpi.vacancyLoss < 50000} />
             </div>
           )}
