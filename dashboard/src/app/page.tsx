@@ -264,7 +264,7 @@ export default function CommandCenterPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer h-full">
             <div className="flex items-center justify-between mb-3">
               <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center">
-                <span className="text-lg">🏘️</span>
+                <img src="/badger-realty-logo.png" alt="" className="w-7 h-7 object-contain" />
               </div>
               <span className="text-gray-400 group-hover:text-teal-600 transition-colors">→</span>
             </div>
