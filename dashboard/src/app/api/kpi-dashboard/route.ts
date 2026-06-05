@@ -7,6 +7,7 @@ interface RentRollRow {
   property_name?: string;
   market_rent?: string;
   charge_amount?: string;
+  rent?: string;
 }
 
 interface AccountTotalsRow {
@@ -173,6 +174,22 @@ export async function GET() {
     injectEntity(hotelIS, hotelISPrev, "Badger Hotel Group");
 
     // Build occupancy per property from rent roll
+    // First pass: compute average occupied rent per property (fallback for vacant
+    // units whose market_rent is null in AppFolio)
+    const occupiedRents = new Map<string, number[]>();
+    for (const r of rentRows) {
+      const prop = (r.property_name || "").trim();
+      if (!prop) continue;
+      const s = (r.status || "").toLowerCase();
+      if (s.includes("current") || s.includes("occupied") || s.includes("notice")) {
+        const rent = parseAmount(r.market_rent) || parseAmount(r.rent);
+        if (rent > 0) {
+          if (!occupiedRents.has(prop)) occupiedRents.set(prop, []);
+          occupiedRents.get(prop)!.push(rent);
+        }
+      }
+    }
+
     const rentByProperty = new Map<string, {
       total: number;
       occupied: number;
@@ -191,7 +208,13 @@ export async function GET() {
       if (s.includes("current") || s.includes("occupied") || s.includes("notice")) {
         entry.occupied++;
       } else {
-        const rent = parseAmount(r.market_rent) || parseAmount(r.charge_amount);
+        let rent = parseAmount(r.market_rent) || parseAmount(r.charge_amount);
+        if (!rent) {
+          const rents = occupiedRents.get(prop);
+          if (rents && rents.length > 0) {
+            rent = rents.reduce((a, b) => a + b, 0) / rents.length;
+          }
+        }
         entry.vacancyLoss += rent;
       }
     }
