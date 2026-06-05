@@ -261,6 +261,28 @@ export default function CommandCenterPage() {
         )}
       </div>
 
+      {/* Station 955 Loan Card */}
+      <Link href="/loans/station-955" className="block group">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                <span className="text-sm">📝</span>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                  Note Receivable — Station 955
+                </p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  $1.3M @ 10% · Interest accruing · Payments start Aug 2027
+                </p>
+              </div>
+            </div>
+            <span className="text-gray-400 group-hover:text-blue-600 transition-colors">→</span>
+          </div>
+        </div>
+      </Link>
+
       {/* Needs Attention Strip */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
         <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3 flex items-center gap-2">
