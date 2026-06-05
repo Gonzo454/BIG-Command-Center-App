@@ -50,9 +50,9 @@ export const OWNERSHIP: Record<string, OwnershipEntry> = {
     pfsName: "Germantown Land (SOLD)",
   },
   "Greywolf Industrial II, LLC CIC Industrial": {
-    joePct: 0.6287,
+    joePct: 0.63,
     gstPct: 0.0,
-    combined: 0.6287,
+    combined: 0.63,
     pfsName: "Madison CIC 2",
   },
   "HC1 Acquisitions Honey Creek I": {
@@ -62,17 +62,17 @@ export const OWNERSHIP: Record<string, OwnershipEntry> = {
     pfsName: "Honey Creek I (0% per Joe)",
   },
   "Honey Badger, LLC Honey Creek II": {
-    joePct: 0.0398,
-    gstPct: 0.478,
-    combined: 0.5178,
+    joePct: 0.04,
+    gstPct: 0.48,
+    combined: 0.52,
     pfsName: "Honey Creek II",
   },
   // Honey Creek III — back to bank, 0% ownership
   // Entity name TBD if it appears in AppFolio
   "Honey Creek IV, LLC": {
-    joePct: 0.0079,
-    gstPct: 0.7425,
-    combined: 0.7504,
+    joePct: 0.01,
+    gstPct: 0.74,
+    combined: 0.75,
     pfsName: "Honey Creek IV",
   },
 
@@ -94,9 +94,9 @@ export const OWNERSHIP: Record<string, OwnershipEntry> = {
 
   // Badger Hotel
   "Badger Hotel Group": {
-    joePct: 0.64637,
+    joePct: 0.65,
     gstPct: 0.0,
-    combined: 0.64637,
+    combined: 0.65,
     pfsName: "Comfort Suites",
   },
 
