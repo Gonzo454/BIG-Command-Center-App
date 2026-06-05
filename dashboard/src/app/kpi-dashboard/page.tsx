@@ -6,6 +6,9 @@ import Link from "next/link";
 interface PropertyKPI {
   name: string;
   slug: string;
+  assetClass: string;
+  assetClassLabel: string;
+  managedOnly: boolean;
   ownershipPct: number;
   revenue: number;
   expenses: number;
@@ -16,13 +19,25 @@ interface PropertyKPI {
   occupied: number;
   vacant: number;
   occupancyRate: number;
+  totalSqft: number;
+  occupiedSqft: number;
   vacancyLoss: number;
-  laborPercent: number;
-  laborTotal: number;
   debtService: number;
   dscr: number;
   oer: number;
+  walt: number | null;
+  leaseExposure12mo: number;
+  rentPerSf: number | null;
+  collectionRate: number;
+  delinquent: number;
   status: "Strong" | "Watch" | "Concern";
+  targets: {
+    oer: string;
+    noiMargin: string;
+    dscrMin: number;
+    waltYears: number | null;
+    occupancy: number;
+  };
 }
 
 interface PortfolioKPI {
@@ -30,12 +45,18 @@ interface PortfolioKPI {
   noi: number;
   noiMargin: number;
   occupancyRate: number;
+  occupancySf: number;
   totalUnits: number;
   occupied: number;
   vacant: number;
+  totalSqft: number;
+  occupiedSqft: number;
   vacancyLoss: number;
-  laborPercent: number;
   oer: number;
+  dscr: number;
+  debtService: number;
+  walt: number | null;
+  delinquent: number;
   propertyCount: number;
   concernCount: number;
   watchCount: number;
@@ -64,7 +85,6 @@ const statusColor = (s: string) => {
 };
 
 function propertyHref(name: string): string {
-  if (name === "Blackdeer Investment Group") return "/big/dashboard";
   if (name === "Badger Hotel Group") return "/hotel/dashboard";
   return `/properties/${encodeURIComponent(name)}`;
 }
@@ -94,22 +114,42 @@ export default function KPIDashboardPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">KPI Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">
-          {p.propertyCount} Properties &middot; {data.period.label} {data.period.from} &ndash; {data.period.to} &middot; Operating Metrics
+          {p.propertyCount} Properties &middot; {data.period.label} {data.period.from} &ndash; {data.period.to} &middot; CRE Operating Metrics
         </p>
       </div>
 
-      {/* Top-level KPI Cards */}
+      {/* Top-level Financial KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Portfolio Revenue" value={fmtM(p.revenue)} />
+        <MetricCard label="Portfolio Revenue (EGI)" value={fmtM(p.revenue)} />
         <MetricCard label="Portfolio NOI" value={fmtM(p.noi)} sub={`${p.noiMargin}% margin`} />
-        <MetricCard label="Occupancy" value={`${p.occupancyRate}%`} sub={`${p.occupied} of ${p.totalUnits} units`} />
-        <MetricCard label="Vacancy Loss" value={fmtM(p.vacancyLoss)} sub={`${p.vacant} vacant units`} color="text-red-600" />
+        <MetricCard
+          label="Portfolio DSCR"
+          value={p.dscr > 0 ? `${p.dscr}x` : "—"}
+          sub={p.dscr > 0 ? (p.dscr >= 1.25 ? "Healthy" : p.dscr >= 1.0 ? "Tight" : "Below 1.0x") : "No debt data"}
+          color={p.dscr >= 1.25 ? "text-emerald-600" : p.dscr >= 1.0 ? "text-amber-600" : p.dscr > 0 ? "text-red-600" : undefined}
+        />
+        <MetricCard
+          label="Avg OER"
+          value={`${p.oer}%`}
+          sub="Target: 35–50% (blended)"
+          color={p.oer <= 50 ? "text-emerald-600" : p.oer <= 60 ? "text-amber-600" : "text-red-600"}
+        />
       </div>
 
       {/* Secondary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Labor % Revenue" value={`${p.laborPercent}%`} sub="Target: 45–50%" />
-        <MetricCard label="Avg OER" value={`${p.oer}%`} sub="Target: 65–70%" />
+        <MetricCard label="Occupancy" value={`${p.occupancyRate}%`} sub={`${p.occupied} of ${p.totalUnits} units`} />
+        <MetricCard label="Vacancy Loss" value={fmtM(p.vacancyLoss)} sub={`${p.vacant} vacant units`} color={p.vacancyLoss > 0 ? "text-red-600" : undefined} />
+        <MetricCard label="WALT" value={p.walt ? `${p.walt} yrs` : "—"} sub="Weighted Avg Lease Term" />
+        <MetricCard
+          label="AR Delinquent (>30d)"
+          value={p.delinquent > 0 ? fmtM(p.delinquent) : "$0"}
+          color={p.delinquent > 0 ? "text-red-600" : "text-emerald-600"}
+        />
+      </div>
+
+      {/* Status Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard label="Properties — Concern" value={String(p.concernCount)} sub={`of ${p.propertyCount}`} color={p.concernCount > 0 ? "text-red-600" : "text-emerald-600"} />
         <MetricCard label="Properties — Watch" value={String(p.watchCount)} sub={`of ${p.propertyCount}`} color={p.watchCount > 0 ? "text-amber-600" : "text-emerald-600"} />
       </div>
@@ -122,15 +162,16 @@ export default function KPIDashboardPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700 text-xs uppercase">
+            <thead className="bg-blue-50 dark:bg-gray-700 text-xs uppercase">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Revenue</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">NOI</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">NOI Margin</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Net After Debt</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Vacancy Loss</th>
+                <th className="text-left px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Property</th>
+                <th className="text-center px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Type</th>
+                <th className="text-center px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Status</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Revenue</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">NOI</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">DSCR</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">OER</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Net After Debt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -140,8 +181,12 @@ export default function KPIDashboardPage() {
                     <Link href={propertyHref(c.name)} className="text-[#E07B2A] hover:underline font-medium">
                       {c.name}
                     </Link>
-                    <span className="text-xs text-gray-400 ml-2">{Math.round(c.ownershipPct * 100)}% owned</span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      {Math.round(c.ownershipPct * 100)}% owned
+                      {c.managedOnly && <span className="ml-1 text-blue-400">(managed-only)</span>}
+                    </span>
                   </td>
+                  <td className="px-3 py-3 text-center text-xs text-gray-500">{c.assetClassLabel}</td>
                   <td className="px-3 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${statusColor(c.status)}`}>
                       {c.status}
@@ -151,11 +196,16 @@ export default function KPIDashboardPage() {
                   <td className={`px-3 py-3 text-right font-mono ${c.noi >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                     {fmtK(c.noi)}
                   </td>
-                  <td className="px-3 py-3 text-right font-mono">{c.noiMargin}%</td>
+                  <td className={`px-3 py-3 text-right font-mono font-semibold ${c.dscr === 0 ? "text-gray-400" : c.dscr >= 1.25 ? "text-emerald-600" : c.dscr >= 1.0 ? "text-amber-600" : "text-red-600"}`}>
+                    {c.dscr > 0 ? `${c.dscr}x` : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono">
+                    <span>{c.oer}%</span>
+                    <span className="text-xs text-gray-400 ml-1">({c.targets.oer})</span>
+                  </td>
                   <td className={`px-3 py-3 text-right font-mono ${c.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                     {fmtK(c.netAfterDebt)}
                   </td>
-                  <td className="px-3 py-3 text-right font-mono text-red-600">{fmtK(c.vacancyLoss)}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,73 +213,78 @@ export default function KPIDashboardPage() {
         </div>
       </div>
 
-      {/* Occupancy Table */}
+      {/* Leasing & Occupancy Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="font-semibold text-gray-900 dark:text-white">Occupancy &amp; Census KPIs</h2>
-          <p className="text-xs text-gray-500 mt-0.5">From current rent roll &middot; Target: 90%+</p>
+          <h2 className="font-semibold text-gray-900 dark:text-white">Leasing &amp; Occupancy</h2>
+          <p className="text-xs text-gray-500 mt-0.5">From current rent roll &middot; WALT = weighted average lease term by rent</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700 text-xs uppercase">
+            <thead className="bg-blue-50 dark:bg-gray-700 text-xs uppercase">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Occupancy</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Units</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Vacant</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Vacancy Loss</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">RevPOU</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">RevPAU</th>
+                <th className="text-left px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Property</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Occupancy</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">SF</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Vacant</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Vacancy Loss</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Rent/SF</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">WALT</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Lease Exp. 12mo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {properties.filter((c) => c.totalUnits > 0).map((c) => {
-                const months = data.period.monthsElapsed || 1;
-                const revpou = c.occupied > 0 ? Math.round(c.revenue / c.occupied / months) : 0;
-                const revpau = c.totalUnits > 0 ? Math.round(c.revenue / c.totalUnits / months) : 0;
-                return (
-                  <tr key={c.slug} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                    <td className="px-4 py-3">
-                      <Link href={propertyHref(c.name)} className="text-[#E07B2A] hover:underline font-medium">
-                        {c.name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className={`font-mono font-semibold ${c.occupancyRate >= 90 ? "text-emerald-600" : c.occupancyRate >= 80 ? "text-amber-600" : "text-red-600"}`}>
-                        {c.occupancyRate}%
-                      </span>
-                      <span className="text-xs text-gray-400 ml-1">({c.occupied}/{c.totalUnits})</span>
-                    </td>
-                    <td className="px-3 py-3 text-right font-mono">{c.totalUnits}</td>
-                    <td className="px-3 py-3 text-right font-mono text-red-600">{c.vacant}</td>
-                    <td className="px-3 py-3 text-right font-mono text-red-600">{fmtK(c.vacancyLoss)}</td>
-                    <td className="px-3 py-3 text-right font-mono">{fmtK(revpou)}</td>
-                    <td className="px-3 py-3 text-right font-mono">{fmtK(revpau)}</td>
-                  </tr>
-                );
-              })}
+              {properties.filter((c) => c.totalUnits > 0).map((c) => (
+                <tr key={c.slug} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                  <td className="px-4 py-3">
+                    <Link href={propertyHref(c.name)} className="text-[#E07B2A] hover:underline font-medium">
+                      {c.name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <span className={`font-mono font-semibold ${c.occupancyRate >= c.targets.occupancy ? "text-emerald-600" : c.occupancyRate >= c.targets.occupancy - 10 ? "text-amber-600" : "text-red-600"}`}>
+                      {c.occupancyRate}%
+                    </span>
+                    <span className="text-xs text-gray-400 ml-1">({c.occupied}/{c.totalUnits})</span>
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono text-xs">
+                    {c.totalSqft > 0 ? `${c.totalSqft.toLocaleString()} sf` : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono text-red-600">{c.vacant}</td>
+                  <td className="px-3 py-3 text-right font-mono text-red-600">{fmtK(c.vacancyLoss)}</td>
+                  <td className="px-3 py-3 text-right font-mono">
+                    {c.rentPerSf ? `$${c.rentPerSf.toFixed(2)}` : "—"}
+                  </td>
+                  <td className={`px-3 py-3 text-right font-mono ${c.walt !== null && c.targets.waltYears !== null ? (c.walt >= c.targets.waltYears ? "text-emerald-600" : c.walt >= c.targets.waltYears * 0.6 ? "text-amber-600" : "text-red-600") : ""}`}>
+                    {c.walt !== null ? `${c.walt} yr` : "—"}
+                  </td>
+                  <td className={`px-3 py-3 text-right font-mono ${c.leaseExposure12mo > 25 ? "text-red-600 font-semibold" : c.leaseExposure12mo > 15 ? "text-amber-600" : ""}`}>
+                    {c.leaseExposure12mo}%
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Labor & Financial Health */}
+      {/* Financial Health & Collections */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="font-semibold text-gray-900 dark:text-white">Financial Health &amp; Labor KPIs</h2>
-          <p className="text-xs text-gray-500 mt-0.5">DSCR = NOI &divide; Debt Service &middot; OER = Expenses &divide; Revenue &middot; Labor target: 45–50%</p>
+          <h2 className="font-semibold text-gray-900 dark:text-white">Financial Health &amp; Collections</h2>
+          <p className="text-xs text-gray-500 mt-0.5">DSCR = NOI &divide; Debt Service &middot; OER targets vary by asset class &middot; Collection target: 95%+</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700 text-xs uppercase">
+            <thead className="bg-blue-50 dark:bg-gray-700 text-xs uppercase">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Property</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">DSCR</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">OER</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Labor %</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Total Labor</th>
-                <th className="text-right px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Debt Svc</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                <th className="text-left px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Property</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">DSCR</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">OER</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Debt Svc</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Collection</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Delinquent</th>
+                <th className="text-center px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -242,15 +297,19 @@ export default function KPIDashboardPage() {
                   </td>
                   <td className={`px-3 py-3 text-right font-mono font-semibold ${c.dscr === 0 ? "text-gray-400" : c.dscr >= 1.25 ? "text-emerald-600" : c.dscr >= 1.0 ? "text-amber-600" : "text-red-600"}`}>
                     {c.dscr > 0 ? `${c.dscr}x` : "—"}
+                    {c.dscr > 0 && <span className="text-xs text-gray-400 ml-1">(min {c.targets.dscrMin}x)</span>}
                   </td>
-                  <td className={`px-3 py-3 text-right font-mono ${c.oer <= 70 ? "text-emerald-600" : c.oer <= 80 ? "text-amber-600" : "text-red-600"}`}>
-                    {c.oer}%
+                  <td className="px-3 py-3 text-right font-mono">
+                    <span>{c.oer}%</span>
+                    <span className="text-xs text-gray-400 ml-1">({c.targets.oer})</span>
                   </td>
-                  <td className={`px-3 py-3 text-right font-mono ${c.laborPercent <= 50 ? "text-emerald-600" : c.laborPercent <= 55 ? "text-amber-600" : "text-red-600"}`}>
-                    {c.laborPercent}%
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono">{fmtK(c.laborTotal)}</td>
                   <td className="px-3 py-3 text-right font-mono">{c.debtService > 0 ? fmtK(c.debtService) : "—"}</td>
+                  <td className={`px-3 py-3 text-right font-mono ${c.collectionRate >= 95 ? "text-emerald-600" : c.collectionRate >= 90 ? "text-amber-600" : "text-red-600"}`}>
+                    {c.collectionRate}%
+                  </td>
+                  <td className={`px-3 py-3 text-right font-mono ${c.delinquent > 0 ? "text-red-600" : ""}`}>
+                    {c.delinquent > 0 ? fmtK(c.delinquent) : "$0"}
+                  </td>
                   <td className="px-3 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${statusColor(c.status)}`}>
                       {c.status}

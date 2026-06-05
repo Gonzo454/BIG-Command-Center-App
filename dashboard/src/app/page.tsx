@@ -173,7 +173,7 @@ export default function CommandCenterPage() {
       </div>
 
       {/* Business Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* JRW Portfolio */}
         <Link href="/jrw/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
@@ -259,7 +259,53 @@ export default function CommandCenterPage() {
             </div>
           </Link>
         )}
+        {/* Badger Realty */}
+        <Link href="/badger-realty" className="block group">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center">
+                <span className="text-lg">🏘️</span>
+              </div>
+              <span className="text-gray-400 group-hover:text-teal-600 transition-colors">→</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              Badger Realty
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              Brokerage
+            </p>
+            <p className="text-xs text-gray-400 mb-2">
+              Real estate &amp; market intelligence
+            </p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>CoStar access</span>
+              <span>Market comps</span>
+            </div>
+          </div>
+        </Link>
       </div>
+
+      {/* Station 955 Loan Card */}
+      <Link href="/loans/station-955" className="block group">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                <span className="text-sm">📝</span>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                  Note Receivable — Station 955
+                </p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  $1.3M @ 10% · Interest accruing · Payments start Aug 2027
+                </p>
+              </div>
+            </div>
+            <span className="text-gray-400 group-hover:text-blue-600 transition-colors">→</span>
+          </div>
+        </div>
+      </Link>
 
       {/* Needs Attention Strip */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
