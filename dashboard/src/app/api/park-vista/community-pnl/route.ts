@@ -77,26 +77,32 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "community parameter required" }, { status: 400 });
   }
 
-  const resolved = getPvCommunityBySlug(communityParam);
-  const lookupName = resolved ? resolved.name : communityParam;
+  const isPortfolio = communityParam === "portfolio";
+  const resolved = isPortfolio ? undefined : getPvCommunityBySlug(communityParam);
+  const lookupName = isPortfolio ? "Park Vista Portfolio" : (resolved ? resolved.name : communityParam);
 
   try {
-    const allProperties = await fetchPvReport<AccountTotalsRow>("account_totals", {
-      posted_on_from: from,
-      posted_on_to: to,
-    });
-    const match = allProperties.find(
-      (p) => p.property_name === lookupName
-    );
-    if (!match?.property_id) {
-      return Response.json(
-        { error: `Community "${communityParam}" not found` },
-        { status: 404 }
-      );
-    }
-
-    const propertyFilter = { properties_ids: [match.property_id] };
     const pvPct = ownershipView ? getOwnership("Park Vista") : 1;
+
+    // Portfolio-wide: no property filter
+    let propertyFilter: { properties_ids: number[] } | undefined;
+
+    if (!isPortfolio) {
+      const allProperties = await fetchPvReport<AccountTotalsRow>("account_totals", {
+        posted_on_from: from,
+        posted_on_to: to,
+      });
+      const match = allProperties.find(
+        (p) => p.property_name === lookupName
+      );
+      if (!match?.property_id) {
+        return Response.json(
+          { error: `Community "${communityParam}" not found` },
+          { status: 404 }
+        );
+      }
+      propertyFilter = { properties_ids: [match.property_id] };
+    }
 
     function applyPct(extracted: ReturnType<typeof extractTotals>) {
       return {
@@ -111,12 +117,17 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    const fetchParams = (dateFrom: string, dateTo: string) => {
+      const p: Record<string, unknown> = {
+        posted_on_from: dateFrom,
+        posted_on_to: dateTo,
+      };
+      if (propertyFilter) p.properties = propertyFilter;
+      return p;
+    };
+
     if (period === "ytd" || from.endsWith("-01-01")) {
-      const rows = await fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
+      const rows = await fetchPvReport<IncomeRow>("income_statement", fetchParams(from, to));
       const extracted = extractTotals(rows, "year_to_date");
       return cachedJson({
         ...applyPct(extracted),
@@ -126,11 +137,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (sameMonth(from, to)) {
-      const rows = await fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
+      const rows = await fetchPvReport<IncomeRow>("income_statement", fetchParams(from, to));
       const extracted = extractTotals(rows, "month_to_date");
       return cachedJson({
         ...applyPct(extracted),
@@ -142,16 +149,8 @@ export async function GET(request: NextRequest) {
     // Multi-month custom range via YTD subtraction
     const beforeFrom = dayBefore(from);
     const [endRows, startRows] = await Promise.all([
-      fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      }, true),
-      fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: beforeFrom.slice(0, 8) + "01",
-        posted_on_to: beforeFrom,
-        properties: propertyFilter,
-      }, true),
+      fetchPvReport<IncomeRow>("income_statement", fetchParams(from, to), true),
+      fetchPvReport<IncomeRow>("income_statement", fetchParams(beforeFrom.slice(0, 8) + "01", beforeFrom), true),
     ]);
 
     const endTotals = extractTotals(endRows, "year_to_date");
