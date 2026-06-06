@@ -236,14 +236,11 @@ export default function CommandCenterPage() {
           <Link href="/pv/dashboard" className="block group">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-purple-200 transition-all cursor-pointer h-full">
               <div className="flex items-center justify-between mb-3">
-                <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
-                  <span className="text-lg">🏠</span>
+                <div className="rounded-lg bg-gray-900 dark:bg-gray-900 px-2 py-1 flex items-center justify-center">
+                  <img src="/pv-logo.png" alt="Park Vista Senior Housing Management" className="h-8 w-auto object-contain" />
                 </div>
                 <span className="text-gray-400 group-hover:text-purple-600 transition-colors">→</span>
               </div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                Park Vista Senior Housing
-              </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {fmtK(data.pv.netIncome)}
               </p>
@@ -263,14 +260,9 @@ export default function CommandCenterPage() {
         <Link href="/badger-realty" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer h-full">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center">
-                <img src="/badger-realty-logo.png" alt="" className="w-7 h-7 object-contain" />
-              </div>
+              <img src="/badger-realty-logo.png" alt="Badger Realty Team" className="h-12 w-auto object-contain" />
               <span className="text-gray-400 group-hover:text-teal-600 transition-colors">→</span>
             </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              Badger Realty
-            </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               Brokerage
             </p>

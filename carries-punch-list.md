@@ -1,41 +1,63 @@
 # Carrie's Punch-Down List — Command Center KPI Build
 
-**Date:** June 5, 2026
-**Context:** KPI Dashboard rebuild per Build Spec v1 — items below need input/confirmation before they can be implemented.
+**Date:** June 5, 2026 (last updated June 13, 2026)
+**Context:** KPI Dashboard rebuild per Build Spec v1 — items below need input/confirmation before they can be finalized.
+
+---
+
+## Status Summary
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Asset-Class Tag Confirmation | **Awaiting confirmation** — tags applied, need review |
+| 2 | Market Rent Data | **Awaiting decision** — three options presented |
+| 3 | Expense Recovery Ratio | **Awaiting answer** — markup vs pass-through |
+| 4 | Per-Property Debt Service Verification | **Awaiting answer** |
+| 5 | Station 955 Loan — Payment Structure | **Partially resolved** — core details confirmed, payment structure TBD |
+| 6 | Ownership Confirmation | **Mostly resolved** — Greyworks still open |
+| 7 | BIG Ownership Split | **Awaiting answer** |
+
+---
+
+## What's Been Completed Since Last Update
+
+- **KPI Dashboard fully rebuilt** (PR #58) — removed Labor %, added WALT, lease-expiration exposure, rent collection/delinquency, rent/SF, per-asset-class OER/NOI targets, CRE status grading (DSCR, OER, occupancy, collection, lease exposure)
+- **Per-property detail pages updated** (PR #61) — each property now shows CRE metrics appropriate to its asset class (not the old Park Vista senior-housing metrics)
+- **Station 955 loan page live** (PR #58) — shows $1.3M principal, accrued interest at 10%, countdown to Aug 2027 payment start, full monthly accrual schedule
+- **Badger Realty card on dashboard** (PR #58/60) — with paw logo, notes CoStar access potential
+- **Vacancy loss fixed** (PR #57) — estimates using avg occupied rent when AppFolio returns null market_rent
+- **Sold/returned properties archived** — Germantown, Columbia St Marys, HC3 removed from active views
+- **BIG removed from property table** — no longer inflates JRW property metrics
+- **KPI Dashboard accessible from BIG sidebar** (PR #59)
 
 ---
 
 ## 1. Asset-Class Tag Confirmation
 
-Each property needs an asset-class tag to drive its benchmark targets (OER, NOI margin, DSCR, WALT, occupancy). These are my best guesses — please confirm or correct:
+Each property has been tagged and benchmarks are active. Please confirm or correct:
 
-| Property | Current Tag | Correct? |
-|---|---|---|
-| 2172 MPW, LLC (Land Leases) | Land Lease | |
-| CG Silver Badger, LLC | Residential | |
-| Greywolf Industrial II | Industrial | |
-| HC1 Acquisitions Honey Creek I | Office (Modified Gross) | |
-| Honey Badger, LLC Honey Creek II | Office (Modified Gross) | |
-| Honey Creek IV, LLC | Office (Modified Gross) | |
-| Prairie Square | Office (Modified Gross) | |
-| Spooner St | Residential | |
-| Water Tower Place | Office (Modified Gross) | |
-| 2080 MPW LLC | Office (Modified Gross) | |
-| Greyworks LLC | Industrial | |
-| Badger Hotel Group | Hotel | |
+| Property | Current Tag | Benchmarks Applied | Correct? |
+|---|---|---|---|
+| 2172 MPW, LLC (Land Leases) | Land Lease | OER 10–20%, no DSCR/WALT | |
+| CG Silver Badger, LLC | Residential | OER 35–50%, DSCR ≥1.20x, Occ ≥90% | |
+| Greywolf Industrial II | Industrial | OER 20–35%, DSCR ≥1.20x, WALT ≥4 yrs, Occ ≥90% | |
+| HC1 Acquisitions Honey Creek I | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| Honey Badger, LLC Honey Creek II | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| Honey Creek IV, LLC | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| Prairie Square | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| Spooner St | Residential | OER 35–50%, DSCR ≥1.20x, Occ ≥90% | |
+| Water Tower Place | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| 2080 MPW LLC | Office (Modified Gross) | OER 35–45%, DSCR ≥1.25x, WALT ≥5 yrs, Occ ≥85% | |
+| Greyworks LLC | Industrial | OER 20–35%, DSCR ≥1.20x, WALT ≥4 yrs, Occ ≥90% | |
+| Badger Hotel Group | Hotel | OER 55–70%, DSCR ≥1.30x, Occ ≥65% | |
 
-**Why it matters:** OER targets range from 10-20% (NNN retail) to 55-70% (hotel). A wrong tag = wrong benchmark = misleading health status.
+**Why it matters:** A wrong tag = wrong benchmark = misleading "Strong/Watch/Concern" flags. Properties currently flagged "Concern" may just have the wrong asset-class comparison.
 
 ---
 
 ## 2. Market Rent Data
 
-AppFolio returns `market_rent: null` for all vacant units across all properties. This means:
-- We **cannot** show "in-place vs. market" rent comparison
-- We **cannot** compute releasing spreads
-- Vacancy loss estimates use average occupied rent as a proxy
-
-**However** — we have addresses for each property and know the asset class. Three options to solve this:
+**Status:** AppFolio returns `market_rent: null` for all vacant units. Dashboard currently shows in-place rent only. Three options:
 
 ### Option A — Submarket Rent Schedule (fastest, good enough for now)
 Devin builds a `market-rent.ts` config with estimated $/SF/yr per property based on:
@@ -46,21 +68,21 @@ Devin builds a `market-rent.ts` config with estimated $/SF/yr per property based
   - Madison retail: ~$14–20/SF
   - Residential/student housing: market comp per unit
 - Values tagged "est." in the UI so nobody mistakes them for hard comps
-- You/Carrie can review and override individual numbers
+- Carrie can review and override individual numbers
 
-**Pros:** Immediate, free, gets the dashboard functional
+**Pros:** Immediate, free, gets releasing spreads functional
 **Cons:** Ballpark only — not property-specific comps
 
 ### Option B — Carrie/Broker Provides Numbers
-If Badger Realty or a broker has actual market rents per property (even ballpark $/SF), we plug those in directly — most accurate without a subscription.
+If Badger Realty or a broker has actual market rents per property (even ballpark $/SF), we plug those in directly.
 
 **Pros:** Trusted numbers from someone who knows the buildings
 **Cons:** Manual, needs periodic updates
 
 ### Option C — CoStar or Market Data API (best long-term)
-Wire up a CRE data provider (CoStar, Crexi, Reonomy, CompStak) for live market comp data. Auto-updating and authoritative.
+Wire up a CRE data provider (CoStar, Crexi, Reonomy, CompStak) for live market comp data.
 
-**Note:** Mike mentioned Badger Realty may have CoStar access. If so, we could either:
+**Note:** Mike mentioned Badger Realty may have CoStar access. If so:
 1. Use their CoStar login to manually pull comps (Option B with better data)
 2. Get a CoStar API key for automated integration (true Option C)
 
@@ -68,7 +90,7 @@ Wire up a CRE data provider (CoStar, Crexi, Reonomy, CompStak) for live market c
 **Cons:** Requires paid subscription/API key; CoStar API access is expensive
 
 ### Recommendation
-Start with **Option A now** (Devin builds submarket estimates, Carrie corrects), upgrade to **Option C** later if Badger Realty's CoStar access includes API. Option B is the middle ground if someone wants to provide a one-time spreadsheet of market rents per property.
+Start with **Option A now**, upgrade to **Option C** later if Badger Realty's CoStar access includes API.
 
 ---
 
@@ -87,31 +109,30 @@ The Build Spec calls for an expense recovery ratio: recovered CAM/tax/insurance 
 
 ## 4. Per-Property Debt Service Verification
 
-DSCR (NOI ÷ debt service) is the single most important CRE metric. Currently computed from AppFolio accounts 8510/8520/8530 (mortgage interest, real estate taxes below the line, insurance below the line).
+DSCR (NOI ÷ debt service) is now the primary health metric on the dashboard. Currently computed from AppFolio accounts 8510/8520/8530.
 
-**Question:** Does every property with a mortgage have its debt service properly recorded in these accounts in AppFolio? If any properties have debt service recorded under different account numbers, or if some debt data lives outside AppFolio, the DSCR numbers will be wrong.
+**Question:** Does every property with a mortgage have its debt service properly recorded in these accounts in AppFolio? If any properties have debt recorded under different account numbers or outside AppFolio, the DSCR numbers will be wrong.
 
-**Properties showing $0 debt service (need verification):**
+**Properties showing $0 debt service (need verification — are these truly debt-free?):**
 - 2172 MPW Land Leases
 - CG Silver Badger
 - Greyworks LLC
 - Spooner St
 
-Are these truly debt-free, or is the data elsewhere?
-
 ---
 
 ## 5. Station 955 Loan — Additional Details
 
-**Confirmed:**
+**Confirmed and implemented:**
 - Principal: $1,300,000
 - Annual interest rate: 10%
 - Loan commenced: August 1, 2025
 - Payments start: August 1, 2027 (24-month deferral)
-- Interest accruing during deferral
+- Interest accruing during deferral (shown live on `/loans/station-955`)
+- Monthly accrual schedule table is live in the app
 
 **Still needed:**
-- What is the payment structure once payments begin? (Monthly? What amortization schedule?)
+- What is the payment structure once payments begin? (Monthly? What amortization term?)
 - Is principal + accrued interest rolled into the amortization, or is accrued interest paid as a lump sum at payment start?
 - What is the loan maturity date?
 
@@ -119,18 +140,18 @@ Are these truly debt-free, or is the data elsewhere?
 
 ## 6. Ownership Confirmation — Remaining Questions
 
-**Confirmed in this round:**
+**Confirmed and applied:**
 - Badger Hotel: 65%
 - Greywolf Industrial: 63%
 - Honey Creek IV: 75%
 - Honey Badger (HC2): 52%
-- Park Vista: 51%
+- Park Vista: 51% (Joe), 49% (Julie Lonegran)
 - 2080 MPW: 70%
 - Spooner: 50%
 - Managed-only (0%): Prairie Square, Water Tower, HC1, Research Park, Vantage IV
 - Archived: Germantown Warhawks (sold), Columbia St Marys (sold), HC3 (back to bank)
 
-**Question:** Greyworks LLC — is this still 100% Joe-owned? Left unchanged at 100% since no update was provided.
+**Open question:** Greyworks LLC — is this still 100% Joe-owned? Currently set to 100%.
 
 ---
 
