@@ -207,14 +207,9 @@ export default function CommandCenterPage() {
         <Link href="/big/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-amber-200 transition-all cursor-pointer h-full">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
-                <img src="/logo-white.png" alt="" className="w-5 h-6 object-contain invert dark:invert-0" />
-              </div>
+              <img src="/big-logo.png" alt="Blackdeer Investment Group" className="h-10 w-auto object-contain dark:invert" />
               <span className="text-gray-400 group-hover:text-amber-600 transition-colors">→</span>
             </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              Blackdeer Investment Group
-            </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {fmtK(data.big.totalIncome)}
             </p>
