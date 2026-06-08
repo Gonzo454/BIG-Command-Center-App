@@ -87,11 +87,11 @@ export default function CommandCenterPage() {
   const initialized = useRef(false);
   const skipNextToggleEffect = useRef(true);
   const dataCache = useRef<Map<string, SummaryData>>(new Map());
-  const currentRange = useRef({ from: "", to: "", period: "ytd" });
+  const currentRange = useRef({ from: "", to: "", period: "mtd" });
 
   async function fetchData(from?: string, to?: string, period?: string, prefetchOnly = false) {
     const viewParam = ownershipView ? "joe" : "";
-    const key = `${from || "default"}:${to || "default"}:${period || "ytd"}:${viewParam}`;
+    const key = `${from || "default"}:${to || "default"}:${period || "mtd"}:${viewParam}`;
     const cached = dataCache.current.get(key);
     if (prefetchOnly && cached) return;
     if (!prefetchOnly) {
@@ -133,15 +133,15 @@ export default function CommandCenterPage() {
     if (initialized.current) return;
     initialized.current = true;
     fetchData();
-    // Prefetch MTD and QTD in the background
+    // Prefetch QTD and YTD in the background (MTD is the default load)
     const todayStr = new Date().toISOString().split("T")[0];
     const d = new Date();
-    const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const qtdMonth = Math.floor(d.getMonth() / 3) * 3;
     const qtdFrom = `${d.getFullYear()}-${String(qtdMonth + 1).padStart(2, "0")}-01`;
+    const ytdFrom = `${d.getFullYear()}-01-01`;
     setTimeout(() => {
-      fetchData(mtdFrom, todayStr, "mtd", true);
       fetchData(qtdFrom, todayStr, "qtd", true);
+      fetchData(ytdFrom, todayStr, "ytd", true);
     }, 1500);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,4 +1,4 @@
-import { fetchReport, fetchPvReport, firstOfYear, today, parseAmount, cachedJson } from "@/lib/appfolio";
+import { fetchReport, fetchPvReport, firstOfYear, firstOfMonth, firstOfQuarter, today, parseAmount, cachedJson } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS, classifyEntityByName } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 import { PV_COMMUNITIES } from "@/lib/pv-communities";
@@ -190,22 +190,11 @@ function computeFeeReconciliationFromGL(
   };
 }
 
-function firstOfMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function firstOfQuarter(): string {
-  const d = new Date();
-  const q = Math.floor(d.getMonth() / 3) * 3;
-  return `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const ownershipView = searchParams.get("view") === "joe";
-    const period = searchParams.get("period") || "ytd";
+    const period = searchParams.get("period") || "mtd";
     const paramFrom = searchParams.get("from");
     const paramTo = searchParams.get("to");
 
@@ -234,11 +223,21 @@ export async function GET(request: NextRequest) {
     const ytdFrom = rangeFrom;
     const ytdTo = rangeTo;
 
+    // Always fetch full-year GL for sparklines
+    const fullYearFrom = firstOfYear();
+    const fullYearTo = today();
+
     const bigFilter = { properties_ids: [ENTITY_PROPERTY_IDS.big] };
     const hotelFilter = { properties_ids: [ENTITY_PROPERTY_IDS.hotel] };
 
+    // For PV QTD/Custom: need YTD subtraction (fetch baseline before range start)
+    const needPvSubtraction = basisLabel !== "YTD" && basisLabel !== "MTD";
+    const pvBaselineEnd = needPvSubtraction
+      ? (() => { const d = new Date(ytdFrom + "T00:00:00"); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })()
+      : "";
+
     // All API calls in parallel (BIG database + PV database)
-    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS] = await Promise.all([
+    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
@@ -250,8 +249,8 @@ export async function GET(request: NextRequest) {
         properties: hotelFilter,
       }),
       fetchReport<GLRow>("general_ledger", {
-        from_date: ytdFrom,
-        to_date: ytdTo,
+        from_date: fullYearFrom,
+        to_date: fullYearTo,
       }),
       fetchReport<RentRollRow>("rent_roll"),
       fetchReport<ArRow>("aged_receivables_detail", { as_of_date: ytdTo }),
@@ -259,6 +258,12 @@ export async function GET(request: NextRequest) {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
       }).catch(() => [] as IncomeRow[]),
+      needPvSubtraction
+        ? fetchPvReport<IncomeRow>("income_statement", {
+            posted_on_from: `${new Date(ytdFrom + "T00:00:00").getFullYear()}-01-01`,
+            posted_on_to: pvBaselineEnd,
+          }).catch(() => [] as IncomeRow[])
+        : Promise.resolve([] as IncomeRow[]),
     ]);
 
     // BIG P&L from income_statement
@@ -286,9 +291,13 @@ export async function GET(request: NextRequest) {
         netIncome: hotelTotals.totalIncome - hotelTotals.totalExpenses,
       };
     } else {
-      // QTD/Custom: compute from GL (already filtered by date range)
+      // QTD/Custom: compute from period-filtered GL with special account handling
+      const periodGl = glRows.filter((r) => {
+        const pd = r.post_date || "";
+        return pd >= ytdFrom && pd <= ytdTo;
+      });
       let bigInc = 0, bigExp = 0, htlInc = 0, htlExp = 0;
-      for (const r of glRows) {
+      for (const r of periodGl) {
         const acctField = (r.account_name || "").trim();
         const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
         if (!acctMatch) continue;
@@ -300,19 +309,28 @@ export async function GET(request: NextRequest) {
         const debit = parseFloat(r.debit || "0") || 0;
         const credit = parseFloat(r.credit || "0") || 0;
         const prefix = account.charAt(0);
-        if (section === "big") {
-          if (prefix === "4" || prefix === "5") bigInc += (credit - debit);
-          else if (prefix === "6" || prefix === "7") bigExp += (debit - credit);
-        } else {
-          if (prefix === "4" || prefix === "5") htlInc += (credit - debit);
-          else if (prefix === "6" || prefix === "7") htlExp += (debit - credit);
+        if (prefix === "4" || prefix === "5") {
+          if (account.startsWith("5875") || account.startsWith("5873")) {
+            if (section === "big") bigExp += (debit - credit);
+            else htlExp += (debit - credit);
+          } else if (!account.startsWith("5756")) {
+            if (section === "big") bigInc += (credit - debit);
+            else htlInc += (credit - debit);
+          }
+        } else if (prefix === "6" || prefix === "7") {
+          if (section === "big") bigExp += (debit - credit);
+          else htlExp += (debit - credit);
         }
       }
       bigPnL = { income: bigInc, opex: bigExp, noi: bigInc - bigExp, netIncome: bigInc - bigExp };
       hotelPnL = { income: htlInc, opex: htlExp, noi: htlInc - htlExp, netIncome: htlInc - htlExp };
     }
 
-    // JRW P&L computed from GL (all non-BIG, non-Hotel entities)
+    // JRW P&L computed from period-filtered GL
+    const periodGlRows = glRows.filter((r) => {
+      const pd = r.post_date || "";
+      return pd >= ytdFrom && pd <= ytdTo;
+    });
     let jrwIncome = 0;
     let jrwOpex = 0;
     let jrwDebtService = 0;
@@ -320,7 +338,7 @@ export async function GET(request: NextRequest) {
     let jrwOtherBelow = 0;
     let hotelRoomRevenue = 0;
 
-    for (const r of glRows) {
+    for (const r of periodGlRows) {
       const acctField = (r.account_name || "").trim();
       const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
       if (!acctMatch) continue;
@@ -410,11 +428,24 @@ export async function GET(request: NextRequest) {
     const feeRecon = computeFeeReconciliationFromGL(glRows, ytdFrom, ytdTo);
 
     // Park Vista P&L from PV AppFolio
-    const pvCol = isYtd ? "year_to_date" as const : "month_to_date" as const;
-    const pvTotals = extractSectionTotals(pvIS, (isYtd || isMtd) ? pvCol : "year_to_date");
     const pvPct = ownershipView ? getOwnership("Park Vista") : 1;
-    const pvIncome = pvTotals.totalIncome * pvPct;
-    const pvExpenses = pvTotals.totalExpenses * pvPct;
+    let pvIncome: number;
+    let pvExpenses: number;
+    if (isYtd) {
+      const pvTotals = extractSectionTotals(pvIS, "year_to_date");
+      pvIncome = pvTotals.totalIncome * pvPct;
+      pvExpenses = pvTotals.totalExpenses * pvPct;
+    } else if (isMtd) {
+      const pvTotals = extractSectionTotals(pvIS, "month_to_date");
+      pvIncome = pvTotals.totalIncome * pvPct;
+      pvExpenses = pvTotals.totalExpenses * pvPct;
+    } else {
+      // QTD/Custom: YTD subtraction (end YTD minus baseline YTD)
+      const endTotals = extractSectionTotals(pvIS, "year_to_date");
+      const baseTotals = extractSectionTotals(pvBaselineIS, "year_to_date");
+      pvIncome = (endTotals.totalIncome - baseTotals.totalIncome) * pvPct;
+      pvExpenses = (endTotals.totalExpenses - baseTotals.totalExpenses) * pvPct;
+    }
     const pvNet = pvIncome - pvExpenses;
 
     const jrwPropertyCount = 17;
