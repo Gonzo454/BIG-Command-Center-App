@@ -99,15 +99,18 @@ export default function KPIDashboardPage() {
   const initialized = useRef(false);
   const dataCache = useRef<Map<string, KPIData>>(new Map());
 
-  async function fetchData(from?: string, to?: string, period?: string) {
+  async function fetchData(from?: string, to?: string, period?: string, prefetchOnly = false) {
     const key = `${from || "default"}:${to || "default"}:${period || "mtd"}`;
     const cached = dataCache.current.get(key);
-    if (cached) {
-      setData(cached);
-      setLoading(false);
-      setRefreshing(true);
-    } else {
-      setLoading(true);
+    if (prefetchOnly && cached) return;
+    if (!prefetchOnly) {
+      if (cached) {
+        setData(cached);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
     }
     try {
       const params = new URLSearchParams();
@@ -118,12 +121,14 @@ export default function KPIDashboardPage() {
       const res = await fetch(`/api/kpi-dashboard${qs}`);
       const d = await res.json();
       dataCache.current.set(key, d);
-      setData(d);
+      if (!prefetchOnly) setData(d);
     } catch (err) {
       console.error("Failed to fetch KPI data:", err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!prefetchOnly) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }
 
@@ -138,8 +143,8 @@ export default function KPIDashboardPage() {
     const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
     const ytdFrom = `${d.getFullYear()}-01-01`;
     setTimeout(() => {
-      fetchData(qtdFrom, todayStr, "qtd");
-      fetchData(ytdFrom, todayStr, "ytd");
+      fetchData(qtdFrom, todayStr, "qtd", true);
+      fetchData(ytdFrom, todayStr, "ytd", true);
     }, 1500);
   }, []);
 

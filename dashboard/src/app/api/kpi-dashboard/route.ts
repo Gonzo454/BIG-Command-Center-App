@@ -273,12 +273,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Compute months elapsed from date range for monthly NOI grading
+    // Uses actual day count / 30.44 for accurate partial-month custom ranges
     const fromDate = new Date(qtdFrom + "T12:00:00Z");
     const toDate = new Date(qtdTo + "T12:00:00Z");
-    const monthsElapsed = Math.max(1,
-      (toDate.getFullYear() - fromDate.getFullYear()) * 12 +
-      (toDate.getMonth() - fromDate.getMonth()) + 1
-    );
+    const daysDiff = (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24) + 1;
+    const monthsElapsed = Math.max(1, Math.round(daysDiff / 30.44 * 10) / 10);
 
     // --- Build CRE KPIs per property ---
     const allProperties = Array.from(propertyFinancials.keys());
@@ -350,7 +349,7 @@ export async function GET(request: NextRequest) {
         occupancyRate,
         totalSqft: Math.round(occ.totalSqft),
         occupiedSqft: Math.round(occ.occupiedSqft),
-        vacancyLoss: cfg.zeroVacancyLoss ? 0 : Math.round(occ.vacancyLoss * 3),
+        vacancyLoss: cfg.zeroVacancyLoss ? 0 : Math.round(occ.vacancyLoss * monthsElapsed),
         debtService: Math.round(fin.debtService),
         dscr: Math.round(dscr * 100) / 100,
         oer: Math.round(oer * 10) / 10,
