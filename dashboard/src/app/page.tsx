@@ -178,9 +178,7 @@ export default function CommandCenterPage() {
         <Link href="/jrw/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-                <span className="text-lg">🏢</span>
-              </div>
+              <img src="/jrw-portfolio-brewers.png" alt="JRW Portfolio" className="h-12 w-auto object-contain" />
               <span className="text-gray-400 group-hover:text-green-600 transition-colors">→</span>
             </div>
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
