@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 interface PropertyKPI {
   name: string;
@@ -30,7 +31,7 @@ interface PropertyKPI {
   rentPerSf: number | null;
   collectionRate: number;
   delinquent: number;
-  status: "Strong" | "Watch" | "Concern";
+  status: "Strong" | "Stable" | "Review";
   targets: {
     oer: string;
     noiMargin: string;
@@ -58,8 +59,9 @@ interface PortfolioKPI {
   walt: number | null;
   delinquent: number;
   propertyCount: number;
-  concernCount: number;
-  watchCount: number;
+  reviewCount: number;
+  stableCount: number;
+  strongCount: number;
 }
 
 interface KPIData {
@@ -80,8 +82,9 @@ const fmtM = (n: number) => {
 
 const statusColor = (s: string) => {
   if (s === "Strong") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
-  if (s === "Watch") return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-  return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+  if (s === "Review") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+  // Stable = neutral/black
+  return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
 };
 
 function propertyHref(name: string): string {
@@ -92,31 +95,83 @@ function propertyHref(name: string): string {
 export default function KPIDashboardPage() {
   const [data, setData] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const initialized = useRef(false);
+  const dataCache = useRef<Map<string, KPIData>>(new Map());
+
+  async function fetchData(from?: string, to?: string, period?: string, prefetchOnly = false) {
+    const key = `${from || "default"}:${to || "default"}:${period || "mtd"}`;
+    const cached = dataCache.current.get(key);
+    if (prefetchOnly && cached) return;
+    if (!prefetchOnly) {
+      if (cached) {
+        setData(cached);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+    }
+    try {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (period) params.set("period", period);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/kpi-dashboard${qs}`);
+      const d = await res.json();
+      dataCache.current.set(key, d);
+      if (!prefetchOnly) setData(d);
+    } catch (err) {
+      console.error("Failed to fetch KPI data:", err);
+    } finally {
+      if (!prefetchOnly) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    fetch("/api/kpi-dashboard")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    fetchData();
+    // Prefetch QTD and YTD
+    const d = new Date();
+    const todayStr = d.toISOString().split("T")[0];
+    const q = Math.floor(d.getMonth() / 3) * 3;
+    const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+    const ytdFrom = `${d.getFullYear()}-01-01`;
+    setTimeout(() => {
+      fetchData(qtdFrom, todayStr, "qtd", true);
+      fetchData(ytdFrom, todayStr, "ytd", true);
+    }, 1500);
   }, []);
 
-  if (loading) return <div className="text-center py-20 text-gray-500">Loading KPI Dashboard...</div>;
+  function handleRangeChange(from: string, to: string, period: string) {
+    fetchData(from, to, period);
+  }
+
+  if (loading && !data) return <div className="text-center py-20 text-gray-500">Loading KPI Dashboard...</div>;
   if (!data) return <div className="text-center py-20 text-gray-500">No data available</div>;
 
   const { portfolio: p, properties } = data;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">KPI Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {p.propertyCount} Properties &middot; {data.period.label} {data.period.from} &ndash; {data.period.to} &middot; CRE Operating Metrics
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">KPI Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {p.propertyCount} Properties &middot; {data.period.label} {data.period.from} &ndash; {data.period.to} &middot; CRE Operating Metrics
+          </p>
+        </div>
+        <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
+
+      {refreshing && (
+        <div className="text-xs text-blue-500 animate-pulse">Updating...</div>
+      )}
 
       {/* Top-level Financial KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -149,9 +204,10 @@ export default function KPIDashboardPage() {
       </div>
 
       {/* Status Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Properties — Concern" value={String(p.concernCount)} sub={`of ${p.propertyCount}`} color={p.concernCount > 0 ? "text-red-600" : "text-emerald-600"} />
-        <MetricCard label="Properties — Watch" value={String(p.watchCount)} sub={`of ${p.propertyCount}`} color={p.watchCount > 0 ? "text-amber-600" : "text-emerald-600"} />
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-4">
+        <MetricCard label="Strong" value={String(p.strongCount)} sub={`of ${p.propertyCount}`} color="text-emerald-600" />
+        <MetricCard label="Stable" value={String(p.stableCount)} sub={`of ${p.propertyCount}`} color="text-gray-700 dark:text-gray-300" />
+        <MetricCard label="Review" value={String(p.reviewCount)} sub={`of ${p.propertyCount}`} color={p.reviewCount > 0 ? "text-red-600" : "text-emerald-600"} />
       </div>
 
       {/* All-Property Revenue & NOI Table */}
@@ -251,7 +307,7 @@ export default function KPIDashboardPage() {
                     {c.totalSqft > 0 ? `${c.totalSqft.toLocaleString()} sf` : "—"}
                   </td>
                   <td className="px-3 py-3 text-right font-mono text-red-600">{c.vacant}</td>
-                  <td className="px-3 py-3 text-right font-mono text-red-600">{fmtK(c.vacancyLoss)}</td>
+                  <td className="px-3 py-3 text-right font-mono text-red-600">{c.vacancyLoss > 0 ? fmtK(c.vacancyLoss) : "$0"}</td>
                   <td className="px-3 py-3 text-right font-mono">
                     {c.rentPerSf ? `$${c.rentPerSf.toFixed(2)}` : "—"}
                   </td>

@@ -57,7 +57,7 @@ interface KPIProperty {
   rentPerSf: number | null;
   collectionRate: number;
   delinquent: number;
-  status: "Strong" | "Watch" | "Concern";
+  status: "Strong" | "Stable" | "Review";
   targets: {
     oer: string;
     noiMargin: string;
@@ -164,7 +164,7 @@ export default function PropertyDetailPage() {
               {slug}
             </h1>
             {kpi && (
-              <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${kpi.status === "Strong" ? "bg-emerald-100 text-emerald-800" : kpi.status === "Watch" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+              <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${kpi.status === "Strong" ? "bg-emerald-100 text-emerald-800" : kpi.status === "Review" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-800"}`}>
                 {kpi.status}
               </span>
             )}

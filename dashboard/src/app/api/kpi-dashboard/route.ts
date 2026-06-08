@@ -1,8 +1,8 @@
-import { fetchReport, firstOfQuarter, firstOfYear, today, parseAmount, cachedJson, centralNowExported } from "@/lib/appfolio";
+import { NextRequest } from "next/server";
+import { fetchReport, firstOfMonth, firstOfQuarter, firstOfYear, today, parseAmount, cachedJson, centralNowExported } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 import { getPropertyConfig, gradeProperty, BENCHMARKS, formatAssetClass } from "@/lib/property-config";
-import type { AssetClass } from "@/lib/property-config";
 
 interface RentRollRow {
   status?: string;
@@ -48,10 +48,33 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const qtdFrom = firstOfQuarter();
-    const qtdTo = today();
+    const params = request.nextUrl.searchParams;
+    const paramFrom = params.get("from");
+    const paramTo = params.get("to");
+    const period = params.get("period") || "mtd";
+
+    // Determine date range based on period or custom params
+    let rangeFrom: string;
+    let rangeLabel: string;
+    if (paramFrom && paramTo) {
+      rangeFrom = paramFrom;
+      rangeLabel = period === "ytd" ? "YTD" : period === "qtd" ? "QTD" : period === "mtd" ? "MTD" : "Custom";
+    } else if (period === "ytd") {
+      rangeFrom = firstOfYear();
+      rangeLabel = "YTD";
+    } else if (period === "qtd") {
+      rangeFrom = firstOfQuarter();
+      rangeLabel = "QTD";
+    } else {
+      rangeFrom = firstOfMonth();
+      rangeLabel = "MTD";
+    }
+    const rangeTo = paramTo || today();
+
+    const qtdFrom = rangeFrom;
+    const qtdTo = rangeTo;
     const isQ1 = qtdFrom === firstOfYear();
 
     function dayBefore(dateStr: string): string {
@@ -249,6 +272,13 @@ export async function GET() {
       entry.delinquent += over30;
     }
 
+    // Compute months elapsed from date range for monthly NOI grading
+    // Uses actual day count / 30.44 for accurate partial-month custom ranges
+    const fromDate = new Date(qtdFrom + "T12:00:00Z");
+    const toDate = new Date(qtdTo + "T12:00:00Z");
+    const daysDiff = (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24) + 1;
+    const monthsElapsed = Math.max(1, Math.round(daysDiff / 30.44 * 10) / 10);
+
     // --- Build CRE KPIs per property ---
     const allProperties = Array.from(propertyFinancials.keys());
     const properties = allProperties.map((name) => {
@@ -297,16 +327,9 @@ export async function GET() {
         ? Math.round(Math.max(0, Math.min(100, ((totalRentBilled - ar.delinquent) / totalRentBilled) * 100)) * 10) / 10
         : 100;
 
-      // Status grading per CRE logic (Section 8)
-      const status = gradeProperty({
-        dscr: Math.round(dscr * 100) / 100,
-        oer: Math.round(oer * 10) / 10,
-        occupancyRate,
-        collectionRate,
-        netAfterDebt,
-        leaseExposure12mo,
-        assetClass: cfg.assetClass,
-      });
+      // Status grading: NOI-based 3-tier (Strong/Stable/Review)
+      const monthlyNoi = monthsElapsed > 0 ? noi / monthsElapsed : noi;
+      const status = gradeProperty({ monthlyNoi, propertyName: name });
 
       return {
         name,
@@ -326,7 +349,7 @@ export async function GET() {
         occupancyRate,
         totalSqft: Math.round(occ.totalSqft),
         occupiedSqft: Math.round(occ.occupiedSqft),
-        vacancyLoss: Math.round(occ.vacancyLoss * 3),
+        vacancyLoss: cfg.zeroVacancyLoss ? 0 : Math.round(occ.vacancyLoss * monthsElapsed),
         debtService: Math.round(fin.debtService),
         dscr: Math.round(dscr * 100) / 100,
         oer: Math.round(oer * 10) / 10,
@@ -360,8 +383,9 @@ export async function GET() {
     const totalDebtService = activeProperties.reduce((s, c) => s + c.debtService, 0);
     const portfolioDscr = totalDebtService > 0 ? portfolioNoi / totalDebtService : 0;
     const totalDelinquent = activeProperties.reduce((s, c) => s + c.delinquent, 0);
-    const concernCount = activeProperties.filter((c) => c.status === "Concern").length;
-    const watchCount = activeProperties.filter((c) => c.status === "Watch").length;
+    const reviewCount = activeProperties.filter((c) => c.status === "Review").length;
+    const stableCount = activeProperties.filter((c) => c.status === "Stable").length;
+    const strongCount = activeProperties.filter((c) => c.status === "Strong").length;
 
     // Portfolio WALT
     const portfolioWaltNum = activeProperties.reduce((s, c) => {
@@ -375,9 +399,6 @@ export async function GET() {
     const portfolioWalt = portfolioWaltDen > 0
       ? Math.round((portfolioWaltNum / portfolioWaltDen) * 10) / 10
       : null;
-
-    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
-    const monthsElapsed = now.getMonth() - quarterStartMonth + 1;
 
     return cachedJson({
       portfolio: {
@@ -398,14 +419,15 @@ export async function GET() {
         walt: portfolioWalt,
         delinquent: totalDelinquent,
         propertyCount: activeProperties.length,
-        concernCount,
-        watchCount,
+        reviewCount,
+        stableCount,
+        strongCount,
       },
       properties: activeProperties.sort((a, b) => b.revenue - a.revenue),
       period: {
         from: qtdFrom,
         to: qtdTo,
-        label: "QTD",
+        label: rangeLabel,
         monthsElapsed,
       },
     });

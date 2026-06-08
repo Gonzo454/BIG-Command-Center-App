@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { fetchReport, parseAmount, firstOfYear, today, cachedJson } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
+import { getPropertyConfig } from "@/lib/property-config";
 
 interface AccountTotalRow {
   property_name?: string;
@@ -33,7 +34,8 @@ export async function GET(request: NextRequest) {
         name: r.property_name!.trim(),
         netAmount: parseAmount(r.net_amount),
         endingBalance: parseAmount(r.ending_balance),
-      }));
+      }))
+      .filter((p) => !getPropertyConfig(p.name).archived);
 
     // Badger Hotel Group is not in AppFolio account_totals — inject from live income_statement
     if (!properties.some((p) => p.name === "Badger Hotel Group")) {

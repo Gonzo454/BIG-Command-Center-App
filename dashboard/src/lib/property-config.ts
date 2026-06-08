@@ -23,6 +23,8 @@ export interface PropertyConfig {
   managedOnly: boolean;
   archived: boolean;
   archiveReason?: string;
+  alwaysStable?: boolean;
+  zeroVacancyLoss?: boolean;
 }
 
 export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
@@ -45,16 +47,19 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
     assetClass: "office_mg",
     managedOnly: true,
     archived: false,
+    zeroVacancyLoss: true,
   },
   "Honey Badger, LLC Honey Creek II": {
     assetClass: "office_mg",
     managedOnly: false,
     archived: false,
+    zeroVacancyLoss: true,
   },
   "Honey Creek IV, LLC": {
     assetClass: "office_mg",
     managedOnly: false,
-    archived: false,
+    archived: true,
+    archiveReason: "Sold",
   },
   "Prairie Square": {
     assetClass: "office_mg",
@@ -65,6 +70,7 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
     assetClass: "residential",
     managedOnly: false,
     archived: false,
+    alwaysStable: true,
   },
   "Water Tower Place": {
     assetClass: "office_mg",
@@ -224,62 +230,26 @@ export const BENCHMARKS: Record<AssetClass, BenchmarkTargets> = {
   },
 };
 
+export type PropertyStatus = "Strong" | "Stable" | "Review";
+
 /**
- * Status flag thresholds — configurable per KPI Build Spec Section 8.
- * These can be tuned without redeploying via env vars or a config endpoint.
+ * NOI-based status grading (per Joe's thresholds).
+ * Monthly NOI > +$5k → Strong (green)
+ * Monthly NOI between −$5k and +$5k → Stable (black)
+ * Monthly NOI < −$5k → Review (red)
+ *
+ * Special: properties with alwaysStable=true → always Stable.
  */
-export const STATUS_THRESHOLDS = {
-  dscr: {
-    strong: 1.25,
-    watch: 1.05,
-  },
-  oerOvershoot: {
-    watch: 10,
-  },
-  occupancyGap: {
-    watch: 5,
-    concern: 10,
-  },
-  collection: {
-    strong: 95,
-    watch: 90,
-  },
-  leaseExposure: {
-    concern: 25,
-  },
-};
-
-export type PropertyStatus = "Strong" | "Watch" | "Concern";
-
 export function gradeProperty(metrics: {
-  dscr: number;
-  oer: number;
-  occupancyRate: number;
-  collectionRate: number;
-  netAfterDebt: number;
-  leaseExposure12mo: number;
-  assetClass: AssetClass;
+  monthlyNoi: number;
+  propertyName?: string;
 }): PropertyStatus {
-  const bench = BENCHMARKS[metrics.assetClass];
-  const t = STATUS_THRESHOLDS;
+  const cfg = metrics.propertyName ? getPropertyConfig(metrics.propertyName) : undefined;
+  if (cfg?.alwaysStable) return "Stable";
 
-  // Concern triggers (worst-of)
-  if (metrics.dscr > 0 && metrics.dscr < t.dscr.watch) return "Concern";
-  if (metrics.netAfterDebt < 0) return "Concern";
-  if (metrics.occupancyRate < bench.occupancyTarget - t.occupancyGap.concern) return "Concern";
-  if (metrics.collectionRate < t.collection.watch) return "Concern";
-  if (metrics.leaseExposure12mo > t.leaseExposure.concern) return "Concern";
-
-  // Watch triggers
-  if (metrics.dscr > 0 && metrics.dscr < t.dscr.strong) return "Watch";
-  if (metrics.oer > bench.oerHigh + t.oerOvershoot.watch) return "Watch";
-  if (metrics.occupancyRate < bench.occupancyTarget - t.occupancyGap.watch) return "Watch";
-  if (metrics.collectionRate < t.collection.strong) return "Watch";
-
-  // Strong if within all bands
-  if (metrics.oer > bench.oerHigh) return "Watch";
-
-  return "Strong";
+  if (metrics.monthlyNoi > 5000) return "Strong";
+  if (metrics.monthlyNoi < -5000) return "Review";
+  return "Stable";
 }
 
 export function formatAssetClass(ac: AssetClass): string {
