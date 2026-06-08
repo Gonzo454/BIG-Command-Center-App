@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { DateRangePicker } from "@/components/DateRangePicker";
 
 interface SummaryData {
   jrw: {
@@ -81,19 +82,68 @@ function Sparkline({ data }: { data: number[] }) {
 export default function CommandCenterPage() {
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
   const initialized = useRef(false);
   const skipNextToggleEffect = useRef(true);
+  const dataCache = useRef<Map<string, SummaryData>>(new Map());
+  const currentRange = useRef({ from: "", to: "", period: "ytd" });
+
+  async function fetchData(from?: string, to?: string, period?: string, prefetchOnly = false) {
+    const viewParam = ownershipView ? "joe" : "";
+    const key = `${from || "default"}:${to || "default"}:${period || "ytd"}:${viewParam}`;
+    const cached = dataCache.current.get(key);
+    if (prefetchOnly && cached) return;
+    if (!prefetchOnly) {
+      if (cached) {
+        setData(cached);
+        setLoading(false);
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+    }
+    try {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (period) params.set("period", period);
+      if (ownershipView) params.set("view", "joe");
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/command-center${qs}`);
+      const d = await res.json();
+      dataCache.current.set(key, d);
+      if (!prefetchOnly) setData(d);
+    } catch (err) {
+      console.error("Failed to fetch command center data:", err);
+    } finally {
+      if (!prefetchOnly) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }
+
+  function handleRangeChange(from: string, to: string, period: string) {
+    currentRange.current = { from, to, period };
+    fetchData(from, to, period);
+  }
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-
-    fetch("/api/command-center")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    fetchData();
+    // Prefetch MTD and QTD in the background
+    const todayStr = new Date().toISOString().split("T")[0];
+    const d = new Date();
+    const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const qtdMonth = Math.floor(d.getMonth() / 3) * 3;
+    const qtdFrom = `${d.getFullYear()}-${String(qtdMonth + 1).padStart(2, "0")}-01`;
+    setTimeout(() => {
+      fetchData(mtdFrom, todayStr, "mtd", true);
+      fetchData(qtdFrom, todayStr, "qtd", true);
+    }, 1500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -101,12 +151,14 @@ export default function CommandCenterPage() {
       skipNextToggleEffect.current = false;
       return;
     }
-    setLoading(true);
-    fetch(`/api/command-center${ownershipView ? "?view=joe" : ""}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const { from, to, period } = currentRange.current;
+    dataCache.current.clear();
+    if (from && to) {
+      fetchData(from, to, period);
+    } else {
+      fetchData();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownershipView]);
 
   if (loading) {
@@ -166,11 +218,12 @@ export default function CommandCenterPage() {
               Joe&apos;s Share
             </button>
           </div>
-          <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-            {data.period.basis} · {data.period.from} to {data.period.to}
-          </span>
         </div>
+        <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
+      {refreshing && (
+        <div className="text-xs text-gray-400 text-right">Updating...</div>
+      )}
 
       {/* Business Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">

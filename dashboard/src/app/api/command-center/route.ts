@@ -36,12 +36,12 @@ interface SectionPnL {
   netIncome: number;
 }
 
-function extractSectionTotals(rows: IncomeRow[]): { totalIncome: number; totalExpenses: number } {
+function extractSectionTotals(rows: IncomeRow[], column: "month_to_date" | "year_to_date" = "year_to_date"): { totalIncome: number; totalExpenses: number } {
   let totalIncome = 0;
   let totalExpenses = 0;
   for (const row of rows) {
     const name = (row.account_name || "").toLowerCase().trim();
-    const amount = parseAmount(row.year_to_date);
+    const amount = parseAmount(row[column]);
     if (name === "total income") totalIncome = amount;
     if (name === "total expense" || name === "total expenses") totalExpenses = Math.abs(amount);
   }
@@ -190,13 +190,49 @@ function computeFeeReconciliationFromGL(
   };
 }
 
+function firstOfMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function firstOfQuarter(): string {
+  const d = new Date();
+  const q = Math.floor(d.getMonth() / 3) * 3;
+  return `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const ownershipView = searchParams.get("view") === "joe";
+    const period = searchParams.get("period") || "ytd";
+    const paramFrom = searchParams.get("from");
+    const paramTo = searchParams.get("to");
 
-    const ytdFrom = firstOfYear();
-    const ytdTo = today();
+    let rangeFrom: string;
+    let rangeTo: string;
+    let basisLabel: string;
+
+    if (paramFrom && paramTo) {
+      rangeFrom = paramFrom;
+      rangeTo = paramTo;
+      basisLabel = period === "mtd" ? "MTD" : period === "qtd" ? "QTD" : period === "ytd" ? "YTD" : "Custom";
+    } else if (period === "mtd") {
+      rangeFrom = firstOfMonth();
+      rangeTo = today();
+      basisLabel = "MTD";
+    } else if (period === "qtd") {
+      rangeFrom = firstOfQuarter();
+      rangeTo = today();
+      basisLabel = "QTD";
+    } else {
+      rangeFrom = firstOfYear();
+      rangeTo = today();
+      basisLabel = "YTD";
+    }
+
+    const ytdFrom = rangeFrom;
+    const ytdTo = rangeTo;
 
     const bigFilter = { properties_ids: [ENTITY_PROPERTY_IDS.big] };
     const hotelFilter = { properties_ids: [ENTITY_PROPERTY_IDS.hotel] };
@@ -226,22 +262,55 @@ export async function GET(request: NextRequest) {
     ]);
 
     // BIG P&L from income_statement
-    const bigTotals = extractSectionTotals(bigIS);
-    const bigPnL: SectionPnL = {
-      income: bigTotals.totalIncome,
-      opex: bigTotals.totalExpenses,
-      noi: bigTotals.totalIncome - bigTotals.totalExpenses,
-      netIncome: bigTotals.totalIncome - bigTotals.totalExpenses,
-    };
+    // For MTD use month_to_date column; for YTD use year_to_date; for QTD/custom compute from GL
+    const isYtd = basisLabel === "YTD";
+    const isMtd = basisLabel === "MTD";
+    const isCol = isYtd ? "year_to_date" as const : "month_to_date" as const;
 
-    // Hotel P&L from income_statement
-    const hotelTotals = extractSectionTotals(hotelIS);
-    const hotelPnL: SectionPnL = {
-      income: hotelTotals.totalIncome,
-      opex: hotelTotals.totalExpenses,
-      noi: hotelTotals.totalIncome - hotelTotals.totalExpenses,
-      netIncome: hotelTotals.totalIncome - hotelTotals.totalExpenses,
-    };
+    let bigPnL: SectionPnL;
+    let hotelPnL: SectionPnL;
+
+    if (isYtd || isMtd) {
+      const bigTotals = extractSectionTotals(bigIS, isCol);
+      bigPnL = {
+        income: bigTotals.totalIncome,
+        opex: bigTotals.totalExpenses,
+        noi: bigTotals.totalIncome - bigTotals.totalExpenses,
+        netIncome: bigTotals.totalIncome - bigTotals.totalExpenses,
+      };
+      const hotelTotals = extractSectionTotals(hotelIS, isCol);
+      hotelPnL = {
+        income: hotelTotals.totalIncome,
+        opex: hotelTotals.totalExpenses,
+        noi: hotelTotals.totalIncome - hotelTotals.totalExpenses,
+        netIncome: hotelTotals.totalIncome - hotelTotals.totalExpenses,
+      };
+    } else {
+      // QTD/Custom: compute from GL (already filtered by date range)
+      let bigInc = 0, bigExp = 0, htlInc = 0, htlExp = 0;
+      for (const r of glRows) {
+        const acctField = (r.account_name || "").trim();
+        const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
+        if (!acctMatch) continue;
+        let account = acctMatch[1];
+        if (account.endsWith("-00")) account = account.slice(0, -3);
+        const propertyName = r.property_name || "";
+        const section = classifyEntityByName(propertyName);
+        if (section !== "big" && section !== "hotel") continue;
+        const debit = parseFloat(r.debit || "0") || 0;
+        const credit = parseFloat(r.credit || "0") || 0;
+        const prefix = account.charAt(0);
+        if (section === "big") {
+          if (prefix === "4" || prefix === "5") bigInc += (credit - debit);
+          else if (prefix === "6" || prefix === "7") bigExp += (debit - credit);
+        } else {
+          if (prefix === "4" || prefix === "5") htlInc += (credit - debit);
+          else if (prefix === "6" || prefix === "7") htlExp += (debit - credit);
+        }
+      }
+      bigPnL = { income: bigInc, opex: bigExp, noi: bigInc - bigExp, netIncome: bigInc - bigExp };
+      hotelPnL = { income: htlInc, opex: htlExp, noi: htlInc - htlExp, netIncome: htlInc - htlExp };
+    }
 
     // JRW P&L computed from GL (all non-BIG, non-Hotel entities)
     let jrwIncome = 0;
@@ -341,7 +410,8 @@ export async function GET(request: NextRequest) {
     const feeRecon = computeFeeReconciliationFromGL(glRows, ytdFrom, ytdTo);
 
     // Park Vista P&L from PV AppFolio
-    const pvTotals = extractSectionTotals(pvIS);
+    const pvCol = isYtd ? "year_to_date" as const : "month_to_date" as const;
+    const pvTotals = extractSectionTotals(pvIS, (isYtd || isMtd) ? pvCol : "year_to_date");
     const pvPct = ownershipView ? getOwnership("Park Vista") : 1;
     const pvIncome = pvTotals.totalIncome * pvPct;
     const pvExpenses = pvTotals.totalExpenses * pvPct;
@@ -389,7 +459,7 @@ export async function GET(request: NextRequest) {
       period: {
         from: ytdFrom,
         to: ytdTo,
-        basis: "YTD",
+        basis: basisLabel,
       },
       ownershipView,
     });
