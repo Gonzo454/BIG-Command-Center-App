@@ -278,7 +278,7 @@ export default function FinancialsPage() {
               fileName="PnL_Report"
               title="Income Statement (P&L)"
               headers={["Account #", "Account Name", "Type", "Amount"]}
-              rows={(pnlData.accounts || []).map((a) => [a.number, a.name, a.type, fmt(a.amount)])}
+              rows={(pnlData.accounts || []).map((a) => [a.number, a.name, a.type, a.amount < 0 ? `(${fmt(Math.abs(a.amount))})` : fmt(a.amount)])}
             />
           )}
           {activeTab === "cashflow" && cfData && (
@@ -414,6 +414,7 @@ interface DetailTransaction {
 }
 
 function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; accounts: Account[]; dateFrom?: string; dateTo?: string }) {
+  const isExpenseTable = title === "Expenses";
   const sorted = [...accounts].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   const [expanded, setExpanded] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailTransaction[]>([]);
@@ -455,6 +456,7 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => {
               const isOpen = expanded === a.number;
+              const isCredit = isExpenseTable && a.amount < 0;
               return (
                 <Fragment key={a.number}>
                   <tr
@@ -465,9 +467,10 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
                       <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
                       <span className="text-xs text-gray-400 mr-2">{a.number}</span>
                       {a.name}
+                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
                     </td>
-                    <td className="px-6 py-2 text-right font-mono text-gray-900 dark:text-white">
-                      {fmt(Math.abs(a.amount))}
+                    <td className={`px-6 py-2 text-right font-mono ${isCredit ? "text-green-600" : "text-gray-900 dark:text-white"}`}>
+                      {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(Math.abs(a.amount))}
                     </td>
                   </tr>
                   {isOpen && (

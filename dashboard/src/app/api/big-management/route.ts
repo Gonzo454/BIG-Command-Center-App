@@ -32,6 +32,15 @@ function dayBefore(dateStr: string): string {
   return d.toISOString().split("T")[0];
 }
 
+interface GLRow {
+  account_name?: string;
+  property_name?: string;
+  post_date?: string;
+  party_name?: string;
+  debit?: string;
+  credit?: string;
+}
+
 interface ExtractedTotals {
   totalRevenue: number;
   totalRevenueLY: number;
@@ -86,19 +95,27 @@ function extractTotals(
     if (num.startsWith("5750") || num.startsWith("5755")) commissions += amount;
 
     const type = classifyAccount(num);
-    const entry = {
-      name,
-      number: num,
-      amount: Math.abs(amount),
-      mtd: Math.abs(mtd),
-      ytd: Math.abs(ytd),
-      lastYearAmount: Math.abs(lastYearAmount),
-    };
 
     if (type === "income") {
-      revenueAccounts.push(entry);
+      revenueAccounts.push({
+        name,
+        number: num,
+        amount: Math.abs(amount),
+        mtd: Math.abs(mtd),
+        ytd: Math.abs(ytd),
+        lastYearAmount: Math.abs(lastYearAmount),
+      });
     } else {
-      expenseAccounts.push(entry);
+      // Expense accounts: negate AppFolio's sign so positive = cost, negative = credit
+      // AppFolio reports expenses as negative (reduce income); net-credit accounts as positive
+      expenseAccounts.push({
+        name,
+        number: num,
+        amount: -amount,
+        mtd: -mtd,
+        ytd: -ytd,
+        lastYearAmount: -lastYearAmount,
+      });
     }
   }
 
@@ -114,10 +131,23 @@ function extractTotals(
   };
 }
 
-function buildResponse(extracted: ExtractedTotals, from: string, to: string, method: string) {
+interface CapitalAccount {
+  name: string;
+  number: string;
+  amount: number; // positive = contribution (credit), negative = distribution (debit)
+}
+
+function buildResponse(
+  extracted: ExtractedTotals,
+  from: string,
+  to: string,
+  method: string,
+  capitalAccounts: CapitalAccount[] = []
+) {
   const netIncome = extracted.totalRevenue - extracted.totalExpenses;
   const netIncomeLY = extracted.totalRevenueLY - extracted.totalExpensesLY;
   const otherRevenue = extracted.totalRevenue - extracted.mgmtFees - extracted.commissions;
+  const totalCapital = capitalAccounts.reduce((s, a) => s + a.amount, 0);
 
   return cachedJson({
     summary: {
@@ -142,11 +172,67 @@ function buildResponse(extracted: ExtractedTotals, from: string, to: string, met
       mgmtFees: Math.round(extracted.mgmtFees * 100) / 100,
       commissions: Math.round(extracted.commissions * 100) / 100,
       otherRevenue: Math.round(otherRevenue * 100) / 100,
+      totalCapital: Math.round(totalCapital * 100) / 100,
     },
     revenueAccounts: extracted.revenueAccounts,
     expenseAccounts: extracted.expenseAccounts,
+    capitalAccounts,
     period: { from, to, method },
   });
+}
+
+/**
+ * Fetch capital activity (3xxx accounts) from the general ledger.
+ * Returns per-account net amounts: positive = contribution (credit), negative = distribution (debit).
+ */
+async function fetchCapitalAccounts(
+  from: string,
+  to: string,
+  propertyFilter: { properties_ids: number[] }
+): Promise<CapitalAccount[]> {
+  try {
+    const glRows = await fetchReport<GLRow>("general_ledger", {
+      from_date: from,
+      to_date: to,
+      properties: propertyFilter,
+    });
+
+    const accountMap = new Map<string, { name: string; amount: number }>();
+
+    for (const row of glRows) {
+      const acctField = (row.account_name || "").trim();
+      // Match 3xxx account numbers
+      const acctMatch = acctField.match(/^(3\d{3}-\d{4}(?:-\d{2})?)\s*-?\s*(.*)/);
+      if (!acctMatch) continue;
+
+      const acctNum = acctMatch[1].replace(/-00$/, "");
+      const acctName = acctMatch[2] || acctField;
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
+
+      // Equity accounts: credits increase (contributions), debits decrease (distributions)
+      const net = credit - debit;
+      if (net === 0) continue;
+
+      const existing = accountMap.get(acctNum);
+      if (existing) {
+        existing.amount += net;
+      } else {
+        accountMap.set(acctNum, { name: acctName, amount: net });
+      }
+    }
+
+    return Array.from(accountMap.entries())
+      .map(([number, { name, amount }]) => ({
+        name,
+        number,
+        amount: Math.round(amount * 100) / 100,
+      }))
+      .filter((a) => a.amount !== 0)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  } catch {
+    return [];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -158,27 +244,36 @@ export async function GET(request: NextRequest) {
   const propertyFilter = { properties_ids: [ENTITY_PROPERTY_IDS.big] };
 
   try {
+    // Fetch capital accounts in parallel with income statement
+    const capitalPromise = fetchCapitalAccounts(from, to, propertyFilter);
+
     if (period === "ytd" || from.endsWith("-01-01")) {
-      const rows = await fetchReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
-      return buildResponse(extractTotals(rows, "year_to_date"), from, to, "year_to_date");
+      const [rows, capitalAccounts] = await Promise.all([
+        fetchReport<IncomeRow>("income_statement", {
+          posted_on_from: from,
+          posted_on_to: to,
+          properties: propertyFilter,
+        }),
+        capitalPromise,
+      ]);
+      return buildResponse(extractTotals(rows, "year_to_date"), from, to, "year_to_date", capitalAccounts);
     }
 
     if (sameMonth(from, to)) {
-      const rows = await fetchReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
-      return buildResponse(extractTotals(rows, "month_to_date"), from, to, "month_to_date");
+      const [rows, capitalAccounts] = await Promise.all([
+        fetchReport<IncomeRow>("income_statement", {
+          posted_on_from: from,
+          posted_on_to: to,
+          properties: propertyFilter,
+        }),
+        capitalPromise,
+      ]);
+      return buildResponse(extractTotals(rows, "month_to_date"), from, to, "month_to_date", capitalAccounts);
     }
 
     // Multi-month custom range — compute via year_to_date subtraction
     const beforeFrom = dayBefore(from);
-    const [endRows, startRows] = await Promise.all([
+    const [endRows, startRows, capitalAccounts] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
         posted_on_from: from,
         posted_on_to: to,
@@ -189,6 +284,7 @@ export async function GET(request: NextRequest) {
         posted_on_to: beforeFrom,
         properties: propertyFilter,
       }, true),
+      capitalPromise,
     ]);
 
     const endTotals = extractTotals(endRows, "year_to_date");
@@ -222,7 +318,7 @@ export async function GET(request: NextRequest) {
       }).filter((a) => a.amount !== 0),
     };
 
-    return buildResponse(result, from, to, "ytd_subtraction");
+    return buildResponse(result, from, to, "ytd_subtraction", capitalAccounts);
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : "Unknown error" },

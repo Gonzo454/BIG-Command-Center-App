@@ -21,6 +21,12 @@ interface Transaction {
   amount: number;
 }
 
+interface CapitalAccount {
+  name: string;
+  number: string;
+  amount: number;
+}
+
 interface Summary {
   totalRevenue: number;
   totalRevenueLY: number;
@@ -31,12 +37,14 @@ interface Summary {
   netIncome: number;
   netIncomeLY: number;
   netIncomeChange: number;
+  totalCapital?: number;
 }
 
 interface PnlData {
   summary: Summary;
   revenueAccounts: Account[];
   expenseAccounts: Account[];
+  capitalAccounts: CapitalAccount[];
 }
 
 const fmt = (n: number) =>
@@ -55,6 +63,7 @@ export default function BigPnlPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [revenueAccounts, setRevenueAccounts] = useState<Account[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
+  const [capitalAccounts, setCapitalAccounts] = useState<CapitalAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [from, setFrom] = useState<string | undefined>();
@@ -72,6 +81,7 @@ export default function BigPnlPage() {
         setSummary(cached.summary);
         setRevenueAccounts(cached.revenueAccounts);
         setExpenseAccounts(cached.expenseAccounts);
+        setCapitalAccounts(cached.capitalAccounts);
         setLoading(false);
         setRefreshing(true);
       } else {
@@ -90,11 +100,13 @@ export default function BigPnlPage() {
             summary: d.summary || null,
             revenueAccounts: d.revenueAccounts || [],
             expenseAccounts: d.expenseAccounts || [],
+            capitalAccounts: d.capitalAccounts || [],
           };
           dataCache.current.set(key, data);
           setSummary(data.summary);
           setRevenueAccounts(data.revenueAccounts);
           setExpenseAccounts(data.expenseAccounts);
+          setCapitalAccounts(data.capitalAccounts);
         })
         .catch(console.error)
         .finally(() => {
@@ -117,6 +129,7 @@ export default function BigPnlPage() {
           summary: d.summary || null,
           revenueAccounts: d.revenueAccounts || [],
           expenseAccounts: d.expenseAccounts || [],
+          capitalAccounts: d.capitalAccounts || [],
         });
       })
       .catch(() => {});
@@ -155,8 +168,8 @@ export default function BigPnlPage() {
     ...expenseAccounts.map((a) => ({
       ...a,
       section: "Expense",
-      ytd: Math.abs(a.ytd),
-      mtd: Math.abs(a.mtd),
+      ytd: a.ytd,
+      mtd: a.mtd,
       lastYearAmount: Math.abs(a.lastYearAmount),
     })),
   ];
@@ -189,8 +202,8 @@ export default function BigPnlPage() {
               a.section,
               a.name,
               a.number,
-              fmt(a.mtd),
-              fmt(a.ytd),
+              a.mtd < 0 ? `(${fmt(Math.abs(a.mtd))})` : fmt(a.mtd),
+              a.ytd < 0 ? `(${fmt(Math.abs(a.ytd))})` : fmt(a.ytd),
               fmt(a.lastYearAmount),
             ])}
           />
@@ -236,6 +249,13 @@ export default function BigPnlPage() {
               to={to}
             />
           </div>
+
+          {/* Capital Activity */}
+          {capitalAccounts.length > 0 && (
+            <div className="mt-6">
+              <CapitalPanel accounts={capitalAccounts} total={summary.totalCapital || 0} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -284,13 +304,12 @@ function AccountPanel({
   const sorted = accounts
     .slice()
     .sort((a, b) => Math.abs(b.ytd) - Math.abs(a.ytd));
-  const colorClass = isExpense ? "text-red-600" : "text-green-600";
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className={`text-sm font-mono ${colorClass}`}>
+        <p className={`text-sm font-mono ${isExpense ? "text-red-600" : "text-green-600"}`}>
           ${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </p>
       </div>
@@ -309,7 +328,10 @@ function AccountPanel({
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => {
               const isOpen = expanded === a.number;
-              const displayAmount = isExpense ? Math.abs(a.ytd) : a.ytd;
+              // For expenses: positive = cost (red), negative = credit/billback (green)
+              const displayAmount = Math.abs(a.ytd);
+              const isCredit = isExpense && a.ytd < 0;
+              const rowColor = isCredit ? "text-green-600" : (isExpense ? "text-red-600" : "text-green-600");
               return (
                 <Fragment key={a.number}>
                   <tr
@@ -322,9 +344,10 @@ function AccountPanel({
                       </span>
                       <span className="text-xs text-gray-400 mr-1">{a.number}</span>
                       {a.name}
+                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
                     </td>
-                    <td className={`px-4 py-2 text-right font-mono ${colorClass}`}>
-                      {fmt(displayAmount)}
+                    <td className={`px-4 py-2 text-right font-mono ${rowColor}`}>
+                      {isCredit ? `(${fmt(displayAmount)})` : fmt(displayAmount)}
                     </td>
                   </tr>
                   {isOpen && (
@@ -392,6 +415,53 @@ function AccountPanel({
                 </td>
               </tr>
             )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: number }) {
+  const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+        <h3 className="font-semibold text-gray-900 dark:text-white">Capital Activity</h3>
+        <p className={`text-sm font-mono ${total >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+          {total >= 0 ? "" : "-"}${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <span className="text-xs text-gray-500 ml-2">
+            {total >= 0 ? "net contributions" : "net distributions"}
+          </span>
+        </p>
+      </div>
+      <div className="max-h-[300px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+            <tr>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {sorted.map((a) => {
+              const isContribution = a.amount > 0;
+              return (
+                <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                    {a.name}
+                    <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                      ({isContribution ? "contribution" : "distribution"})
+                    </span>
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                    {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

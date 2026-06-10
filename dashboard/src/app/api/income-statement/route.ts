@@ -51,7 +51,12 @@ function extractTotals(
 
     if (row.account_number && amount !== 0) {
       const type = classifyAccount(row.account_number);
-      accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
+      if (type === "income") {
+        accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
+      } else {
+        // Expense: negate so positive = cost, negative = credit/billback
+        accounts.push({ name, number: row.account_number, amount: -amount, type });
+      }
     }
   }
 

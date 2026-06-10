@@ -22,12 +22,20 @@ interface Transaction {
   amount: number;
 }
 
+interface CapitalAccount {
+  name: string;
+  number: string;
+  amount: number;
+}
+
 interface PropertyPnl {
   propertyName: string;
   totalIncome: number;
   totalExpenses: number;
   netIncome: number;
   accounts: Account[];
+  capitalAccounts?: CapitalAccount[];
+  totalCapital?: number;
 }
 
 interface KPIProperty {
@@ -322,6 +330,45 @@ export default function PropertyDetailPage() {
               dateTo={dateTo}
             />
           </div>
+
+          {/* Capital Activity */}
+          {data.capitalAccounts && data.capitalAccounts.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white">Capital Activity</h3>
+                <p className={`text-sm font-mono ${(data.totalCapital || 0) >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+                  {(data.totalCapital || 0) >= 0 ? "" : "-"}${Math.abs(data.totalCapital || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  <span className="text-xs text-gray-500 ml-2">
+                    {(data.totalCapital || 0) >= 0 ? "net contributions" : "net distributions"}
+                  </span>
+                </p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+                    <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {data.capitalAccounts.map((a) => (
+                    <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                      <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                        <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                        {a.name}
+                        <span className={`ml-1 text-xs font-medium ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                          ({a.amount > 0 ? "contribution" : "distribution"})
+                        </span>
+                      </td>
+                      <td className={`px-4 py-2 text-right font-mono ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                        {a.amount > 0 ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       ) : null}
     </div>
@@ -370,13 +417,12 @@ function PropertyAccountPanel({
   }
 
   const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
-  const colorClass = isExpense ? "text-red-600" : "text-green-600";
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className={`text-sm font-mono ${colorClass}`}>
+        <p className={`text-sm font-mono ${isExpense ? "text-red-600" : "text-green-600"}`}>
           ${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </p>
       </div>
@@ -395,6 +441,8 @@ function PropertyAccountPanel({
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => {
               const isOpen = expanded === a.number;
+              const isCredit = isExpense && a.amount < 0;
+              const rowColor = isCredit ? "text-green-600" : (isExpense ? "text-red-600" : "text-green-600");
               return (
                 <Fragment key={a.number + a.name}>
                   <tr
@@ -407,9 +455,10 @@ function PropertyAccountPanel({
                       </span>
                       <span className="text-xs text-gray-400 mr-1">{a.number}</span>
                       {a.name}
+                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
                     </td>
-                    <td className={`px-4 py-2 text-right font-mono ${colorClass}`}>
-                      {fmt(a.amount)}
+                    <td className={`px-4 py-2 text-right font-mono ${rowColor}`}>
+                      {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(a.amount)}
                     </td>
                   </tr>
                   {isOpen && (
@@ -514,7 +563,7 @@ function MiniMetric({ label, value, target, good }: { label: string; value: stri
 }
 
 function BreakdownPanel({ title, accounts, total, color }: { title: string; accounts: Account[]; total: number; color: "emerald" | "red" }) {
-  const sorted = accounts.slice().sort((a, b) => b.amount - a.amount).slice(0, 8);
+  const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 8);
   const barColor = color === "emerald" ? "bg-emerald-500" : "bg-red-400";
   const totalColor = color === "emerald" ? "text-emerald-600" : "text-red-600";
 
@@ -528,18 +577,23 @@ function BreakdownPanel({ title, accounts, total, color }: { title: string; acco
       </div>
       <div className="p-4">
         {sorted.map((a) => {
-          const pct = total > 0 ? (a.amount / total) * 100 : 0;
+          const absAmount = Math.abs(a.amount);
+          const pct = total > 0 ? (absAmount / total) * 100 : 0;
+          const isCredit = color === "red" && a.amount < 0;
           return (
             <div key={a.number} className="mb-3">
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-700 dark:text-gray-300 truncate mr-2">{a.name}</span>
-                <span className="font-mono text-gray-600 whitespace-nowrap">
-                  ${Math.abs(a.amount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                <span className="text-gray-700 dark:text-gray-300 truncate mr-2">
+                  {a.name}
+                  {isCredit && <span className="text-green-600 text-xs ml-1">(credit)</span>}
+                </span>
+                <span className={`font-mono whitespace-nowrap ${isCredit ? "text-green-600" : "text-gray-600"}`}>
+                  {isCredit ? `($${absAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })})` : `$${absAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                   <span className="text-gray-400 text-xs ml-1">({pct.toFixed(0)}%)</span>
                 </span>
               </div>
               <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className={`h-full ${barColor} rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                <div className={`h-full ${isCredit ? "bg-green-400" : barColor} rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
               </div>
             </div>
           );

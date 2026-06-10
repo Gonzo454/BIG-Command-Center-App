@@ -2,6 +2,15 @@ import { NextRequest } from "next/server";
 import { fetchReport, firstOfMonth, today, parseAmount } from "@/lib/appfolio";
 import { getOwnership } from "@/lib/ownership";
 
+interface GLRow {
+  account_name?: string;
+  property_name?: string;
+  post_date?: string;
+  party_name?: string;
+  debit?: string;
+  credit?: string;
+}
+
 interface IncomeRow {
   account_name?: string;
   account_number?: string;
@@ -57,11 +66,66 @@ function extractTotals(
 
     if (row.account_number && amount !== 0) {
       const type = classifyAccount(row.account_number);
-      accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
+      if (type === "income") {
+        accounts.push({ name, number: row.account_number, amount: Math.abs(amount), type });
+      } else {
+        // Expense: negate so positive = cost, negative = credit/billback
+        accounts.push({ name, number: row.account_number, amount: -amount, type });
+      }
     }
   }
 
   return { totalIncome, totalExpenses, accounts };
+}
+
+/**
+ * Fetch capital activity (3xxx accounts) from the general ledger for a specific property.
+ */
+async function fetchCapitalAccounts(
+  from: string,
+  to: string,
+  propertyFilter: { properties_ids: number[] }
+): Promise<{ name: string; number: string; amount: number }[]> {
+  try {
+    const glRows = await fetchReport<GLRow>("general_ledger", {
+      from_date: from,
+      to_date: to,
+      properties: propertyFilter,
+    });
+
+    const accountMap = new Map<string, { name: string; amount: number }>();
+
+    for (const row of glRows) {
+      const acctField = (row.account_name || "").trim();
+      const acctMatch = acctField.match(/^(3\d{3}-\d{4}(?:-\d{2})?)\s*-?\s*(.*)/);
+      if (!acctMatch) continue;
+
+      const acctNum = acctMatch[1].replace(/-00$/, "");
+      const acctName = acctMatch[2] || acctField;
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
+      const net = credit - debit;
+      if (net === 0) continue;
+
+      const existing = accountMap.get(acctNum);
+      if (existing) {
+        existing.amount += net;
+      } else {
+        accountMap.set(acctNum, { name: acctName, amount: net });
+      }
+    }
+
+    return Array.from(accountMap.entries())
+      .map(([number, { name, amount }]) => ({
+        name,
+        number,
+        amount: Math.round(amount * 100) / 100,
+      }))
+      .filter((a) => a.amount !== 0)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  } catch {
+    return [];
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -92,13 +156,17 @@ export async function GET(request: NextRequest) {
     }
 
     const propertyFilter = { properties_ids: [match.property_id] };
+    const capitalPromise = fetchCapitalAccounts(from, to, propertyFilter);
 
     if (period === "ytd" || from.endsWith("-01-01")) {
-      const rows = await fetchReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
+      const [rows, capitalAccounts] = await Promise.all([
+        fetchReport<IncomeRow>("income_statement", {
+          posted_on_from: from,
+          posted_on_to: to,
+          properties: propertyFilter,
+        }),
+        capitalPromise,
+      ]);
       const extracted = extractTotals(rows, "year_to_date");
       const pct = ownershipView ? getOwnership(propertyName) : 1;
       return Response.json({
@@ -107,17 +175,22 @@ export async function GET(request: NextRequest) {
         totalExpenses: Math.round(extracted.totalExpenses * pct),
         netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
         accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        totalCapital: Math.round(capitalAccounts.reduce((s, a) => s + a.amount, 0) * pct),
         ownershipPct: pct,
         period: { from, to, method: "year_to_date" },
       });
     }
 
     if (sameMonth(from, to)) {
-      const rows = await fetchReport<IncomeRow>("income_statement", {
-        posted_on_from: from,
-        posted_on_to: to,
-        properties: propertyFilter,
-      });
+      const [rows, capitalAccounts] = await Promise.all([
+        fetchReport<IncomeRow>("income_statement", {
+          posted_on_from: from,
+          posted_on_to: to,
+          properties: propertyFilter,
+        }),
+        capitalPromise,
+      ]);
       const extracted = extractTotals(rows, "month_to_date");
       const pct = ownershipView ? getOwnership(propertyName) : 1;
       return Response.json({
@@ -126,6 +199,8 @@ export async function GET(request: NextRequest) {
         totalExpenses: Math.round(extracted.totalExpenses * pct),
         netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
         accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+        totalCapital: Math.round(capitalAccounts.reduce((s, a) => s + a.amount, 0) * pct),
         ownershipPct: pct,
         period: { from, to, method: "month_to_date" },
       });
@@ -133,7 +208,7 @@ export async function GET(request: NextRequest) {
 
     // Multi-month custom range — compute via year_to_date subtraction
     const beforeFrom = dayBefore(from);
-    const [endRows, startRows] = await Promise.all([
+    const [endRows, startRows, capitalAccounts] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
         posted_on_from: from,
         posted_on_to: to,
@@ -144,6 +219,7 @@ export async function GET(request: NextRequest) {
         posted_on_to: beforeFrom,
         properties: propertyFilter,
       }, true),
+      capitalPromise,
     ]);
 
     const endTotals = extractTotals(endRows, "year_to_date");
@@ -173,6 +249,8 @@ export async function GET(request: NextRequest) {
       totalExpenses: adjExpenses,
       netIncome: adjIncome - adjExpenses,
       accounts,
+      capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
+      totalCapital: Math.round(capitalAccounts.reduce((s, a) => s + a.amount, 0) * pct),
       period: { from, to, method: "ytd_subtraction" },
     });
   } catch (err) {
