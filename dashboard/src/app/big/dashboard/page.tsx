@@ -214,7 +214,7 @@ export default function BigDashboardPage() {
           No data available
         </div>
       ) : (
-        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
+        <div className={`space-y-6 ${refreshing ? "opacity-75 transition-opacity" : ""}`}>
           {/* KPI Cards + Profitability Gauge */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <KpiCard
