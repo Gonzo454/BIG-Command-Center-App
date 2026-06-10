@@ -255,7 +255,7 @@ export default function PropertyDetailPage() {
             <KpiCard
               label="Total Revenue"
               value={data.totalIncome}
-              color="text-gray-900 dark:text-white"
+              color="text-green-600"
               href="#section-income"
             />
             <KpiCard
@@ -557,11 +557,12 @@ function KpiCard({
       </p>
     </>
   );
-  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  const base = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center";
   if (href) {
-    return <a href={href} className={cls}>{inner}</a>;
+    const tint = color.includes("green") ? "kpi-green" : color.includes("red") ? "kpi-red" : "kpi-neutral";
+    return <a href={href} className={`${base} kpi-card-link ${tint}`}>{inner}</a>;
   }
-  return <div className={cls}>{inner}</div>;
+  return <div className={base}>{inner}</div>;
 }
 
 function MiniMetric({ label, value, target, good }: { label: string; value: string; target: string; good: boolean }) {

@@ -332,10 +332,7 @@ function AccountPanel({
     if (dateTo) params.set("to", dateTo);
     fetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => {
-        setDetail(d.transactions || []);
-        if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
-      })
+      .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
   }
@@ -538,9 +535,10 @@ function KpiCard({
       </p>
     </>
   );
-  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  const base = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center";
   if (href) {
-    return <a href={href} className={cls}>{inner}</a>;
+    const tint = color.includes("green") ? "kpi-green" : color.includes("red") ? "kpi-red" : "kpi-neutral";
+    return <a href={href} className={`${base} kpi-card-link ${tint}`}>{inner}</a>;
   }
-  return <div className={cls}>{inner}</div>;
+  return <div className={base}>{inner}</div>;
 }
