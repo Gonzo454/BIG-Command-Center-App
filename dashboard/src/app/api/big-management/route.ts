@@ -194,16 +194,13 @@ async function fetchCapitalAccounts(
     // not under the BIG management entity (property 33). Fetch without property
     // filter to capture all portfolio capital activity.
     const glRows = await fetchReport<GLRow>("general_ledger", {
-      from_date: from,
-      to_date: to,
+      posted_on_from: from,
+      posted_on_to: to,
     });
 
     const accountMap = new Map<string, { name: string; amount: number }>();
 
     for (const row of glRows) {
-      // AppFolio GL ignores from_date/to_date — filter by post_date in code
-      const postDate = (row.post_date || "").slice(0, 10);
-      if (postDate < from || postDate > to) continue;
 
       const acctField = (row.account_name || "").trim();
       // Match 3xxx account numbers

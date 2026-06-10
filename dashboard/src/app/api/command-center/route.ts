@@ -251,8 +251,8 @@ export async function GET(request: NextRequest) {
         properties: hotelFilter,
       }),
       fetchReport<GLRow>("general_ledger", {
-        from_date: fullYearFrom,
-        to_date: fullYearTo,
+        posted_on_from: fullYearFrom,
+        posted_on_to: fullYearTo,
       }),
       fetchReport<RentRollRow>("rent_roll"),
       fetchReport<ArRow>("aged_receivables_detail", { as_of_date: ytdTo }),
