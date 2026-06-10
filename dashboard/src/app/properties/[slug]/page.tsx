@@ -255,7 +255,7 @@ export default function PropertyDetailPage() {
             <KpiCard
               label="Total Revenue"
               value={data.totalIncome}
-              color="text-gray-900 dark:text-white"
+              color="text-green-600"
               href="#section-income"
             />
             <KpiCard
