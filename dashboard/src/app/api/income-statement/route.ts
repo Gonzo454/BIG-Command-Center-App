@@ -29,16 +29,13 @@ async function fetchCapitalAccounts(
 ): Promise<CapitalAccount[]> {
   try {
     const glRows = await fetchReport<GLRow>("general_ledger", {
-      from_date: from,
-      to_date: to,
+      posted_on_from: from,
+      posted_on_to: to,
     });
 
     const accountMap = new Map<string, { name: string; amount: number }>();
 
     for (const row of glRows) {
-      // AppFolio GL ignores from_date/to_date — filter by post_date in code
-      const postDate = (row.post_date || "").slice(0, 10);
-      if (postDate < from || postDate > to) continue;
 
       const acctField = (row.account_name || "").trim();
       const acctMatch = acctField.match(/^(3\d{3}-\d{4}(?:-\d{2})?)\s*-?\s*(.*)/);
