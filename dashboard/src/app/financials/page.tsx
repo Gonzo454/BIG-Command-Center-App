@@ -435,12 +435,15 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
     if (dateTo) params.set("to", dateTo);
     fetch(`/api/property-pnl/detail?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setDetail(d.transactions || []))
+      .then((d) => {
+        setDetail(d.transactions || []);
+        if (d.total !== undefined) setExpandedTotal(Math.abs(d.total));
+      })
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
   }
 
-  const total = sorted.reduce((s, a) => s + Math.abs(a.amount), 0);
+  const total = Math.abs(sorted.reduce((s, a) => s + a.amount, 0));
 
   return (
     <div id={`section-${title.toLowerCase()}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

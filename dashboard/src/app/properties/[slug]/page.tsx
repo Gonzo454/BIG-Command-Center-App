@@ -413,7 +413,10 @@ function PropertyAccountPanel({
     if (dateTo) params.set("to", dateTo);
     fetch(`/api/property-pnl/detail?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setDetail(d.transactions || []))
+      .then((d) => {
+        setDetail(d.transactions || []);
+        if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
+      })
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
   }

@@ -296,7 +296,10 @@ function AccountPanel({
     if (to) params.set("to", to);
     fetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setDetail(d.transactions || []))
+      .then((d) => {
+        setDetail(d.transactions || []);
+        if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
+      })
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
   }
