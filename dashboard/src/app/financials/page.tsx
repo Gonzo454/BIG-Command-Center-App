@@ -13,11 +13,19 @@ interface Account {
   type: string;
 }
 
+interface CapitalAccount {
+  name: string;
+  number: string;
+  amount: number;
+}
+
 interface PnlData {
   totalIncome: number;
   totalExpenses: number;
   netIncome: number;
   accounts: Account[];
+  capitalAccounts?: CapitalAccount[];
+  totalCapital?: number;
   period: { from: string; to: string };
 }
 
@@ -401,6 +409,9 @@ function PnlTab({ data }: { data: PnlData }) {
         <AccountTable title="Income" accounts={incomeAccounts} dateFrom={data.period?.from} dateTo={data.period?.to} />
         <AccountTable title="Expenses" accounts={expenseAccounts} dateFrom={data.period?.from} dateTo={data.period?.to} />
       </div>
+      {data.capitalAccounts && data.capitalAccounts.length > 0 && (
+        <FinancialsCapitalPanel accounts={data.capitalAccounts} total={data.totalCapital || 0} />
+      )}
     </>
   );
 }
@@ -947,4 +958,51 @@ function SimpleKpiCard({ label, value, color, href }: { label: string; value: st
     return <a href={href} className={`${base} kpi-card-link ${tint}`}>{inner}</a>;
   }
   return <div className={base}>{inner}</div>;
+}
+
+function FinancialsCapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: number }) {
+  const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <h3 className="font-semibold text-gray-900 dark:text-white">Capital Activity</h3>
+        <p className={`text-sm font-mono font-semibold ${total >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+          {total >= 0 ? "" : "-"}${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <span className="text-xs text-gray-500 ml-2">
+            {total >= 0 ? "net contributions" : "net distributions"}
+          </span>
+        </p>
+      </div>
+      <div className="max-h-[300px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+            <tr>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {sorted.map((a) => {
+              const isContribution = a.amount > 0;
+              return (
+                <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                    {a.name}
+                    <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                      ({isContribution ? "contribution" : "distribution"})
+                    </span>
+                  </td>
+                  <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                    {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
