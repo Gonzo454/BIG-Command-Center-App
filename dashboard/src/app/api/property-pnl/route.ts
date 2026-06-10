@@ -97,6 +97,10 @@ async function fetchCapitalAccounts(
     const accountMap = new Map<string, { name: string; amount: number }>();
 
     for (const row of glRows) {
+      // AppFolio GL ignores from_date/to_date — filter by post_date in code
+      const postDate = (row.post_date || "").slice(0, 10);
+      if (postDate < from || postDate > to) continue;
+
       // If a property name is provided, only include entries matching that property
       if (propertyName && row.property_name && row.property_name !== propertyName) continue;
       const acctField = (row.account_name || "").trim();

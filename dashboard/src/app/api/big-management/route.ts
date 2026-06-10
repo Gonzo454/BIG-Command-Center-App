@@ -201,6 +201,10 @@ async function fetchCapitalAccounts(
     const accountMap = new Map<string, { name: string; amount: number }>();
 
     for (const row of glRows) {
+      // AppFolio GL ignores from_date/to_date — filter by post_date in code
+      const postDate = (row.post_date || "").slice(0, 10);
+      if (postDate < from || postDate > to) continue;
+
       const acctField = (row.account_name || "").trim();
       // Match 3xxx account numbers
       const acctMatch = acctField.match(/^(3\d{3}-\d{4}(?:-\d{2})?)\s*-?\s*(.*)/);

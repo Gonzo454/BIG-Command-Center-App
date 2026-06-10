@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
     const propertyLower = property ? property.toLowerCase() : null;
 
     for (const r of rows) {
+      // AppFolio GL ignores from_date/to_date — filter by post_date in code
+      const postDate = (r.post_date || "").slice(0, 10);
+      if (postDate < from || postDate > to) continue;
+
       // Filter by property name if provided
       const rowProperty = (r.property_name || "").trim();
       if (propertyLower && !rowProperty.toLowerCase().includes(propertyLower)) continue;
