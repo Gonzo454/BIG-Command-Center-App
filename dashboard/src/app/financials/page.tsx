@@ -393,8 +393,8 @@ function PnlTab({ data }: { data: PnlData }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SimpleKpiCard label="Total Income" value={fmtK(data.totalIncome)} color="text-green-600" />
-        <SimpleKpiCard label="Total Expenses" value={fmtK(data.totalExpenses)} color="text-red-600" />
+        <SimpleKpiCard label="Total Income" value={fmtK(data.totalIncome)} color="text-green-600" href="#section-income" />
+        <SimpleKpiCard label="Total Expenses" value={fmtK(data.totalExpenses)} color="text-red-600" href="#section-expenses" />
         <SimpleKpiCard label="Net Income" value={fmtK(data.netIncome)} color={data.netIncome >= 0 ? "text-green-600" : "text-red-600"} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -440,10 +440,15 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
       .finally(() => setDetailLoading(false));
   }
 
+  const total = sorted.reduce((s, a) => s + Math.abs(a.amount), 0);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+    <div id={`section-${title.toLowerCase()}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className={`text-sm font-mono font-semibold ${isExpenseTable ? "text-red-600" : "text-green-600"}`}>
+          ${total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        </p>
       </div>
       <div className="max-h-[500px] overflow-y-auto">
         <table className="w-full text-sm">
@@ -469,7 +474,7 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
                       {a.name}
                       {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
                     </td>
-                    <td className={`px-6 py-2 text-right font-mono ${isCredit ? "text-green-600" : "text-gray-900 dark:text-white"}`}>
+                    <td className={`px-6 py-2 text-right font-mono ${isCredit ? "text-green-600" : (isExpenseTable ? "text-red-600" : "text-green-600")}`}>
                       {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(Math.abs(a.amount))}
                     </td>
                   </tr>
@@ -926,11 +931,16 @@ function YoYTable({ title, accounts, invertColor, mode }: { title: string; accou
 }
 
 /* ── Shared ── */
-function SimpleKpiCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+function SimpleKpiCard({ label, value, color, href }: { label: string; value: string; color: string; href?: string }) {
+  const inner = (
+    <>
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>{value}</p>
-    </div>
+    </>
   );
+  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  if (href) {
+    return <a href={href} className={cls}>{inner}</a>;
+  }
+  return <div className={cls}>{inner}</div>;
 }

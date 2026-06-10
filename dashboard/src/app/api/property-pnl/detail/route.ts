@@ -1,18 +1,16 @@
 import { NextRequest } from "next/server";
-import { fetchReport, firstOfYear, today, parseAmount } from "@/lib/appfolio";
+import { fetchReport, firstOfYear, today } from "@/lib/appfolio";
 
-interface CheckRow {
-  vendor_name?: string;
-  payee_name?: string;
-  check_date?: string;
-  payment_amount?: string;
-  invoice_amount?: string;
-  amount?: string;
-  gl_account_name?: string;
-  gl_account_number?: string;
+interface GLRow {
+  account_name?: string;
   property_name?: string;
+  post_date?: string;
+  party_name?: string;
+  debit?: string;
+  credit?: string;
   memo?: string;
   description?: string;
+  ref_number?: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -30,12 +28,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const rows = await fetchReport<CheckRow>("check_register_detail", {
+    const rows = await fetchReport<GLRow>("general_ledger", {
       from_date: from,
       to_date: to,
     });
 
-    const propertyLower = property ? property.toLowerCase() : null;
     const accountBase = account.replace(/-00$/, "");
 
     const transactions: {
@@ -46,25 +43,38 @@ export async function GET(request: NextRequest) {
       amount: number;
     }[] = [];
 
+    const propertyLower = property ? property.toLowerCase() : null;
+
     for (const r of rows) {
+      // Filter by property name if provided
       const rowProperty = (r.property_name || "").trim();
       if (propertyLower && !rowProperty.toLowerCase().includes(propertyLower)) continue;
 
-      const rowGlNum = (r.gl_account_number || "").trim();
-      if (rowGlNum !== account && rowGlNum !== accountBase) continue;
+      const acctField = (r.account_name || "").trim();
+      // Extract account number from the account_name field (e.g. "4500-000 - Rent Income")
+      const acctMatch = acctField.match(/^(\d{4}-\d{3,4}(?:-\d{2})?)/);
+      if (!acctMatch) continue;
 
-      const vendor = r.vendor_name || r.payee_name || "Unknown";
-      const amount =
-        parseAmount(r.invoice_amount) ||
-        parseAmount(r.amount) ||
-        parseAmount(r.payment_amount);
+      const rowAcctNum = acctMatch[1].replace(/-00$/, "");
+      if (rowAcctNum !== account && rowAcctNum !== accountBase) continue;
+
+      const debit = parseFloat(r.debit || "0") || 0;
+      const credit = parseFloat(r.credit || "0") || 0;
+      if (debit === 0 && credit === 0) continue;
+
+      // For income accounts (4xxx/5xxx): amount = credit - debit (positive = income)
+      // For expense accounts (6xxx/7xxx/8xxx): amount = debit - credit (positive = expense)
+      const acctPrefix = account.charAt(0);
+      const amount = (acctPrefix === "4" || acctPrefix === "5")
+        ? credit - debit
+        : debit - credit;
 
       if (amount === 0) continue;
 
       transactions.push({
-        date: r.check_date || "",
-        vendor,
-        property: rowProperty,
+        date: r.post_date || "",
+        vendor: r.party_name || "—",
+        property: (r.property_name || "").trim(),
         description: r.memo || r.description || "",
         amount,
       });
@@ -90,3 +100,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+

@@ -221,8 +221,8 @@ export default function BigPnlPage() {
         <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <KpiCard label="Total Revenue" value={fmtK(totalRevenue)} color="text-green-600" />
-            <KpiCard label="Total Expenses" value={fmtK(totalExpenses)} color="text-red-600" />
+            <KpiCard label="Total Revenue" value={fmtK(totalRevenue)} color="text-green-600" href="#section-income" />
+            <KpiCard label="Total Expenses" value={fmtK(totalExpenses)} color="text-red-600" href="#section-expenses" />
             <KpiCard
               label="Net Income"
               value={fmtK(netIncome)}
@@ -306,10 +306,10 @@ function AccountPanel({
     .sort((a, b) => Math.abs(b.ytd) - Math.abs(a.ytd));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+    <div id={`section-${title.toLowerCase()}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className={`text-sm font-mono ${isExpense ? "text-red-600" : "text-green-600"}`}>
+        <p className={`text-sm font-mono font-semibold ${isExpense ? "text-red-600" : "text-green-600"}`}>
           ${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </p>
       </div>
@@ -469,15 +469,20 @@ function CapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: 
   );
 }
 
-function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+function KpiCard({ label, value, color, href }: { label: string; value: string; color: string; href?: string }) {
+  const inner = (
+    <>
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
         {label}
       </p>
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: "clamp(1rem, 2.5vw, 1.5rem)" }}>
         {value}
       </p>
-    </div>
+    </>
   );
+  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  if (href) {
+    return <a href={href} className={cls}>{inner}</a>;
+  }
+  return <div className={cls}>{inner}</div>;
 }

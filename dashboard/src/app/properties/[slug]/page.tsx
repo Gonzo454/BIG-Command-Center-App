@@ -256,6 +256,7 @@ export default function PropertyDetailPage() {
               label="Total Revenue"
               value={data.totalIncome}
               color="text-gray-900 dark:text-white"
+              href="#section-income"
             />
             <KpiCard
               label="NOI"
@@ -279,6 +280,7 @@ export default function PropertyDetailPage() {
               label="Total Expenses"
               value={data.totalExpenses}
               color="text-red-600"
+              href="#section-expenses"
             />
           </div>
 
@@ -419,10 +421,10 @@ function PropertyAccountPanel({
   const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+    <div id={`section-${title.toLowerCase()}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <p className={`text-sm font-mono ${isExpense ? "text-red-600" : "text-green-600"}`}>
+        <p className={`text-sm font-mono font-semibold ${isExpense ? "text-red-600" : "text-green-600"}`}>
           ${Math.abs(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}
         </p>
       </div>
@@ -535,21 +537,28 @@ function KpiCard({
   label,
   value,
   color,
+  href,
 }: {
   label: string;
   value: number;
   color: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+  const inner = (
+    <>
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
         {label}
       </p>
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
         ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </p>
-    </div>
+    </>
   );
+  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  if (href) {
+    return <a href={href} className={cls}>{inner}</a>;
+  }
+  return <div className={cls}>{inner}</div>;
 }
 
 function MiniMetric({ label, value, target, good }: { label: string; value: string; target: string; good: boolean }) {
