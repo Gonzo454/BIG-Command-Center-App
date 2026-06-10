@@ -56,7 +56,9 @@ function computeMonthlyTrendFromGL(
   const currentMonth = new Date().getMonth(); // 0-indexed
   const months: { jrw: number; big: number; hotel: number }[] = [];
 
-  for (let m = 0; m <= currentMonth; m++) {
+  // Only show complete months (current partial month drops misleadingly
+  // because expenses post early while income posts later in the month)
+  for (let m = 0; m < currentMonth; m++) {
     const monthStr = String(m + 1).padStart(2, "0");
     const lastDay = new Date(year, m + 1, 0).getDate();
     const fromDate = `${year}-${monthStr}-01`;
@@ -237,7 +239,7 @@ export async function GET(request: NextRequest) {
       : "";
 
     // All API calls in parallel (BIG database + PV database)
-    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS] = await Promise.all([
+    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS, allIS] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
@@ -264,6 +266,11 @@ export async function GET(request: NextRequest) {
             posted_on_to: pvBaselineEnd,
           }).catch(() => [] as IncomeRow[])
         : Promise.resolve([] as IncomeRow[]),
+      // All-properties income_statement for JRW (JRW = all - BIG - Hotel)
+      fetchReport<IncomeRow>("income_statement", {
+        posted_on_from: ytdFrom,
+        posted_on_to: ytdTo,
+      }),
     ]);
 
     // BIG P&L from income_statement
@@ -326,11 +333,8 @@ export async function GET(request: NextRequest) {
       hotelPnL = { income: htlInc, opex: htlExp, noi: htlInc - htlExp, netIncome: htlInc - htlExp };
     }
 
-    // JRW P&L computed from period-filtered GL
-    const periodGlRows = glRows.filter((r) => {
-      const pd = r.post_date || "";
-      return pd >= ytdFrom && pd <= ytdTo;
-    });
+    // JRW P&L: income_statement for MTD/YTD (matches Executive Dashboard),
+    // GL for QTD/Custom (no income_statement column available)
     let jrwIncome = 0;
     let jrwOpex = 0;
     let jrwDebtService = 0;
@@ -338,6 +342,50 @@ export async function GET(request: NextRequest) {
     let jrwOtherBelow = 0;
     let hotelRoomRevenue = 0;
 
+    const periodGlRows = glRows.filter((r) => {
+      const pd = r.post_date || "";
+      return pd >= ytdFrom && pd <= ytdTo;
+    });
+
+    if (isYtd || isMtd) {
+      // Use income_statement: JRW = all properties - BIG - Hotel
+      // (income_statement is authoritative; GL-based P&L diverges due to
+      //  account classification and adjusting entries)
+      const allTotals = extractSectionTotals(allIS, isCol);
+      const bigTotalsIS = extractSectionTotals(bigIS, isCol);
+      const hotelTotalsIS = extractSectionTotals(hotelIS, isCol);
+      const jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
+      const jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+
+      if (ownershipView) {
+        // Approximate ownership weighting via GL revenue distribution
+        let totalRaw = 0, totalWeighted = 0;
+        for (const r of periodGlRows) {
+          const acctField = (r.account_name || "").trim();
+          const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
+          if (!acctMatch) continue;
+          const propertyName = r.property_name || "";
+          const section = classifyEntityByName(propertyName);
+          if (section !== "jrw") continue;
+          const prefix = acctMatch[1].charAt(0);
+          if (prefix !== "4") continue;
+          const debit = parseFloat(r.debit || "0") || 0;
+          const credit = parseFloat(r.credit || "0") || 0;
+          const amount = credit - debit;
+          if (amount <= 0) continue;
+          totalRaw += amount;
+          totalWeighted += amount * getOwnership(propertyName);
+        }
+        const ratio = totalRaw > 0 ? totalWeighted / totalRaw : 1;
+        jrwIncome = jrwIncomeRaw * ratio;
+        jrwOpex = jrwOpexRaw * ratio;
+      } else {
+        jrwIncome = jrwIncomeRaw;
+        jrwOpex = jrwOpexRaw;
+      }
+    }
+
+    // GL loop: hotel room revenue, below-NOI items, QTD/Custom JRW income/opex
     for (const r of periodGlRows) {
       const acctField = (r.account_name || "").trim();
       const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
@@ -359,26 +407,43 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // JRW entity totals
+      // JRW
       if (section === "jrw") {
         const pct = ownershipView ? getOwnership(propertyName) : 1;
-        if (prefix === "4" || prefix === "5") {
-          if (account.startsWith("5875") || account.startsWith("5873")) {
-            jrwOpex += (debit - credit) * pct;
-          } else if (!account.startsWith("5756")) {
-            jrwIncome += (credit - debit) * pct;
+
+        if (!isYtd && !isMtd) {
+          // QTD/Custom: income and opex from GL
+          if (prefix === "4" || prefix === "5") {
+            if (account.startsWith("5875") || account.startsWith("5873")) {
+              jrwOpex += (debit - credit) * pct;
+            } else if (!account.startsWith("5756")) {
+              jrwIncome += (credit - debit) * pct;
+            }
+          } else if (prefix === "6" || prefix === "7") {
+            if (account.startsWith("6600") || account.startsWith("6650")) {
+              jrwDeprecAmort += (debit - credit) * pct;
+            } else {
+              jrwOpex += (debit - credit) * pct;
+            }
+          } else if (prefix === "8") {
+            if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
+              jrwDebtService += (debit - credit) * pct;
+            } else {
+              jrwOtherBelow += (debit - credit) * pct;
+            }
           }
-        } else if (prefix === "6" || prefix === "7") {
-          if (account.startsWith("6600") || account.startsWith("6650")) {
-            jrwDeprecAmort += (debit - credit) * pct;
-          } else {
-            jrwOpex += (debit - credit) * pct;
-          }
-        } else if (prefix === "8") {
-          if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
-            jrwDebtService += (debit - credit) * pct;
-          } else {
-            jrwOtherBelow += (debit - credit) * pct;
+        } else {
+          // MTD/YTD: only below-NOI from GL (income/opex from income_statement)
+          if (prefix === "6" || prefix === "7") {
+            if (account.startsWith("6600") || account.startsWith("6650")) {
+              jrwDeprecAmort += (debit - credit) * pct;
+            }
+          } else if (prefix === "8") {
+            if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
+              jrwDebtService += (debit - credit) * pct;
+            } else {
+              jrwOtherBelow += (debit - credit) * pct;
+            }
           }
         }
       }
