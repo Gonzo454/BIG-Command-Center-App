@@ -208,11 +208,13 @@ export default function BigDashboardPage() {
               label="Total Revenue"
               value={summary.totalRevenue}
               color="text-green-600"
+              href="#section-revenue"
             />
             <KpiCard
               label="Total Expenses"
               value={summary.totalExpenses}
               color="text-red-600"
+              href="#section-expenses"
             />
             <KpiCard
               label="Net Income"
@@ -330,7 +332,10 @@ function AccountPanel({
     if (dateTo) params.set("to", dateTo);
     fetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
-      .then((d) => setDetail(d.transactions || []))
+      .then((d) => {
+        setDetail(d.transactions || []);
+        if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
+      })
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
   }
@@ -342,12 +347,12 @@ function AccountPanel({
   const colorClass = isExpense ? "text-red-600" : "text-green-600";
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+    <div id={`section-${title.toLowerCase()}`} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-white">
           {title}
         </h3>
-        <p className={`text-sm font-mono ${colorClass}`}>{fmtShort(total)}</p>
+        <p className={`text-sm font-mono font-semibold ${colorClass}`}>{fmtShort(total)}</p>
       </div>
       <div className="max-h-[500px] overflow-y-auto">
         <table className="w-full text-sm">
@@ -363,8 +368,8 @@ function AccountPanel({
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => {
-              const amt = isExpense ? Math.abs(a.amount) : a.amount;
               const isOpen = expanded === a.number;
+              const isCredit = isExpense && a.amount < 0;
 
               return (
                 <Fragment key={a.number}>
@@ -380,11 +385,12 @@ function AccountPanel({
                         {a.number}
                       </span>
                       {a.name}
+                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
                     </td>
                     <td
-                      className={`px-4 py-2 text-right font-mono ${colorClass}`}
+                      className={`px-4 py-2 text-right font-mono ${isCredit ? "text-green-600" : colorClass}`}
                     >
-                      {fmt(amt)}
+                      {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(Math.abs(a.amount))}
                     </td>
                   </tr>
                   {isOpen && (
@@ -513,13 +519,15 @@ function KpiCard({
   label,
   value,
   color,
+  href,
 }: {
   label: string;
   value: number;
   color: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+  const inner = (
+    <>
       <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
       <p
         className={`font-bold mt-1 ${color}`}
@@ -528,6 +536,11 @@ function KpiCard({
         {value < 0 ? "-" : ""}
         {fmtShort(value)}
       </p>
-    </div>
+    </>
   );
+  const cls = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center" + (href ? " cursor-pointer hover:border-gray-300 transition-colors" : "");
+  if (href) {
+    return <a href={href} className={cls}>{inner}</a>;
+  }
+  return <div className={cls}>{inner}</div>;
 }
