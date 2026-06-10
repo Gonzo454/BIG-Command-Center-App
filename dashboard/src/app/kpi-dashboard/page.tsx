@@ -15,7 +15,7 @@ interface PropertyKPI {
   expenses: number;
   noi: number;
   noiMargin: number;
-  netAfterDebt: number;
+  netAfterDebt: number | null;
   totalUnits: number;
   occupied: number;
   vacant: number;
@@ -259,8 +259,8 @@ export default function KPIDashboardPage() {
                     <span>{c.oer}%</span>
                     <span className="text-xs text-gray-400 ml-1">({c.targets.oer})</span>
                   </td>
-                  <td className={`px-3 py-3 text-right font-mono ${c.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {fmtK(c.netAfterDebt)}
+                  <td className={`px-3 py-3 text-right font-mono ${c.netAfterDebt === null ? "text-gray-400" : c.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {c.netAfterDebt === null ? "—" : fmtK(c.netAfterDebt)}
                   </td>
                 </tr>
               ))}

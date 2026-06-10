@@ -49,7 +49,7 @@ interface KPIProperty {
   expenses: number;
   noi: number;
   noiMargin: number;
-  netAfterDebt: number;
+  netAfterDebt: number | null;
   totalUnits: number;
   occupied: number;
   vacant: number;
@@ -262,7 +262,7 @@ export default function PropertyDetailPage() {
               value={data.netIncome}
               color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
             />
-            {kpi ? (
+            {kpi && kpi.netAfterDebt !== null ? (
               <KpiCard
                 label="Net After Debt Svc"
                 value={kpi.netAfterDebt}
