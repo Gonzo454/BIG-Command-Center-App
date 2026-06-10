@@ -80,22 +80,25 @@ function extractTotals(
 
 /**
  * Fetch capital activity (3xxx accounts) from the general ledger for a specific property.
+ * Capital GL entries in AppFolio live under holding-company entities, not operating
+ * properties. We fetch without property filter and match by property_name.
  */
 async function fetchCapitalAccounts(
   from: string,
   to: string,
-  propertyFilter: { properties_ids: number[] }
+  propertyName?: string,
 ): Promise<{ name: string; number: string; amount: number }[]> {
   try {
     const glRows = await fetchReport<GLRow>("general_ledger", {
       from_date: from,
       to_date: to,
-      properties: propertyFilter,
     });
 
     const accountMap = new Map<string, { name: string; amount: number }>();
 
     for (const row of glRows) {
+      // If a property name is provided, only include entries matching that property
+      if (propertyName && row.property_name && row.property_name !== propertyName) continue;
       const acctField = (row.account_name || "").trim();
       const acctMatch = acctField.match(/^(3\d{3}-\d{4}(?:-\d{2})?)\s*-?\s*(.*)/);
       if (!acctMatch) continue;
@@ -156,7 +159,7 @@ export async function GET(request: NextRequest) {
     }
 
     const propertyFilter = { properties_ids: [match.property_id] };
-    const capitalPromise = fetchCapitalAccounts(from, to, propertyFilter);
+    const capitalPromise = fetchCapitalAccounts(from, to, propertyName);
 
     if (period === "ytd" || from.endsWith("-01-01")) {
       const [rows, capitalAccounts] = await Promise.all([

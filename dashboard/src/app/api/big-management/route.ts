@@ -188,13 +188,14 @@ function buildResponse(
 async function fetchCapitalAccounts(
   from: string,
   to: string,
-  propertyFilter: { properties_ids: number[] }
 ): Promise<CapitalAccount[]> {
   try {
+    // Capital GL entries (3xxx) live under holding-company entities in AppFolio,
+    // not under the BIG management entity (property 33). Fetch without property
+    // filter to capture all portfolio capital activity.
     const glRows = await fetchReport<GLRow>("general_ledger", {
       from_date: from,
       to_date: to,
-      properties: propertyFilter,
     });
 
     const accountMap = new Map<string, { name: string; amount: number }>();
@@ -245,7 +246,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch capital accounts in parallel with income statement
-    const capitalPromise = fetchCapitalAccounts(from, to, propertyFilter);
+    const capitalPromise = fetchCapitalAccounts(from, to);
 
     if (period === "ytd" || from.endsWith("-01-01")) {
       const [rows, capitalAccounts] = await Promise.all([
