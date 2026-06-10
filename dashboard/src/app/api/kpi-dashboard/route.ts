@@ -44,6 +44,10 @@ function isDebtService(acctNumber: string): boolean {
   return DEBT_SERVICE_PREFIXES.some((p) => acctNumber.startsWith(p));
 }
 
+function isCapitalAccount(acctNumber: string): boolean {
+  return acctNumber.startsWith("3");
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -139,6 +143,7 @@ export async function GET(request: NextRequest) {
       const net = parseAmount(row.net_amount);
       const acctNum = (row.account_number || "").trim();
 
+      if (acctNum && isCapitalAccount(acctNum)) continue;
       if (acctNum && isDebtService(acctNum)) {
         entry.debtService += Math.abs(net);
       } else {
@@ -297,7 +302,7 @@ export async function GET(request: NextRequest) {
       const expenses = Math.round(fin.expenses);
       const noi = revenue - expenses;
       const noiMargin = revenue > 0 ? (noi / revenue) * 100 : 0;
-      const netAfterDebt = noi - Math.round(fin.debtService);
+      const netAfterDebt = fin.debtService > 0 ? noi - Math.round(fin.debtService) : null;
       const dscr = fin.debtService > 0 ? noi / fin.debtService : 0;
       const oer = revenue > 0 ? (expenses / revenue) * 100 : 0;
 
