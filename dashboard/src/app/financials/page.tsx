@@ -383,7 +383,7 @@ export default function FinancialsPage() {
       {loading ? (
         <div className="text-center py-20 text-gray-500">Loading...</div>
       ) : (
-        <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
+        <div className={`space-y-6 ${refreshing ? "opacity-75 transition-opacity" : ""}`}>
           {activeTab === "pnl" && pnlData && <PnlTab data={pnlData} />}
           {activeTab === "cashflow" && cfData && <CashFlowTab data={cfData} />}
           {activeTab === "budget" && budgetData && <BudgetTab data={budgetData} mode={budgetMode} />}
