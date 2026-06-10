@@ -56,7 +56,9 @@ function computeMonthlyTrendFromGL(
   const currentMonth = new Date().getMonth(); // 0-indexed
   const months: { jrw: number; big: number; hotel: number }[] = [];
 
-  for (let m = 0; m <= currentMonth; m++) {
+  // Only show complete months (current partial month drops misleadingly
+  // because expenses post early while income posts later in the month)
+  for (let m = 0; m < currentMonth; m++) {
     const monthStr = String(m + 1).padStart(2, "0");
     const lastDay = new Date(year, m + 1, 0).getDate();
     const fromDate = `${year}-${monthStr}-01`;
