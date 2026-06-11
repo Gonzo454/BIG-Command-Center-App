@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface PropertyKPI {
   name: string;
@@ -174,6 +175,27 @@ export default function KPIDashboardPage() {
         </div>
         <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
+
+      <ExportButtons
+        fileName={`kpi-dashboard-${data.period.label.toLowerCase()}`}
+        title="KPI Dashboard"
+        headers={["Entity", "Property", "Asset Class", "Revenue", "Expenses", "NOI", "NOI Margin %", "DSCR", "OER %", "Occupancy %", "Status"]}
+        rows={sections.flatMap((sec) =>
+          sec.properties.map((p) => [
+            sec.label,
+            p.name,
+            p.assetClassLabel,
+            p.revenue,
+            p.expenses,
+            p.noi,
+            p.noiMargin,
+            p.dscr,
+            p.oer,
+            p.occupancyRate,
+            p.status,
+          ])
+        )}
+      />
 
       {refreshing && (
         <div className="text-xs text-blue-500 animate-pulse">Updating...</div>

@@ -22,6 +22,25 @@ interface AccountTotalsRow {
 interface IncomeRow {
   account_name?: string;
   year_to_date?: string;
+  month_to_date?: string;
+}
+
+function dayBefore(date: string): string {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function extractIsTotals(rows: IncomeRow[], column: "year_to_date" | "month_to_date") {
+  let income = 0;
+  let expenses = 0;
+  for (const row of rows) {
+    const name = (row.account_name || "").toLowerCase().trim();
+    const amount = parseAmount(row[column]);
+    if (name === "total income") income = amount;
+    if (name === "total expense" || name === "total expenses") expenses = Math.abs(amount);
+  }
+  return { income, expenses };
 }
 
 export async function GET(request: NextRequest) {
@@ -29,30 +48,44 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const ownershipView = searchParams.get("view") === "joe";
 
-    const ytdFrom = firstOfYear();
-    const ytdTo = today();
+    const rangeFrom = searchParams.get("from") || firstOfYear();
+    const rangeTo = searchParams.get("to") || today();
+    const period = (searchParams.get("period") || "ytd").toLowerCase();
+    const isMtd = period === "mtd";
+    const isYtd = period === "ytd" || rangeFrom.endsWith("-01-01");
 
     const [rentRows, arRows, accountRows, isRows] = await Promise.all([
       fetchPvReport<RentRollRow>("rent_roll"),
-      fetchPvReport<ArRow>("aged_receivables_detail", { as_of_date: ytdTo }),
+      fetchPvReport<ArRow>("aged_receivables_detail", { as_of_date: rangeTo }),
       fetchPvReport<AccountTotalsRow>("account_totals", {
-        posted_on_from: ytdFrom,
-        posted_on_to: ytdTo,
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
       }),
       fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: ytdFrom,
-        posted_on_to: ytdTo,
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
       }),
     ]);
 
     // Portfolio-level totals from income_statement
     let totalIncome = 0;
     let totalExpenses = 0;
-    for (const row of isRows) {
-      const name = (row.account_name || "").toLowerCase().trim();
-      const amount = parseAmount(row.year_to_date);
-      if (name === "total income") totalIncome = amount;
-      if (name === "total expense" || name === "total expenses") totalExpenses = Math.abs(amount);
+    if (isMtd || isYtd) {
+      const t = extractIsTotals(isRows, isMtd ? "month_to_date" : "year_to_date");
+      totalIncome = t.income;
+      totalExpenses = t.expenses;
+    } else {
+      // Multi-month range (QTD/custom) via YTD subtraction
+      const beforeFrom = dayBefore(rangeFrom);
+      const baselineFrom = beforeFrom.slice(0, 8) + "01";
+      const baseline = await fetchPvReport<IncomeRow>("income_statement", {
+        posted_on_from: baselineFrom,
+        posted_on_to: beforeFrom,
+      });
+      const e = extractIsTotals(isRows, "year_to_date");
+      const s = extractIsTotals(baseline, "year_to_date");
+      totalIncome = e.income - s.income;
+      totalExpenses = e.expenses - s.expenses;
     }
 
     const pvPct = ownershipView ? getOwnership("Park Vista") : 1;
@@ -136,9 +169,9 @@ export async function GET(request: NextRequest) {
         agedReceivables: Math.round(agedReceivables * pvPct),
       },
       period: {
-        from: ytdFrom,
-        to: ytdTo,
-        basis: "YTD",
+        from: rangeFrom,
+        to: rangeTo,
+        basis: period.toUpperCase(),
       },
       ownershipView,
     });

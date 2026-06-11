@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface CommunitySnapshot {
   name: string;
@@ -39,33 +41,26 @@ export default function PvCommunitiesPage() {
   const [data, setData] = useState<PvData | null>(null);
   const [loading, setLoading] = useState(true);
   const [ownershipView, setOwnershipView] = useState(false);
-  const initialized = useRef(false);
-  const skipToggle = useRef(true);
+  const [range, setRange] = useState({
+    from: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`,
+    to: new Date().toISOString().split("T")[0],
+    period: "mtd",
+  });
 
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    fetch("/api/park-vista")
+  const fetchData = useCallback(() => {
+    const view = ownershipView ? "&view=joe" : "";
+    fetch(`/api/park-vista?from=${range.from}&to=${range.to}&period=${range.period}${view}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [ownershipView, range]);
 
   useEffect(() => {
-    if (skipToggle.current) {
-      skipToggle.current = false;
-      return;
-    }
-    setLoading(true);
-    fetch(`/api/park-vista${ownershipView ? "?view=joe" : ""}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [ownershipView]);
+    fetchData();
+  }, [fetchData]);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-gray-500">Loading communities...</p>
@@ -92,6 +87,10 @@ export default function PvCommunitiesPage() {
             {data.portfolio.communityCount} communities · {data.portfolio.totalUnits} total units
           </p>
         </div>
+        <div className="flex items-center gap-3">
+        <DateRangePicker
+          onRangeChange={(from, to, period) => setRange({ from, to, period })}
+        />
         <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
           <button
             onClick={() => setOwnershipView(false)}
@@ -114,7 +113,24 @@ export default function PvCommunitiesPage() {
             Joe&apos;s Share (51%)
           </button>
         </div>
+        </div>
       </div>
+
+      <ExportButtons
+        fileName={`park-vista-communities-${range.from}-to-${range.to}`}
+        title="Park Vista Communities"
+        headers={["Community", "Location", "Income", "Expenses", "Net Income", "Occupancy %", "Units", "Occupied"]}
+        rows={data.communities.map((c) => [
+          c.name,
+          c.location,
+          c.totalIncome,
+          c.totalExpenses,
+          c.netIncome,
+          c.occupancyRate,
+          c.totalUnits,
+          c.occupied,
+        ])}
+      />
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
