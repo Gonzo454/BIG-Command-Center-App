@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef, use } from "react";
 import Link from "next/link";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Account {
   name: string;
@@ -37,36 +39,40 @@ export default function PvCommunityDetailPage({
   const [data, setData] = useState<PnLData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("mtd");
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [ownershipView, setOwnershipView] = useState(false);
   const initialized = useRef(false);
   const cache = useRef<Record<string, PnLData>>({});
 
-  function buildUrl() {
+  function rangeDates() {
+    if (customRange) return customRange;
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const day = now.getDate();
-    const todayStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    let from = todayStr;
-    let periodParam = "mtd";
+    const to = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    let from: string;
     if (period === "mtd") {
       from = `${year}-${String(month).padStart(2, "0")}-01`;
-      periodParam = "mtd";
     } else if (period === "qtd") {
       const q = Math.floor((month - 1) / 3) * 3 + 1;
       from = `${year}-${String(q).padStart(2, "0")}-01`;
-      periodParam = "qtd";
     } else {
       from = `${year}-01-01`;
-      periodParam = "ytd";
     }
+    return { from, to };
+  }
+
+  function buildUrl() {
+    const { from, to } = rangeDates();
     const view = ownershipView ? "&view=joe" : "";
-    return `/api/park-vista/community-pnl?community=${slug}&from=${from}&to=${todayStr}&period=${periodParam}${view}`;
+    return `/api/park-vista/community-pnl?community=${slug}&from=${from}&to=${to}&period=${customRange ? "custom" : period}${view}`;
   }
 
   function fetchData() {
     const url = buildUrl();
-    const cacheKey = `${period}:${ownershipView}`;
+    const { from, to } = rangeDates();
+    const cacheKey = `${from}:${to}:${ownershipView}`;
     if (cache.current[cacheKey]) {
       setData(cache.current[cacheKey]);
       setLoading(false);
@@ -93,7 +99,7 @@ export default function PvCommunityDetailPage({
     }
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, ownershipView]);
+  }, [period, customRange, ownershipView]);
 
   const incomeAccounts = data?.accounts?.filter((a) => a.type === "income") || [];
   const expenseAccounts = data?.accounts?.filter((a) => a.type === "expense") || [];
@@ -115,23 +121,6 @@ export default function PvCommunityDetailPage({
           {data?.communityName || slug}
         </h1>
         <div className="flex items-center gap-3">
-          {/* Period selector */}
-          <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-            {(["mtd", "qtd", "ytd"] as Period[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-medium transition-all ${
-                  period === p
-                    ? "bg-teal-600 text-white"
-                    : "bg-white text-gray-500 hover:bg-teal-50 dark:bg-gray-700 dark:text-gray-400"
-                } ${p !== "mtd" ? "border-l border-gray-200 dark:border-gray-600" : ""}`}
-              >
-                {p.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          {/* Ownership toggle */}
           <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
             <button
               onClick={() => setOwnershipView(false)}
@@ -154,6 +143,32 @@ export default function PvCommunityDetailPage({
               Joe&apos;s 51%
             </button>
           </div>
+        </div>
+      </div>
+      <div className="h-0.5 w-full bg-[#E07B2A] rounded" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ExportButtons
+          fileName={`${slug}-pnl`}
+          title={`${data?.communityName || slug} P&L`}
+          headers={["Type", "Account", "Number", "Amount"]}
+          rows={(data?.accounts || []).map((a) => [
+            a.type === "income" ? "Income" : "Expense",
+            a.name,
+            a.number,
+            a.amount,
+          ])}
+        />
+        <div className="ml-auto">
+          <DateRangePicker
+            onRangeChange={(from, to, p) => {
+              if (p === "custom") {
+                setCustomRange({ from, to });
+              } else {
+                setCustomRange(null);
+                setPeriod(p as Period);
+              }
+            }}
+          />
         </div>
       </div>
 

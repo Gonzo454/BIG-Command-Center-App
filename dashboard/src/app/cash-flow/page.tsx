@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Fragment } from "react";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface CashFlowItem {
   name: string;
@@ -66,6 +67,19 @@ export default function CashFlowPage() {
         <p className="text-sm text-gray-500 mt-1">Operating, investing & financing activities</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {data && (
+          <ExportButtons
+            fileName={`cash-flow-${period}`}
+            title="Cash Flow Statement"
+            headers={["Section", "Account", "Number", "Amount"]}
+            rows={[
+              ...data.operating.items.map((i) => ["Operating", i.name, i.number, i.amount]),
+              ...data.investing.items.map((i) => ["Investing", i.name, i.number, i.amount]),
+              ...data.financing.items.map((i) => ["Financing", i.name, i.number, i.amount]),
+              ["Net Cash Flow", "", "", data.netCashFlow],
+            ]}
+          />
+        )}
         <div className="ml-auto flex gap-2">
           {(["mtd", "ytd"] as const).map((p) => (
             <button

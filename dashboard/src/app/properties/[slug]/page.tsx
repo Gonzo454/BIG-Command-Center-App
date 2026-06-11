@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Fragment } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ProfitGauge } from "@/components/ProfitGauge";
@@ -32,6 +32,8 @@ interface PropertyPnl {
   propertyName: string;
   totalIncome: number;
   totalExpenses: number;
+  debtService?: number;
+  noi?: number;
   netIncome: number;
   accounts: Account[];
   capitalAccounts?: CapitalAccount[];
@@ -84,6 +86,7 @@ const fmt = (n: number) =>
 
 export default function PropertyDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const rawSlug = params.slug as string;
   let slug: string;
   try {
@@ -91,6 +94,13 @@ export default function PropertyDetailPage() {
   } catch {
     slug = rawSlug;
   }
+
+  // Park Vista financials live in the dedicated PV AppFolio database
+  useEffect(() => {
+    if (slug.toLowerCase().startsWith("park vista")) {
+      router.replace("/pv/dashboard");
+    }
+  }, [slug, router]);
   const [data, setData] = useState<PropertyPnl | null>(null);
   const [kpi, setKpi] = useState<KPIProperty | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,22 +270,14 @@ export default function PropertyDetailPage() {
             />
             <KpiCard
               label="NOI"
+              value={data.noi ?? data.netIncome}
+              color={(data.noi ?? data.netIncome) >= 0 ? "text-emerald-600" : "text-red-600"}
+            />
+            <KpiCard
+              label={data.debtService ? "Net After Debt Svc" : "Net Income"}
               value={data.netIncome}
               color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
             />
-            {kpi && kpi.netAfterDebt !== null ? (
-              <KpiCard
-                label="Net After Debt Svc"
-                value={kpi.netAfterDebt}
-                color={kpi.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}
-              />
-            ) : (
-              <KpiCard
-                label="Net Income"
-                value={data.netIncome}
-                color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
-              />
-            )}
             <KpiCard
               label="Total Expenses"
               value={data.totalExpenses}
@@ -284,26 +286,44 @@ export default function PropertyDetailPage() {
             />
           </div>
 
-          {/* Financial Health Metrics — CRE per asset class */}
-          {kpi && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <MiniMetric label="NOI Margin" value={`${kpi.noiMargin}%`} target={kpi.targets.noiMargin} good={kpi.noiMargin >= parseFloat(kpi.targets.noiMargin)} />
-              <MiniMetric label="DSCR" value={kpi.dscr > 0 ? `${kpi.dscr}x` : "—"} target={`≥${kpi.targets.dscrMin}x`} good={kpi.dscr >= kpi.targets.dscrMin || kpi.dscr === 0} />
-              <MiniMetric label="OER" value={`${kpi.oer}%`} target={kpi.targets.oer} good={kpi.oer <= parseFloat(kpi.targets.oer.split("–")[1])} />
-              <MiniMetric label="Occupancy" value={`${kpi.occupancyRate}%`} target={`≥${kpi.targets.occupancy}%`} good={kpi.occupancyRate >= kpi.targets.occupancy} />
-              {kpi.walt !== null && (
-                <MiniMetric label="WALT" value={`${kpi.walt} yrs`} target={kpi.targets.waltYears ? `≥${kpi.targets.waltYears} yrs` : "—"} good={!kpi.targets.waltYears || kpi.walt >= kpi.targets.waltYears} />
-              )}
-              <MiniMetric label="Collection" value={`${kpi.collectionRate}%`} target="≥95%" good={kpi.collectionRate >= 95} />
-              {kpi.leaseExposure12mo > 0 && (
-                <MiniMetric label="Lease Exp. 12mo" value={`${kpi.leaseExposure12mo}%`} target="<25%" good={kpi.leaseExposure12mo < 25} />
-              )}
-              {kpi.rentPerSf !== null && (
-                <MiniMetric label="Rent/SF" value={`$${kpi.rentPerSf.toFixed(2)}`} target="In-place" good={true} />
-              )}
-              <MiniMetric label="Vacancy Loss" value={`$${Math.abs(kpi.vacancyLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} target="Minimize" good={kpi.vacancyLoss < 50000} />
-            </div>
-          )}
+          {/* Financial Health Metrics — tailored to asset class */}
+          {kpi && (() => {
+            const ac = kpi.assetClass;
+            const isCommercial = ["office_fsg", "office_mg", "retail_gross", "retail_nnn", "industrial"].includes(ac);
+            const isResidential = ac === "residential";
+            const isLand = ac === "land";
+            const isMgmt = ac === "mgmt_company";
+            const showDebt = !kpi.managedOnly && !isMgmt;
+            const showOccupancy = !isLand && !isMgmt;
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <MiniMetric label="NOI Margin" value={`${kpi.noiMargin}%`} target={kpi.targets.noiMargin} good={kpi.noiMargin >= parseFloat(kpi.targets.noiMargin)} />
+                {showDebt && (
+                  <MiniMetric label="DSCR" value={kpi.dscr > 0 ? `${kpi.dscr}x` : "—"} target={`≥${kpi.targets.dscrMin}x`} good={kpi.dscr >= kpi.targets.dscrMin || kpi.dscr === 0} />
+                )}
+                <MiniMetric label="OER" value={`${kpi.oer}%`} target={kpi.targets.oer} good={kpi.oer <= parseFloat(kpi.targets.oer.split("–")[1])} />
+                {showOccupancy && (
+                  <MiniMetric label="Occupancy" value={`${kpi.occupancyRate}%`} target={`≥${kpi.targets.occupancy}%`} good={kpi.occupancyRate >= kpi.targets.occupancy} />
+                )}
+                {isCommercial && kpi.walt !== null && (
+                  <MiniMetric label="WALT" value={`${kpi.walt} yrs`} target={kpi.targets.waltYears ? `≥${kpi.targets.waltYears} yrs` : "—"} good={!kpi.targets.waltYears || kpi.walt >= kpi.targets.waltYears} />
+                )}
+                <MiniMetric label="Collection" value={`${kpi.collectionRate}%`} target="≥95%" good={kpi.collectionRate >= 95} />
+                {(isResidential || isCommercial) && kpi.delinquent > 0 && (
+                  <MiniMetric label="Delinquent" value={`$${Math.abs(kpi.delinquent).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} target="Minimize" good={kpi.delinquent < 10000} />
+                )}
+                {isCommercial && kpi.leaseExposure12mo > 0 && (
+                  <MiniMetric label="Lease Exp. 12mo" value={`${kpi.leaseExposure12mo}%`} target="<25%" good={kpi.leaseExposure12mo < 25} />
+                )}
+                {isCommercial && kpi.rentPerSf !== null && (
+                  <MiniMetric label="Rent/SF" value={`$${kpi.rentPerSf.toFixed(2)}`} target="In-place" good={true} />
+                )}
+                {isCommercial && (
+                  <MiniMetric label="Vacancy Loss" value={`$${Math.abs(kpi.vacancyLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} target="Minimize" good={kpi.vacancyLoss < 50000} />
+                )}
+              </div>
+            );
+          })()}
 
           {/* Revenue & Expense Breakdown Bars */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -553,7 +573,9 @@ function KpiCard({
         {label}
       </p>
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
-        ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        {value < 0
+          ? `($${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })})`
+          : `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
       </p>
     </>
   );

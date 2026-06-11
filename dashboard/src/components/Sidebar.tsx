@@ -140,8 +140,9 @@ export function Sidebar() {
         />
       </nav>
 
-      <div className="p-4 border-t border-gray-800 text-xs text-gray-500">
-        Data refreshes every 5 min
+      <div className="p-4 border-t border-gray-800 text-xs text-gray-500 flex justify-between">
+        <span>Data refreshes every 5 min</span>
+        <span>v2.8.4</span>
       </div>
     </aside>
   );

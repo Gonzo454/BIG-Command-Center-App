@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { fetchReport, firstOfMonth, firstOfQuarter, firstOfYear, today, parseAmount, cachedJson, centralNowExported } from "@/lib/appfolio";
 import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
-import { getPropertyConfig, gradeProperty, BENCHMARKS, formatAssetClass } from "@/lib/property-config";
+import { getPropertyConfig, gradeProperty, BENCHMARKS, formatAssetClass, BUSINESS_ENTITY_LABELS, type BusinessEntity } from "@/lib/property-config";
 
 interface RentRollRow {
   status?: string;
@@ -390,6 +390,7 @@ export async function GET(request: NextRequest) {
         slug: slugify(name),
         assetClass: cfg.assetClass,
         assetClassLabel: formatAssetClass(cfg.assetClass),
+        businessEntity: cfg.businessEntity,
         managedOnly: cfg.managedOnly,
         ownershipPct,
         revenue,
@@ -424,65 +425,84 @@ export async function GET(request: NextRequest) {
       };
     }).filter((c) => c.revenue > 0 || c.totalUnits > 0);
 
-    // --- Portfolio totals (exclude BIG mgmt company, already filtered above) ---
+    // --- Group properties by business entity ---
     const activeProperties = properties.filter((p) => !getPropertyConfig(p.name).archived);
-    const portfolioRevenue = activeProperties.reduce((s, c) => s + c.revenue, 0);
-    const portfolioExpenses = activeProperties.reduce((s, c) => s + c.expenses, 0);
-    const portfolioNoi = portfolioRevenue - portfolioExpenses;
-    const totalUnits = activeProperties.reduce((s, c) => s + c.totalUnits, 0);
-    const totalOccupied = activeProperties.reduce((s, c) => s + c.occupied, 0);
-    const totalSqft = activeProperties.reduce((s, c) => s + c.totalSqft, 0);
-    const occupiedSqft = activeProperties.reduce((s, c) => s + c.occupiedSqft, 0);
-    const totalVacancyLoss = activeProperties.reduce((s, c) => s + c.vacancyLoss, 0);
-    const totalDebtService = activeProperties.reduce((s, c) => s + c.debtService, 0);
-    // Portfolio DSCR from YTD totals (same annualized approach as per-property)
-    const totalYtdDebt = activeProperties.reduce((s, c) => s + (ytdDebtByProperty.get(c.name) || 0), 0);
-    const totalYtdNoi = activeProperties.reduce((s, c) => {
-      const yn = ytdNoiByProperty.get(c.name);
-      return s + (yn ? yn.income - yn.expenses : 0);
-    }, 0);
-    const portfolioDscr = totalYtdDebt > 0 ? totalYtdNoi / totalYtdDebt : 0;
-    const totalDelinquent = activeProperties.reduce((s, c) => s + c.delinquent, 0);
-    const reviewCount = activeProperties.filter((c) => c.status === "Review").length;
-    const stableCount = activeProperties.filter((c) => c.status === "Stable").length;
-    const strongCount = activeProperties.filter((c) => c.status === "Strong").length;
 
-    // Portfolio WALT
-    const portfolioWaltNum = activeProperties.reduce((s, c) => {
-      const occ = rentByProperty.get(c.name);
-      return s + (occ ? occ.waltNumerator : 0);
-    }, 0);
-    const portfolioWaltDen = activeProperties.reduce((s, c) => {
-      const occ = rentByProperty.get(c.name);
-      return s + (occ ? occ.waltDenominator : 0);
-    }, 0);
-    const portfolioWalt = portfolioWaltDen > 0
-      ? Math.round((portfolioWaltNum / portfolioWaltDen) * 10) / 10
-      : null;
+    function computeEntitySummary(entityProps: typeof activeProperties) {
+      const rev = entityProps.reduce((s, c) => s + c.revenue, 0);
+      const exp = entityProps.reduce((s, c) => s + c.expenses, 0);
+      const noi = rev - exp;
+      const units = entityProps.reduce((s, c) => s + c.totalUnits, 0);
+      const occ = entityProps.reduce((s, c) => s + c.occupied, 0);
+      const sqft = entityProps.reduce((s, c) => s + c.totalSqft, 0);
+      const occSqft = entityProps.reduce((s, c) => s + c.occupiedSqft, 0);
+      const vacLoss = entityProps.reduce((s, c) => s + c.vacancyLoss, 0);
+      const debt = entityProps.reduce((s, c) => s + c.debtService, 0);
+      const ytdD = entityProps.reduce((s, c) => s + (ytdDebtByProperty.get(c.name) || 0), 0);
+      const ytdN = entityProps.reduce((s, c) => {
+        const yn = ytdNoiByProperty.get(c.name);
+        return s + (yn ? yn.income - yn.expenses : 0);
+      }, 0);
+      const dscr = ytdD > 0 ? ytdN / ytdD : 0;
+      const deliq = entityProps.reduce((s, c) => s + c.delinquent, 0);
+      const waltNum = entityProps.reduce((s, c) => {
+        const r = rentByProperty.get(c.name);
+        return s + (r ? r.waltNumerator : 0);
+      }, 0);
+      const waltDen = entityProps.reduce((s, c) => {
+        const r = rentByProperty.get(c.name);
+        return s + (r ? r.waltDenominator : 0);
+      }, 0);
+      return {
+        revenue: rev,
+        noi,
+        noiMargin: rev > 0 ? Math.round((noi / rev) * 1000) / 10 : 0,
+        occupancyRate: units > 0 ? Math.round((occ / units) * 100) : 0,
+        totalUnits: units,
+        occupied: occ,
+        vacant: units - occ,
+        totalSqft: Math.round(sqft),
+        occupiedSqft: Math.round(occSqft),
+        vacancyLoss: vacLoss,
+        oer: rev > 0 ? Math.round((exp / rev) * 1000) / 10 : 0,
+        dscr: Math.round(dscr * 100) / 100,
+        debtService: Math.round(debt),
+        walt: waltDen > 0 ? Math.round((waltNum / waltDen) * 10) / 10 : null,
+        delinquent: deliq,
+        propertyCount: entityProps.length,
+        reviewCount: entityProps.filter((c) => c.status === "Review").length,
+        stableCount: entityProps.filter((c) => c.status === "Stable").length,
+        strongCount: entityProps.filter((c) => c.status === "Strong").length,
+      };
+    }
+
+    // Group by entity
+    const entityOrder: BusinessEntity[] = ["jrw", "big", "badger_hotel", "park_vista", "badger_realty"];
+    const sections = entityOrder
+      .map((entity) => {
+        const entityProps = activeProperties
+          .filter((p) => p.businessEntity === entity)
+          .sort((a, b) => b.revenue - a.revenue);
+        if (entityProps.length === 0) return null;
+        // BIG is a pure management company — its summary reflects only its own
+        // corporate P&L, not the P&L of third-party-owned properties it manages.
+        const summaryProps =
+          entity === "big" ? entityProps.filter((p) => !p.managedOnly) : entityProps;
+        return {
+          entity,
+          label: BUSINESS_ENTITY_LABELS[entity],
+          summary: computeEntitySummary(summaryProps.length > 0 ? summaryProps : entityProps),
+          properties: entityProps,
+        };
+      })
+      .filter(Boolean);
+
+    // Overall portfolio totals (backwards compat)
+    const portfolioSummary = computeEntitySummary(activeProperties);
 
     return cachedJson({
-      portfolio: {
-        revenue: portfolioRevenue,
-        noi: portfolioNoi,
-        noiMargin: portfolioRevenue > 0 ? Math.round((portfolioNoi / portfolioRevenue) * 1000) / 10 : 0,
-        occupancyRate: totalUnits > 0 ? Math.round((totalOccupied / totalUnits) * 100) : 0,
-        occupancySf: totalSqft > 0 ? Math.round((occupiedSqft / totalSqft) * 100) : 0,
-        totalUnits,
-        occupied: totalOccupied,
-        vacant: totalUnits - totalOccupied,
-        totalSqft: Math.round(totalSqft),
-        occupiedSqft: Math.round(occupiedSqft),
-        vacancyLoss: totalVacancyLoss,
-        oer: portfolioRevenue > 0 ? Math.round((portfolioExpenses / portfolioRevenue) * 1000) / 10 : 0,
-        dscr: Math.round(portfolioDscr * 100) / 100,
-        debtService: Math.round(totalDebtService),
-        walt: portfolioWalt,
-        delinquent: totalDelinquent,
-        propertyCount: activeProperties.length,
-        reviewCount,
-        stableCount,
-        strongCount,
-      },
+      portfolio: portfolioSummary,
+      sections,
       properties: activeProperties.sort((a, b) => b.revenue - a.revenue),
       period: {
         from: qtdFrom,

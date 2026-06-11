@@ -29,6 +29,12 @@ function classifyAccount(accountNumber: string): "income" | "expense" {
   return "expense";
 }
 
+const DEBT_SERVICE_PREFIXES = ["8510", "8511", "8520", "8525", "8530"];
+
+function isDebtService(acctNumber: string): boolean {
+  return DEBT_SERVICE_PREFIXES.some((p) => acctNumber.startsWith(p));
+}
+
 function sameMonth(a: string, b: string): boolean {
   return a.slice(0, 7) === b.slice(0, 7);
 }
@@ -45,6 +51,7 @@ function extractTotals(
 ) {
   let totalIncome = 0;
   let totalExpenses = 0;
+  let debtService = 0;
   const accounts: { name: string; number: string; amount: number; type: string }[] = [];
 
   for (const row of rows) {
@@ -71,11 +78,14 @@ function extractTotals(
       } else {
         // Expense: negate so positive = cost, negative = credit/billback
         accounts.push({ name, number: row.account_number, amount: -amount, type });
+        if (isDebtService(row.account_number)) debtService += amount;
       }
     }
   }
 
-  return { totalIncome, totalExpenses, accounts };
+  // Debt service is a cost — AppFolio's IS column sign convention varies,
+  // so normalize to a positive magnitude.
+  return { totalIncome, totalExpenses, debtService: Math.abs(debtService), accounts };
 }
 
 /**
@@ -177,6 +187,8 @@ export async function GET(request: NextRequest) {
         propertyName,
         totalIncome: Math.round(extracted.totalIncome * pct),
         totalExpenses: Math.round(extracted.totalExpenses * pct),
+        debtService: Math.round(extracted.debtService * pct),
+        noi: Math.round((extracted.totalIncome - extracted.totalExpenses + extracted.debtService) * pct),
         netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
         accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
         capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
@@ -201,6 +213,8 @@ export async function GET(request: NextRequest) {
         propertyName,
         totalIncome: Math.round(extracted.totalIncome * pct),
         totalExpenses: Math.round(extracted.totalExpenses * pct),
+        debtService: Math.round(extracted.debtService * pct),
+        noi: Math.round((extracted.totalIncome - extracted.totalExpenses + extracted.debtService) * pct),
         netIncome: Math.round((extracted.totalIncome - extracted.totalExpenses) * pct),
         accounts: extracted.accounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
         capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),
@@ -231,6 +245,7 @@ export async function GET(request: NextRequest) {
 
     const totalIncome = endTotals.totalIncome - startTotals.totalIncome;
     const totalExpenses = endTotals.totalExpenses - startTotals.totalExpenses;
+    const debtService = endTotals.debtService - startTotals.debtService;
 
     const startMap = new Map<string, number>();
     for (const a of startTotals.accounts) {
@@ -247,10 +262,14 @@ export async function GET(request: NextRequest) {
     const adjIncome = Math.round(totalIncome * pct);
     const adjExpenses = Math.round(totalExpenses * pct);
 
+    const adjDebtService = Math.round(debtService * pct);
+
     return Response.json({
       propertyName,
       totalIncome: adjIncome,
       totalExpenses: adjExpenses,
+      debtService: adjDebtService,
+      noi: adjIncome - adjExpenses + adjDebtService,
       netIncome: adjIncome - adjExpenses,
       accounts,
       capitalAccounts: capitalAccounts.map((a) => ({ ...a, amount: Math.round(a.amount * pct) })),

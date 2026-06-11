@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { ExportButtons } from "@/components/ExportButtons";
 
 interface Account {
   name: string;
@@ -45,6 +47,7 @@ function periodDates(p: Period) {
 
 export default function PvFinancialsPage() {
   const [period, setPeriod] = useState<Period>("mtd");
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [ownershipView, setOwnershipView] = useState(false);
   const [data, setData] = useState<PnLData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +56,8 @@ export default function PvFinancialsPage() {
   const cache = useRef<Record<string, PnLData>>({});
 
   const fetchData = useCallback(() => {
-    const cacheKey = `${period}:${ownershipView}`;
+    const { from, to } = customRange ?? periodDates(period);
+    const cacheKey = `${from}:${to}:${ownershipView}`;
     if (cache.current[cacheKey]) {
       setData(cache.current[cacheKey]);
       setLoading(false);
@@ -61,9 +65,8 @@ export default function PvFinancialsPage() {
     }
     setLoading(true);
     setError(null);
-    const { from, to } = periodDates(period);
     const view = ownershipView ? "&view=joe" : "";
-    fetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${period}${view}`)
+    fetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${customRange ? "custom" : period}${view}`)
       .then(async (r) => {
         if (!r.ok) {
           const text = await r.text();
@@ -77,7 +80,7 @@ export default function PvFinancialsPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [period, ownershipView]);
+  }, [period, customRange, ownershipView]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -92,9 +95,9 @@ export default function PvFinancialsPage() {
   useEffect(() => {
     const others: Period[] = (["mtd", "qtd", "ytd"] as Period[]).filter((p) => p !== period);
     others.forEach((p) => {
-      const key = `${p}:${ownershipView}`;
-      if (cache.current[key]) return;
       const { from, to } = periodDates(p);
+      const key = `${from}:${to}:${ownershipView}`;
+      if (cache.current[key]) return;
       const view = ownershipView ? "&view=joe" : "";
       fetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${p}${view}`)
         .then((r) => r.json())
@@ -104,6 +107,13 @@ export default function PvFinancialsPage() {
         .catch(() => {});
     });
   }, [period, ownershipView]);
+
+  const exportRows = (data?.accounts || []).map((a) => [
+    a.type === "income" ? "Income" : "Expense",
+    a.name,
+    a.number,
+    a.amount,
+  ]);
 
   const incomeAccounts = data?.accounts?.filter((a) => a.type === "income") || [];
   const expenseAccounts = data?.accounts?.filter((a) => a.type === "expense") || [];
@@ -120,21 +130,6 @@ export default function PvFinancialsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-            {(["mtd", "qtd", "ytd"] as Period[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-medium transition-all ${
-                  period === p
-                    ? "bg-teal-600 text-white"
-                    : "bg-white text-gray-500 hover:bg-teal-50 dark:bg-gray-700 dark:text-gray-400"
-                } ${p !== "mtd" ? "border-l border-gray-200 dark:border-gray-600" : ""}`}
-              >
-                {p.toUpperCase()}
-              </button>
-            ))}
-          </div>
           <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
             <button
               onClick={() => setOwnershipView(false)}
@@ -157,6 +152,27 @@ export default function PvFinancialsPage() {
               Joe&apos;s 51%
             </button>
           </div>
+        </div>
+      </div>
+      <div className="h-0.5 w-full bg-[#E07B2A] rounded" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ExportButtons
+          fileName="park-vista-financials"
+          title="Park Vista Financial Reports"
+          headers={["Type", "Account", "Number", "Amount"]}
+          rows={exportRows}
+        />
+        <div className="ml-auto">
+          <DateRangePicker
+            onRangeChange={(from, to, p) => {
+              if (p === "custom") {
+                setCustomRange({ from, to });
+              } else {
+                setCustomRange(null);
+                setPeriod(p as Period);
+              }
+            }}
+          />
         </div>
       </div>
 
