@@ -85,7 +85,7 @@ function computeMonthlyTrendFromGL(
       const credit = parseFloat(r.credit || "0") || 0;
 
       if (prefix === "4" || prefix === "5") {
-        if (account.startsWith("5875") || account.startsWith("5873")) {
+        if (account.startsWith("5875") || account.startsWith("5873") || account.startsWith("5760")) {
           const amount = (debit - credit) * pct;
           monthData[section] -= amount;
         } else if (!account.startsWith("5756")) {

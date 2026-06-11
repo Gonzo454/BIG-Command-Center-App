@@ -11,6 +11,18 @@ function firstOfMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+function firstOfPrevMonth(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function lastOfPrevMonth(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth(), 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+}
+
 function firstOfQuarter(): string {
   const d = new Date();
   const q = Math.floor(d.getMonth() / 3) * 3;
@@ -26,6 +38,7 @@ function today(): string {
 }
 
 const presets = [
+  { label: "Prev Mo", period: "prevmo", from: firstOfPrevMonth, to: lastOfPrevMonth },
   { label: "MTD", period: "mtd", from: firstOfMonth, to: today },
   { label: "QTD", period: "qtd", from: firstOfQuarter, to: today },
   { label: "YTD", period: "ytd", from: firstOfYear, to: today },

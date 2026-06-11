@@ -28,6 +28,20 @@ interface CapitalAccount {
   amount: number;
 }
 
+interface CashAccount {
+  name: string;
+  number: string;
+  balance: number;
+}
+
+interface CashAccountsData {
+  asOf: string;
+  operating: CashAccount[];
+  escrow: CashAccount[];
+  totalOperating: number;
+  totalEscrow: number;
+}
+
 interface PropertyPnl {
   propertyName: string;
   totalIncome: number;
@@ -103,6 +117,7 @@ export default function PropertyDetailPage() {
   }, [slug, router]);
   const [data, setData] = useState<PropertyPnl | null>(null);
   const [kpi, setKpi] = useState<KPIProperty | null>(null);
+  const [cashData, setCashData] = useState<CashAccountsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
@@ -138,6 +153,12 @@ export default function PropertyDetailPage() {
     if (!initialized.current) {
       initialized.current = true;
       fetchData();
+      fetch(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!d.error) setCashData(d);
+        })
+        .catch(console.error);
       fetch("/api/kpi-dashboard")
         .then((r) => r.json())
         .then((d) => {
@@ -391,8 +412,67 @@ export default function PropertyDetailPage() {
               </table>
             </div>
           )}
+
+          {/* Bank & Escrow Accounts */}
+          {cashData && (cashData.operating.length > 0 || cashData.escrow.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CashAccountPanel title="Operating Accounts" accounts={cashData.operating} total={cashData.totalOperating} asOf={cashData.asOf} />
+              <CashAccountPanel title="Escrow & Reserve Accounts" accounts={cashData.escrow} total={cashData.totalEscrow} asOf={cashData.asOf} />
+            </div>
+          )}
         </>
       ) : null}
+    </div>
+  );
+}
+
+function CashAccountPanel({
+  title,
+  accounts,
+  total,
+  asOf,
+}: {
+  title: string;
+  accounts: CashAccount[];
+  total: number;
+  asOf: string;
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Balances as of {asOf}</p>
+        </div>
+        <p className={`text-sm font-mono font-semibold ${total >= 0 ? "text-green-600" : "text-red-600"}`}>
+          {total < 0 ? "-" : ""}${Math.abs(total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+      </div>
+      {accounts.length === 0 ? (
+        <p className="px-6 py-4 text-sm text-gray-400">No accounts with balances</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="text-left px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Account</th>
+              <th className="text-right px-4 py-2 font-semibold text-gray-600 dark:text-gray-300">Balance</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {accounts.map((a) => (
+              <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                  <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                  {a.name}
+                </td>
+                <td className={`px-4 py-2 text-right font-mono ${a.balance >= 0 ? "text-gray-900 dark:text-white" : "text-red-600"}`}>
+                  {a.balance < 0 ? "-" : ""}${Math.abs(a.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

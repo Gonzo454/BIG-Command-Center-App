@@ -19,6 +19,7 @@ interface Summary {
   commissions: number;
   otherRevenue: number;
   totalCapital?: number;
+  netIncomeWithCapital?: number;
 }
 
 interface Account {
@@ -28,10 +29,18 @@ interface Account {
   lastYearAmount: number;
 }
 
+interface CapitalTransaction {
+  date: string;
+  vendor: string;
+  description: string;
+  amount: number;
+}
+
 interface CapitalAccount {
   name: string;
   number: string;
   amount: number;
+  transactions?: CapitalTransaction[];
 }
 
 interface Transaction {
@@ -157,6 +166,8 @@ export default function BigDashboardPage() {
         ? "QTD"
         : period === "ytd"
         ? "YTD"
+        : period === "prevmo"
+        ? "Prev Mo"
         : "Period"
     );
     fetchData(from, to, period);
@@ -233,6 +244,16 @@ export default function BigDashboardPage() {
               label="Net Income"
               value={summary.netIncome}
               color={summary.netIncome >= 0 ? "text-green-600" : "text-red-600"}
+              sub={
+                summary.totalCapital
+                  ? `incl. capital: ${summary.netIncomeWithCapital !== undefined && summary.netIncomeWithCapital < 0 ? "-" : ""}${fmtShort(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital)}`
+                  : undefined
+              }
+              subColor={
+                (summary.netIncomeWithCapital ?? summary.netIncome + (summary.totalCapital || 0)) >= 0
+                  ? "text-green-600"
+                  : "text-red-600"
+              }
             />
             <div className="flex items-center justify-center">
               <ProfitGauge
@@ -295,6 +316,19 @@ export default function BigDashboardPage() {
               {summary.netIncome < 0 ? "-" : ""}
               {fmt(summary.netIncome)}
             </p>
+            {!!summary.totalCapital && (
+              <p
+                className={`text-sm mt-1 font-semibold ${
+                  (summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) >= 0
+                    ? "text-green-700"
+                    : "text-red-700"
+                }`}
+              >
+                Net incl. Capital Activity:{" "}
+                {(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) < 0 ? "-" : ""}
+                {fmt(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital)}
+              </p>
+            )}
             {summary.netIncomeLY !== 0 && (
               <p
                 className={`text-sm mt-1 ${
@@ -535,11 +569,15 @@ function KpiCard({
   value,
   color,
   href,
+  sub,
+  subColor,
 }: {
   label: string;
   value: number;
   color: string;
   href?: string;
+  sub?: string;
+  subColor?: string;
 }) {
   const inner = (
     <>
@@ -551,6 +589,9 @@ function KpiCard({
         {value < 0 ? "-" : ""}
         {fmtShort(value)}
       </p>
+      {sub && (
+        <p className={`text-xs mt-1 font-medium ${subColor || "text-gray-500"}`}>{sub}</p>
+      )}
     </>
   );
   const base = "bg-white dark:bg-gray-800 rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 dark:border-gray-700 text-center";
@@ -565,6 +606,7 @@ function KpiCard({
 
 function CapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: number }) {
   const sorted = accounts.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -588,19 +630,61 @@ function CapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: 
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => {
               const isContribution = a.amount > 0;
+              const isOpen = expanded === a.number;
+              const txns = a.transactions || [];
               return (
-                <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                    <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                    {a.name}
-                    <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                      ({isContribution ? "contribution" : "distribution"})
-                    </span>
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                    {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
+                <Fragment key={a.number}>
+                  <tr
+                    className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                    onClick={() => setExpanded(isOpen ? null : a.number)}
+                  >
+                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                      <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
+                      <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                      {a.name}
+                      <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                        ({isContribution ? "contribution" : "distribution"})
+                      </span>
+                    </td>
+                    <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                      {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={2} className="p-0">
+                        <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
+                          {txns.length === 0 ? (
+                            <p className="text-xs text-gray-400 py-1">No transactions found</p>
+                          ) : (
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-gray-500">
+                                  <th className="text-left py-1 pr-2 font-medium">Date</th>
+                                  <th className="text-left py-1 pr-2 font-medium">Party</th>
+                                  <th className="text-left py-1 pr-2 font-medium">Description</th>
+                                  <th className="text-right py-1 font-medium">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {txns.map((t, i) => (
+                                  <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    <td className="py-1 pr-2 text-gray-500 whitespace-nowrap">{t.date || "—"}</td>
+                                    <td className="py-1 pr-2 text-gray-900 dark:text-white font-medium">{t.vendor}</td>
+                                    <td className="py-1 pr-2 text-gray-500">{t.description || "—"}</td>
+                                    <td className={`py-1 text-right font-mono ${t.amount >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+                                      {t.amount < 0 ? "-" : ""}{fmt(t.amount)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>

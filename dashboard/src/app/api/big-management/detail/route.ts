@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
       const acctPrefix = t.account.charAt(0);
       let net: number;
       if (acctPrefix === "4" || acctPrefix === "5") {
-        if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
-          net = t.debit - t.credit; // hotel labor/merchant = expense
+        if (t.account.startsWith("5875") || t.account.startsWith("5873") || t.account.startsWith("5760")) {
+          net = t.debit - t.credit; // hotel labor/merchant/billbacks = expense
         } else if (t.account.startsWith("5756")) {
           continue; // gain on sale — skip
         } else {

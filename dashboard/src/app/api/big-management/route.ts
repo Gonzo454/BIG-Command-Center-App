@@ -13,8 +13,8 @@ interface IncomeRow {
 function classifyAccount(accountNumber: string): "income" | "expense" {
   const prefix = accountNumber.charAt(0);
   if (prefix === "4" || prefix === "5") {
-    // 5875/5873 are hotel labor/merchant fees — treat as expense
-    if (accountNumber.startsWith("5875") || accountNumber.startsWith("5873")) {
+    // 5875/5873 are hotel labor/merchant fees, 5760 is billbacks — treat as expense
+    if (accountNumber.startsWith("5875") || accountNumber.startsWith("5873") || accountNumber.startsWith("5760")) {
       return "expense";
     }
     return "income";
@@ -37,6 +37,7 @@ interface GLRow {
   property_name?: string;
   post_date?: string;
   party_name?: string;
+  description?: string;
   debit?: string;
   credit?: string;
 }
@@ -64,6 +65,10 @@ function extractTotals(
   let commissions = 0;
   const revenueAccounts: ExtractedTotals["revenueAccounts"] = [];
   const expenseAccounts: ExtractedTotals["expenseAccounts"] = [];
+  // 5xxx accounts reclassified as expenses (e.g. billbacks) sit in AppFolio's
+  // "Total Income" line — shift them to expenses so the summary matches
+  let reclassified = 0;
+  let reclassifiedLY = 0;
 
   for (const row of rows) {
     const name = (row.account_name || "").trim();
@@ -106,6 +111,10 @@ function extractTotals(
         lastYearAmount: Math.abs(lastYearAmount),
       });
     } else {
+      if (num.charAt(0) === "4" || num.charAt(0) === "5") {
+        reclassified += amount;
+        reclassifiedLY += lastYearAmount;
+      }
       // Expense accounts: negate AppFolio's sign so positive = cost, negative = credit
       // AppFolio reports expenses as negative (reduce income); net-credit accounts as positive
       expenseAccounts.push({
@@ -119,6 +128,11 @@ function extractTotals(
     }
   }
 
+  totalRevenue -= reclassified;
+  totalRevenueLY -= reclassifiedLY;
+  totalExpenses += -reclassified;
+  totalExpensesLY += -reclassifiedLY;
+
   return {
     totalRevenue,
     totalRevenueLY,
@@ -131,10 +145,18 @@ function extractTotals(
   };
 }
 
+interface CapitalTransaction {
+  date: string;
+  vendor: string;
+  description: string;
+  amount: number;
+}
+
 interface CapitalAccount {
   name: string;
   number: string;
   amount: number; // positive = contribution (credit), negative = distribution (debit)
+  transactions: CapitalTransaction[];
 }
 
 function buildResponse(
@@ -148,6 +170,7 @@ function buildResponse(
   const netIncomeLY = extracted.totalRevenueLY - extracted.totalExpensesLY;
   const otherRevenue = extracted.totalRevenue - extracted.mgmtFees - extracted.commissions;
   const totalCapital = capitalAccounts.reduce((s, a) => s + a.amount, 0);
+  const netIncomeWithCapital = netIncome + totalCapital;
 
   return cachedJson({
     summary: {
@@ -173,6 +196,7 @@ function buildResponse(
       commissions: Math.round(extracted.commissions * 100) / 100,
       otherRevenue: Math.round(otherRevenue * 100) / 100,
       totalCapital: Math.round(totalCapital * 100) / 100,
+      netIncomeWithCapital: Math.round(netIncomeWithCapital * 100) / 100,
     },
     revenueAccounts: extracted.revenueAccounts,
     expenseAccounts: extracted.expenseAccounts,
@@ -190,17 +214,18 @@ async function fetchCapitalAccounts(
   to: string,
 ): Promise<CapitalAccount[]> {
   try {
-    // Capital GL entries (3xxx) live under holding-company entities in AppFolio,
-    // not under the BIG management entity (property 33). Fetch without property
-    // filter to capture all portfolio capital activity.
+    // The GL API requires fetching without a property filter; restrict to
+    // Blackdeer Investment Group rows — only Joe receives distributions from
+    // BIG, so other entities' capital activity doesn't belong on this dashboard.
     const glRows = await fetchReport<GLRow>("general_ledger", {
       posted_on_from: from,
       posted_on_to: to,
     });
 
-    const accountMap = new Map<string, { name: string; amount: number }>();
+    const accountMap = new Map<string, { name: string; amount: number; transactions: CapitalTransaction[] }>();
 
     for (const row of glRows) {
+      if (!(row.property_name || "").trim().startsWith("Blackdeer Investment Group")) continue;
 
       const acctField = (row.account_name || "").trim();
       // Match 3xxx account numbers
@@ -217,18 +242,26 @@ async function fetchCapitalAccounts(
       if (net === 0) continue;
 
       const existing = accountMap.get(acctNum);
+      const txn: CapitalTransaction = {
+        date: row.post_date || "",
+        vendor: row.party_name || "—",
+        description: row.description || "",
+        amount: Math.round(net * 100) / 100,
+      };
       if (existing) {
         existing.amount += net;
+        existing.transactions.push(txn);
       } else {
-        accountMap.set(acctNum, { name: acctName, amount: net });
+        accountMap.set(acctNum, { name: acctName, amount: net, transactions: [txn] });
       }
     }
 
     return Array.from(accountMap.entries())
-      .map(([number, { name, amount }]) => ({
+      .map(([number, { name, amount, transactions }]) => ({
         name,
         number,
         amount: Math.round(amount * 100) / 100,
+        transactions: transactions.sort((a, b) => b.date.localeCompare(a.date)),
       }))
       .filter((a) => a.amount !== 0)
       .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));

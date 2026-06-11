@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     let rangeLabel: string;
     if (paramFrom && paramTo) {
       rangeFrom = paramFrom;
-      rangeLabel = period === "ytd" ? "YTD" : period === "qtd" ? "QTD" : period === "mtd" ? "MTD" : "Custom";
+      rangeLabel = period === "ytd" ? "YTD" : period === "qtd" ? "QTD" : period === "mtd" ? "MTD" : period === "prevmo" ? "Prev Mo" : "Custom";
     } else if (period === "ytd") {
       rangeFrom = firstOfYear();
       rangeLabel = "YTD";
@@ -218,6 +218,9 @@ export async function GET(request: NextRequest) {
 
       if (isDebtService(account)) {
         entry.debtService += (debit - credit);
+      } else if (account.startsWith("5875") || account.startsWith("5873") || account.startsWith("5760")) {
+        // Hotel labor/merchant fees/billbacks: expense despite 5xxx range
+        entry.expenses += (debit - credit);
       } else if (prefix === "4" || prefix === "5") {
         // Revenue/income accounts: credit-normal
         entry.income += (credit - debit);
@@ -249,7 +252,8 @@ export async function GET(request: NextRequest) {
       } else {
         if (!ytdNoiByProperty.has(name)) ytdNoiByProperty.set(name, { income: 0, expenses: 0 });
         const e = ytdNoiByProperty.get(name)!;
-        if (prefix === "4" || prefix === "5") e.income += (credit - debit);
+        if (account.startsWith("5875") || account.startsWith("5873") || account.startsWith("5760")) e.expenses += (debit - credit);
+        else if (prefix === "4" || prefix === "5") e.income += (credit - debit);
         else if (prefix === "6" || prefix === "7" || prefix === "8") e.expenses += (debit - credit);
       }
     }

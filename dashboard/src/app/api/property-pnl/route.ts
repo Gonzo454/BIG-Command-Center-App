@@ -25,7 +25,13 @@ interface AccountTotalsRow {
 
 function classifyAccount(accountNumber: string): "income" | "expense" {
   const prefix = accountNumber.charAt(0);
-  if (prefix === "4" || prefix === "5") return "income";
+  if (prefix === "4" || prefix === "5") {
+    // 5875/5873 are hotel labor/merchant fees, 5760 is billbacks — treat as expense
+    if (accountNumber.startsWith("5875") || accountNumber.startsWith("5873") || accountNumber.startsWith("5760")) {
+      return "expense";
+    }
+    return "income";
+  }
   return "expense";
 }
 

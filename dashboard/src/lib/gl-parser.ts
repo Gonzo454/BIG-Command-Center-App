@@ -175,9 +175,9 @@ export function computeEntityPnL(
     if (prefix === "4" || prefix === "5") {
       if (acct.startsWith("5756")) {
         e.gainOnSale += t.credit - t.debit;
-      } else if (acct.startsWith("5875") || acct.startsWith("5873")) {
-        // Hotel labor (5875) and merchant fees (5873) are operating expenses
-        // despite being in the 5xxx range — they're costs, not revenue
+      } else if (acct.startsWith("5875") || acct.startsWith("5873") || acct.startsWith("5760")) {
+        // Hotel labor (5875), merchant fees (5873), and billbacks (5760) are
+        // operating expenses despite being in the 5xxx range
         e.opex += t.debit - t.credit;
       } else {
         e.income += t.credit - t.debit;
@@ -268,7 +268,7 @@ export function computeMonthlyTrend(year: number, ownershipAdjusted = false) {
       const pct = ownershipAdjusted ? getOwnership(t.entity) : 1;
 
       if (prefix === "4" || prefix === "5") {
-        if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
+        if (t.account.startsWith("5875") || t.account.startsWith("5873") || t.account.startsWith("5760")) {
           const amount = (t.debit - t.credit) * pct;
           if (section === "jrw") monthData.jrw -= amount;
           else if (section === "big") monthData.big -= amount;
@@ -335,8 +335,8 @@ export function computeAccountBreakdown(
     if (prefix === "4" || prefix === "5") {
       if (t.account.startsWith("5756")) {
         // gain on sale — skip
-      } else if (t.account.startsWith("5875") || t.account.startsWith("5873")) {
-        // Hotel labor + merchant fees → expense
+      } else if (t.account.startsWith("5875") || t.account.startsWith("5873") || t.account.startsWith("5760")) {
+        // Hotel labor + merchant fees + billbacks → expense
         expenseMap[t.account] = (expenseMap[t.account] || 0) + (t.debit - t.credit);
       } else {
         revenueMap[t.account] = (revenueMap[t.account] || 0) + (t.credit - t.debit);
