@@ -30,3 +30,33 @@ export async function fetchJsonRetry<T = unknown>(
   }
   throw lastErr;
 }
+
+/**
+ * Drop-in replacement for fetch() on GET API calls that retries transient
+ * failures (5xx, 429, network errors) with backoff before resolving, so
+ * initial page loads survive a cold-start hiccup. Resolves with the last
+ * Response on non-retryable or exhausted failures, matching fetch semantics.
+ */
+export async function apiFetch(
+  url: string,
+  init?: RequestInit,
+  retries = 3,
+  backoffMs = 2000
+): Promise<Response> {
+  let lastErr: Error = new Error("Failed to load");
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+      if (attempt === retries) return res;
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (err.name === "AbortError") throw err;
+      lastErr = err;
+    }
+    if (attempt < retries) {
+      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -110,7 +111,7 @@ export default function CommandCenterPage() {
       if (period) params.set("period", period);
       if (ownershipView) params.set("view", "joe");
       const qs = params.toString() ? `?${params.toString()}` : "";
-      const res = await fetch(`/api/command-center${qs}`);
+      const res = await apiFetch(`/api/command-center${qs}`);
       const d = await res.json();
       dataCache.current.set(key, d);
       if (!prefetchOnly) setData(d);

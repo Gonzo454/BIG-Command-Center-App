@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -105,7 +106,7 @@ export default function BigDashboardPage() {
       if (to) params.set("to", to);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      fetch(`/api/big-management${qs}`)
+      apiFetch(`/api/big-management${qs}`)
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((d) => {
           const data: BigDashCache = {
@@ -130,7 +131,7 @@ export default function BigDashboardPage() {
     const key = `${from}:${to}:${period}`;
     if (dataCache.current.has(key)) return;
     const params = new URLSearchParams({ from, to, period });
-    fetch(`/api/big-management?${params.toString()}`)
+    apiFetch(`/api/big-management?${params.toString()}`)
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((d) => {
         if (!d.summary) return;
@@ -393,7 +394,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    fetch(`/api/big-management/detail?${params.toString()}`)
+    apiFetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))

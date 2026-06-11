@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -95,7 +96,7 @@ export default function BigPnlPage() {
       if (toDate) params.set("to", toDate);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      fetch(`/api/big-management${qs}`)
+      apiFetch(`/api/big-management${qs}`)
         .then((r) => r.json())
         .then((d) => {
           const data: PnlData = {
@@ -124,7 +125,7 @@ export default function BigPnlPage() {
     const key = `${fromDate}:${toDate}:${period}`;
     if (dataCache.current.has(key)) return;
     const params = new URLSearchParams({ from: fromDate, to: toDate, period });
-    fetch(`/api/big-management?${params.toString()}`)
+    apiFetch(`/api/big-management?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         dataCache.current.set(key, {
@@ -296,7 +297,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    fetch(`/api/big-management/detail?${params.toString()}`)
+    apiFetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         setDetail(d.transactions || []);

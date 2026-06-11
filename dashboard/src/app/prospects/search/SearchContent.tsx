@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import summary from "@/data/prospect-summary.json";
@@ -85,7 +86,7 @@ export function ProspectSearchContent() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
-    fetch(`/api/prospects?${params.toString()}`, {
+    apiFetch(`/api/prospects?${params.toString()}`, {
       signal: controller.signal,
     })
       .then((r) => r.json())
@@ -152,7 +153,7 @@ export function ProspectSearchContent() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
-    fetch(`/api/prospects?${params.toString()}`)
+    apiFetch(`/api/prospects?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => {
         const rows = data.prospects as Prospect[];

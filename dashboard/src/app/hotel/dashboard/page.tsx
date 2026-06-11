@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -61,7 +62,7 @@ export default function HotelDashboard() {
       if (toDate) params.set("to", toDate);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      fetch(`/api/hotel${qs}`)
+      apiFetch(`/api/hotel${qs}`)
         .then((r) => r.json())
         .then((d) => {
           setSummary(d.summary || null);
@@ -190,7 +191,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum, entity: "hotel" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    fetch(`/api/big-management/detail?${params.toString()}`)
+    apiFetch(`/api/big-management/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))

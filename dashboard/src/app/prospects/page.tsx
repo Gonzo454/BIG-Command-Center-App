@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import summary from "@/data/prospect-summary.json";
@@ -40,7 +41,7 @@ export default function ProspectDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/prospects?limit=25&sortBy=score&sortDir=desc")
+    apiFetch("/api/prospects?limit=25&sortBy=score&sortDir=desc")
       .then((r) => r.json())
       .then((d) => setTopProspects(d.prospects))
       .catch(console.error)

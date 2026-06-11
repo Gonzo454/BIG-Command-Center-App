@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { ProfitGauge } from "@/components/ProfitGauge";
@@ -60,9 +61,9 @@ export default function ExecutiveDashboard() {
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
       const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch(`/api/account-totals${qs}`),
-        fetch(`/api/income-statement${qs}`),
-        fetch("/api/rent-roll"),
+        apiFetch(`/api/account-totals${qs}`),
+        apiFetch(`/api/income-statement${qs}`),
+        apiFetch("/api/rent-roll"),
       ]);
 
       const propData = await propRes.json();
@@ -93,9 +94,9 @@ export default function ExecutiveDashboard() {
       const params = new URLSearchParams({ from, to, period });
       const qs = `?${params.toString()}`;
       const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch(`/api/account-totals${qs}`),
-        fetch(`/api/income-statement${qs}`),
-        fetch("/api/rent-roll"),
+        apiFetch(`/api/account-totals${qs}`),
+        apiFetch(`/api/income-statement${qs}`),
+        apiFetch("/api/rent-roll"),
       ]);
       const propData = await propRes.json();
       const pnlData = await pnlRes.json();

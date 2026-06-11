@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -43,7 +44,7 @@ export default function CashFlowPage() {
 
   function fetchData(p: string) {
     setLoading(true);
-    fetch(`/api/cash-flow?period=${p}`)
+    apiFetch(`/api/cash-flow?period=${p}`)
       .then((r) => r.json())
       .then(setData)
       .catch(console.error)
@@ -208,7 +209,7 @@ function CashFlowSection({
     setExpandedTotal(Math.abs(accountAmount));
     setDetailLoading(true);
     const params = new URLSearchParams({ account: accountNum });
-    fetch(`/api/property-pnl/detail?${params.toString()}`)
+    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))

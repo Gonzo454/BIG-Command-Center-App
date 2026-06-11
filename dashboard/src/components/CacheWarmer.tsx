@@ -23,7 +23,12 @@ export function CacheWarmer() {
     const warm = () => {
       if (stopped || document.visibilityState !== "visible") return;
       for (const url of WARM_URLS) {
-        fetch(url, { priority: "low" } as RequestInit).catch(() => {});
+        // x-cache-warm tells the service worker to bypass its local cache so
+        // the request reaches the server and keeps the server cache warm
+        fetch(url, {
+          priority: "low",
+          headers: { "x-cache-warm": "1" },
+        } as RequestInit).catch(() => {});
       }
     };
 
