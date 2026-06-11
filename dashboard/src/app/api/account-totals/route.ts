@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { fetchReport, parseAmount, firstOfYear, firstOfMonth, firstOfQuarter, today, cachedJson } from "@/lib/appfolio";
+import { fetchReport, fetchPvReport, parseAmount, firstOfYear, firstOfMonth, firstOfQuarter, today, cachedJson } from "@/lib/appfolio";
 import { getOwnership } from "@/lib/ownership";
 import { getPropertyConfig } from "@/lib/property-config";
 
@@ -56,6 +56,45 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+// Park Vista's financials live in the dedicated PV AppFolio database,
+// so its gauge value is computed there instead of the JRW database.
+async function fetchParkVistaNet(
+  rangeFrom: string,
+  rangeTo: string,
+  isMtd: boolean,
+  isYtd: boolean,
+): Promise<number> {
+  try {
+    if (isMtd || isYtd) {
+      const rows = await fetchPvReport<IncomeRow>("income_statement", {
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
+      });
+      const t = extractTotals(rows, isMtd ? "month_to_date" : "year_to_date");
+      return Math.round(t.totalIncome - t.totalExpenses);
+    }
+    const beforeFrom = dayBefore(rangeFrom);
+    const baselineFrom = beforeFrom.slice(0, 8) + "01";
+    const [end, start] = await Promise.all([
+      fetchPvReport<IncomeRow>("income_statement", {
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
+      }),
+      fetchPvReport<IncomeRow>("income_statement", {
+        posted_on_from: baselineFrom,
+        posted_on_to: beforeFrom,
+      }),
+    ]);
+    const e = extractTotals(end, "year_to_date");
+    const s = extractTotals(start, "year_to_date");
+    return Math.round((e.totalIncome - s.totalIncome) - (e.totalExpenses - s.totalExpenses));
+  } catch {
+    return 0;
+  }
+}
+
+const isParkVista = (name: string) => name.toLowerCase().startsWith("park vista");
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -105,6 +144,10 @@ export async function GET(request: NextRequest) {
     // Step 2: Per-property income_statement — same authoritative source the
     // drill-down pages use, so gauges always match drill-down values.
     // Concurrency-limited to avoid AppFolio rate limiting.
+    const pvNetPromise = entries.some(([name]) => isParkVista(name))
+      ? fetchParkVistaNet(rangeFrom, rangeTo, isMtd, isYtd)
+      : Promise.resolve(0);
+
     if (isMtd || isYtd) {
       const column = isMtd ? "month_to_date" : "year_to_date";
       const isResults = await mapWithConcurrency(entries, 4, ([, propId]) =>
@@ -114,11 +157,12 @@ export async function GET(request: NextRequest) {
           properties: { properties_ids: [propId] },
         }).catch(() => [] as IncomeRow[])
       );
+      const pvNet = await pvNetPromise;
 
       const properties = entries.map(([name], i) => {
         const t = extractTotals(isResults[i], column);
-        const netAmount = Math.round(t.totalIncome - t.totalExpenses);
-        const pct = getOwnership(name);
+        const netAmount = isParkVista(name) ? pvNet : Math.round(t.totalIncome - t.totalExpenses);
+        const pct = getOwnership(isParkVista(name) ? "Park Vista" : name);
         return {
           name,
           netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
@@ -151,14 +195,17 @@ export async function GET(request: NextRequest) {
       ]);
       return { end, start };
     });
+    const pvNet = await pvNetPromise;
 
     const properties = entries.map(([name], i) => {
       const end = extractTotals(pairResults[i].end, "year_to_date");
       const start = extractTotals(pairResults[i].start, "year_to_date");
-      const netAmount = Math.round(
-        (end.totalIncome - start.totalIncome) - (end.totalExpenses - start.totalExpenses)
-      );
-      const pct = getOwnership(name);
+      const netAmount = isParkVista(name)
+        ? pvNet
+        : Math.round(
+            (end.totalIncome - start.totalIncome) - (end.totalExpenses - start.totalExpenses)
+          );
+      const pct = getOwnership(isParkVista(name) ? "Park Vista" : name);
       return {
         name,
         netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
