@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ExportButtons } from "@/components/ExportButtons";
+import { fetchJsonRetry } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -66,14 +67,7 @@ export default function PvFinancialsPage() {
     setLoading(true);
     setError(null);
     const view = ownershipView ? "&view=joe" : "";
-    fetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${customRange ? "custom" : period}${view}`)
-      .then(async (r) => {
-        if (!r.ok) {
-          const text = await r.text();
-          throw new Error(text);
-        }
-        return r.json();
-      })
+    fetchJsonRetry<PnLData>(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${customRange ? "custom" : period}${view}`)
       .then((d) => {
         cache.current[cacheKey] = d;
         setData(d);

@@ -64,3 +64,5 @@ export async function GET() {
     );
   }
 }
+
+export const maxDuration = 60;
