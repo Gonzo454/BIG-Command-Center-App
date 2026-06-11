@@ -16,11 +16,12 @@ interface RentRollRow {
   past_due?: string;
 }
 
-interface AccountTotalsRow {
-  property_name?: string;
-  net_amount?: string;
-  account_number?: string;
+interface GLRow {
   account_name?: string;
+  property_name?: string;
+  post_date?: string;
+  debit?: string;
+  credit?: string;
 }
 
 interface IncomeRow {
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     const basePromises: Promise<unknown[]>[] = [
       fetchReport<RentRollRow>("rent_roll"),
-      fetchReport<AccountTotalsRow>("account_totals", {
+      fetchReport<GLRow>("general_ledger", {
         posted_on_from: qtdFrom,
         posted_on_to: qtdTo,
       }),
@@ -116,39 +117,50 @@ export async function GET(request: NextRequest) {
 
     const results = await Promise.all(basePromises);
     const rentRows = results[0] as RentRollRow[];
-    const accountRows = results[1] as AccountTotalsRow[];
+    const glRows = results[1] as GLRow[];
     const hotelIS = results[2] as IncomeRow[];
     const arRows = results[3] as ARRow[];
     const hotelISPrev = !isQ1 ? (results[4] as IncomeRow[]) : [];
 
-    // --- Per-property financials from account_totals ---
+    // --- Per-property financials from general_ledger ---
     const propertyFinancials = new Map<string, {
       income: number;
       expenses: number;
       debtService: number;
     }>();
 
-    for (const row of accountRows) {
+    for (const row of glRows) {
       const name = (row.property_name || "").trim();
       if (!name) continue;
-      // Skip BIG management company from property table (Section 9)
       const cfg = getPropertyConfig(name);
       if (cfg.assetClass === "mgmt_company") continue;
       if (cfg.archived) continue;
+
+      const acctField = (row.account_name || "").trim();
+      const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
+      if (!acctMatch) continue;
+      let account = acctMatch[1];
+      if (account.endsWith("-00")) account = account.slice(0, -3);
+      const prefix = account.charAt(0);
+
+      // Skip capital accounts (3xxx)
+      if (isCapitalAccount(account)) continue;
 
       if (!propertyFinancials.has(name)) {
         propertyFinancials.set(name, { income: 0, expenses: 0, debtService: 0 });
       }
       const entry = propertyFinancials.get(name)!;
-      const net = parseAmount(row.net_amount);
-      const acctNum = (row.account_number || "").trim();
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
 
-      if (acctNum && isCapitalAccount(acctNum)) continue;
-      if (acctNum && isDebtService(acctNum)) {
-        entry.debtService += Math.abs(net);
-      } else {
-        if (net > 0) entry.income += net;
-        else entry.expenses += Math.abs(net);
+      if (isDebtService(account)) {
+        entry.debtService += (debit - credit);
+      } else if (prefix === "4" || prefix === "5") {
+        // Revenue/income accounts: credit-normal
+        entry.income += (credit - debit);
+      } else if (prefix === "6" || prefix === "7" || prefix === "8") {
+        // Operating expense accounts: debit-normal
+        entry.expenses += (debit - credit);
       }
     }
 

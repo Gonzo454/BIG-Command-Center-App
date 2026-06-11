@@ -232,14 +232,17 @@ export async function GET(request: NextRequest) {
     const bigFilter = { properties_ids: [ENTITY_PROPERTY_IDS.big] };
     const hotelFilter = { properties_ids: [ENTITY_PROPERTY_IDS.hotel] };
 
-    // For PV QTD/Custom: need YTD subtraction (fetch baseline before range start)
-    const needPvSubtraction = basisLabel !== "YTD" && basisLabel !== "MTD";
-    const pvBaselineEnd = needPvSubtraction
+    // For QTD/Custom: need YTD subtraction (fetch baseline before range start)
+    const needSubtraction = basisLabel !== "YTD" && basisLabel !== "MTD";
+    const baselineEnd = needSubtraction
       ? (() => { const d = new Date(ytdFrom + "T00:00:00"); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })()
+      : "";
+    const baselineFrom = needSubtraction
+      ? `${new Date(ytdFrom + "T00:00:00").getFullYear()}-01-01`
       : "";
 
     // All API calls in parallel (BIG database + PV database)
-    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS, allIS] = await Promise.all([
+    const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS, allIS, bigBaselineIS, hotelBaselineIS, allBaselineIS] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
@@ -260,10 +263,10 @@ export async function GET(request: NextRequest) {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
       }).catch(() => [] as IncomeRow[]),
-      needPvSubtraction
+      needSubtraction
         ? fetchPvReport<IncomeRow>("income_statement", {
-            posted_on_from: `${new Date(ytdFrom + "T00:00:00").getFullYear()}-01-01`,
-            posted_on_to: pvBaselineEnd,
+            posted_on_from: baselineFrom,
+            posted_on_to: baselineEnd,
           }).catch(() => [] as IncomeRow[])
         : Promise.resolve([] as IncomeRow[]),
       // All-properties income_statement for JRW (JRW = all - BIG - Hotel)
@@ -271,26 +274,62 @@ export async function GET(request: NextRequest) {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
       }),
+      // Baseline income_statements for QTD/Custom subtraction
+      needSubtraction
+        ? fetchReport<IncomeRow>("income_statement", {
+            posted_on_from: baselineFrom,
+            posted_on_to: baselineEnd,
+            properties: bigFilter,
+          })
+        : Promise.resolve([] as IncomeRow[]),
+      needSubtraction
+        ? fetchReport<IncomeRow>("income_statement", {
+            posted_on_from: baselineFrom,
+            posted_on_to: baselineEnd,
+            properties: hotelFilter,
+          })
+        : Promise.resolve([] as IncomeRow[]),
+      needSubtraction
+        ? fetchReport<IncomeRow>("income_statement", {
+            posted_on_from: baselineFrom,
+            posted_on_to: baselineEnd,
+          })
+        : Promise.resolve([] as IncomeRow[]),
     ]);
 
     // BIG P&L from income_statement
-    // For MTD use month_to_date column; for YTD use year_to_date; for QTD/custom compute from GL
+    // For MTD use month_to_date column; for YTD use year_to_date;
+    // for QTD/Custom use year_to_date subtraction (current minus baseline)
     const isYtd = basisLabel === "YTD";
     const isMtd = basisLabel === "MTD";
-    const isCol = isYtd ? "year_to_date" as const : "month_to_date" as const;
 
     let bigPnL: SectionPnL;
     let hotelPnL: SectionPnL;
 
-    if (isYtd || isMtd) {
-      const bigTotals = extractSectionTotals(bigIS, isCol);
+    if (isMtd) {
+      const bigTotals = extractSectionTotals(bigIS, "month_to_date");
       bigPnL = {
         income: bigTotals.totalIncome,
         opex: bigTotals.totalExpenses,
         noi: bigTotals.totalIncome - bigTotals.totalExpenses,
         netIncome: bigTotals.totalIncome - bigTotals.totalExpenses,
       };
-      const hotelTotals = extractSectionTotals(hotelIS, isCol);
+      const hotelTotals = extractSectionTotals(hotelIS, "month_to_date");
+      hotelPnL = {
+        income: hotelTotals.totalIncome,
+        opex: hotelTotals.totalExpenses,
+        noi: hotelTotals.totalIncome - hotelTotals.totalExpenses,
+        netIncome: hotelTotals.totalIncome - hotelTotals.totalExpenses,
+      };
+    } else if (isYtd) {
+      const bigTotals = extractSectionTotals(bigIS, "year_to_date");
+      bigPnL = {
+        income: bigTotals.totalIncome,
+        opex: bigTotals.totalExpenses,
+        noi: bigTotals.totalIncome - bigTotals.totalExpenses,
+        netIncome: bigTotals.totalIncome - bigTotals.totalExpenses,
+      };
+      const hotelTotals = extractSectionTotals(hotelIS, "year_to_date");
       hotelPnL = {
         income: hotelTotals.totalIncome,
         opex: hotelTotals.totalExpenses,
@@ -298,43 +337,21 @@ export async function GET(request: NextRequest) {
         netIncome: hotelTotals.totalIncome - hotelTotals.totalExpenses,
       };
     } else {
-      // QTD/Custom: compute from period-filtered GL with special account handling
-      const periodGl = glRows.filter((r) => {
-        const pd = r.post_date || "";
-        return pd >= ytdFrom && pd <= ytdTo;
-      });
-      let bigInc = 0, bigExp = 0, htlInc = 0, htlExp = 0;
-      for (const r of periodGl) {
-        const acctField = (r.account_name || "").trim();
-        const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
-        if (!acctMatch) continue;
-        let account = acctMatch[1];
-        if (account.endsWith("-00")) account = account.slice(0, -3);
-        const propertyName = r.property_name || "";
-        const section = classifyEntityByName(propertyName);
-        if (section !== "big" && section !== "hotel") continue;
-        const debit = parseFloat(r.debit || "0") || 0;
-        const credit = parseFloat(r.credit || "0") || 0;
-        const prefix = account.charAt(0);
-        if (prefix === "4" || prefix === "5") {
-          if (account.startsWith("5875") || account.startsWith("5873")) {
-            if (section === "big") bigExp += (debit - credit);
-            else htlExp += (debit - credit);
-          } else if (!account.startsWith("5756")) {
-            if (section === "big") bigInc += (credit - debit);
-            else htlInc += (credit - debit);
-          }
-        } else if (prefix === "6" || prefix === "7") {
-          if (section === "big") bigExp += (debit - credit);
-          else htlExp += (debit - credit);
-        }
-      }
+      // QTD/Custom: income_statement YTD subtraction (current minus baseline)
+      const bigEnd = extractSectionTotals(bigIS, "year_to_date");
+      const bigBase = extractSectionTotals(bigBaselineIS, "year_to_date");
+      const bigInc = bigEnd.totalIncome - bigBase.totalIncome;
+      const bigExp = bigEnd.totalExpenses - bigBase.totalExpenses;
       bigPnL = { income: bigInc, opex: bigExp, noi: bigInc - bigExp, netIncome: bigInc - bigExp };
+
+      const htlEnd = extractSectionTotals(hotelIS, "year_to_date");
+      const htlBase = extractSectionTotals(hotelBaselineIS, "year_to_date");
+      const htlInc = htlEnd.totalIncome - htlBase.totalIncome;
+      const htlExp = htlEnd.totalExpenses - htlBase.totalExpenses;
       hotelPnL = { income: htlInc, opex: htlExp, noi: htlInc - htlExp, netIncome: htlInc - htlExp };
     }
 
-    // JRW P&L: income_statement for MTD/YTD (matches Executive Dashboard),
-    // GL for QTD/Custom (no income_statement column available)
+    // JRW P&L: income_statement for all periods (JRW = all - BIG - Hotel)
     let jrwIncome = 0;
     let jrwOpex = 0;
     let jrwDebtService = 0;
@@ -347,15 +364,42 @@ export async function GET(request: NextRequest) {
       return pd >= ytdFrom && pd <= ytdTo;
     });
 
-    if (isYtd || isMtd) {
+    {
       // Use income_statement: JRW = all properties - BIG - Hotel
       // (income_statement is authoritative; GL-based P&L diverges due to
       //  account classification and adjusting entries)
-      const allTotals = extractSectionTotals(allIS, isCol);
-      const bigTotalsIS = extractSectionTotals(bigIS, isCol);
-      const hotelTotalsIS = extractSectionTotals(hotelIS, isCol);
-      const jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
-      const jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+      let jrwIncomeRaw: number;
+      let jrwOpexRaw: number;
+
+      if (isMtd) {
+        const allTotals = extractSectionTotals(allIS, "month_to_date");
+        const bigTotalsIS = extractSectionTotals(bigIS, "month_to_date");
+        const hotelTotalsIS = extractSectionTotals(hotelIS, "month_to_date");
+        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
+        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+      } else if (isYtd) {
+        const allTotals = extractSectionTotals(allIS, "year_to_date");
+        const bigTotalsIS = extractSectionTotals(bigIS, "year_to_date");
+        const hotelTotalsIS = extractSectionTotals(hotelIS, "year_to_date");
+        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
+        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+      } else {
+        // QTD/Custom: year_to_date subtraction
+        const allEnd = extractSectionTotals(allIS, "year_to_date");
+        const allBase = extractSectionTotals(allBaselineIS, "year_to_date");
+        const bigEnd = extractSectionTotals(bigIS, "year_to_date");
+        const bigBase = extractSectionTotals(bigBaselineIS, "year_to_date");
+        const htlEnd = extractSectionTotals(hotelIS, "year_to_date");
+        const htlBase = extractSectionTotals(hotelBaselineIS, "year_to_date");
+        const allInc = allEnd.totalIncome - allBase.totalIncome;
+        const allExp = allEnd.totalExpenses - allBase.totalExpenses;
+        const bigInc = bigEnd.totalIncome - bigBase.totalIncome;
+        const bigExp = bigEnd.totalExpenses - bigBase.totalExpenses;
+        const htlInc = htlEnd.totalIncome - htlBase.totalIncome;
+        const htlExp = htlEnd.totalExpenses - htlBase.totalExpenses;
+        jrwIncomeRaw = allInc - bigInc - htlInc;
+        jrwOpexRaw = allExp - bigExp - htlExp;
+      }
 
       if (ownershipView) {
         // Approximate ownership weighting via GL revenue distribution
@@ -385,7 +429,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // GL loop: hotel room revenue, below-NOI items, QTD/Custom JRW income/opex
+    // GL loop: hotel room revenue, below-NOI items (debt service, deprec, other)
     for (const r of periodGlRows) {
       const acctField = (r.account_name || "").trim();
       const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
@@ -407,43 +451,18 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // JRW
+      // JRW below-NOI items from GL (income/opex always from income_statement)
       if (section === "jrw") {
         const pct = ownershipView ? getOwnership(propertyName) : 1;
-
-        if (!isYtd && !isMtd) {
-          // QTD/Custom: income and opex from GL
-          if (prefix === "4" || prefix === "5") {
-            if (account.startsWith("5875") || account.startsWith("5873")) {
-              jrwOpex += (debit - credit) * pct;
-            } else if (!account.startsWith("5756")) {
-              jrwIncome += (credit - debit) * pct;
-            }
-          } else if (prefix === "6" || prefix === "7") {
-            if (account.startsWith("6600") || account.startsWith("6650")) {
-              jrwDeprecAmort += (debit - credit) * pct;
-            } else {
-              jrwOpex += (debit - credit) * pct;
-            }
-          } else if (prefix === "8") {
-            if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
-              jrwDebtService += (debit - credit) * pct;
-            } else {
-              jrwOtherBelow += (debit - credit) * pct;
-            }
+        if (prefix === "6" || prefix === "7") {
+          if (account.startsWith("6600") || account.startsWith("6650")) {
+            jrwDeprecAmort += (debit - credit) * pct;
           }
-        } else {
-          // MTD/YTD: only below-NOI from GL (income/opex from income_statement)
-          if (prefix === "6" || prefix === "7") {
-            if (account.startsWith("6600") || account.startsWith("6650")) {
-              jrwDeprecAmort += (debit - credit) * pct;
-            }
-          } else if (prefix === "8") {
-            if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
-              jrwDebtService += (debit - credit) * pct;
-            } else {
-              jrwOtherBelow += (debit - credit) * pct;
-            }
+        } else if (prefix === "8") {
+          if (account.startsWith("8510") || account.startsWith("8520") || account.startsWith("8525")) {
+            jrwDebtService += (debit - credit) * pct;
+          } else {
+            jrwOtherBelow += (debit - credit) * pct;
           }
         }
       }
@@ -506,10 +525,10 @@ export async function GET(request: NextRequest) {
       pvExpenses = pvTotals.totalExpenses * pvPct;
     } else {
       // QTD/Custom: YTD subtraction (end YTD minus baseline YTD)
-      const endTotals = extractSectionTotals(pvIS, "year_to_date");
-      const baseTotals = extractSectionTotals(pvBaselineIS, "year_to_date");
-      pvIncome = (endTotals.totalIncome - baseTotals.totalIncome) * pvPct;
-      pvExpenses = (endTotals.totalExpenses - baseTotals.totalExpenses) * pvPct;
+      const pvEndTotals = extractSectionTotals(pvIS, "year_to_date");
+      const pvBaseTotals = extractSectionTotals(pvBaselineIS, "year_to_date");
+      pvIncome = (pvEndTotals.totalIncome - pvBaseTotals.totalIncome) * pvPct;
+      pvExpenses = (pvEndTotals.totalExpenses - pvBaseTotals.totalExpenses) * pvPct;
     }
     const pvNet = pvIncome - pvExpenses;
 
