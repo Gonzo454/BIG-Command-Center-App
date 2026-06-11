@@ -442,17 +442,22 @@ function PropertyAccountPanel({
                     className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                     onClick={() => toggleDrillDown(a.number, a.amount)}
                   >
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                      <span className="text-xs text-gray-400 mr-1">
-                        {isOpen ? "▼" : "▶"}
-                      </span>
-                      <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                      {a.name}
-                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
-                    </td>
-                    <td className={`px-4 py-2 text-right font-mono ${rowColor}`}>
-                      {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(a.amount)}
-                    </td>
+                    {columns.map((col) =>
+                      col.key === "account" ? (
+                        <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                          <span className="text-xs text-gray-400 mr-1">
+                            {isOpen ? "▼" : "▶"}
+                          </span>
+                          <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                          {a.name}
+                          {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
+                        </td>
+                      ) : (
+                        <td key={col.key} className={`px-4 py-2 text-right font-mono ${rowColor}`}>
+                          {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(a.amount)}
+                        </td>
+                      )
+                    )}
                   </tr>
                   {isOpen && (
                     <tr>
@@ -566,16 +571,21 @@ function PropertyCapitalPanel({ accounts, total }: { accounts: { name: string; n
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => (
               <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                  <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                  {a.name}
-                  <span className={`ml-1 text-xs font-medium ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
-                    ({a.amount > 0 ? "contribution" : "distribution"})
-                  </span>
-                </td>
-                <td className={`px-4 py-2 text-right font-mono ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
-                  {a.amount > 0 ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
+                {columns.map((col) =>
+                  col.key === "account" ? (
+                    <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                      <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                      {a.name}
+                      <span className={`ml-1 text-xs font-medium ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                        ({a.amount > 0 ? "contribution" : "distribution"})
+                      </span>
+                    </td>
+                  ) : (
+                    <td key={col.key} className={`px-4 py-2 text-right font-mono ${a.amount > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                      {a.amount > 0 ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  )
+                )}
               </tr>
             ))}
           </tbody>

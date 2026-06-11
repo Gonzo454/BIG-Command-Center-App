@@ -363,17 +363,22 @@ function AccountPanel({
                     className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                     onClick={() => toggleDrillDown(a.number, a.ytd)}
                   >
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                      <span className="text-xs text-gray-400 mr-1">
-                        {isOpen ? "▼" : "▶"}
-                      </span>
-                      <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                      {a.name}
-                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
-                    </td>
-                    <td className={`px-4 py-2 text-right font-mono ${rowColor}`}>
-                      {isCredit ? `(${fmt(displayAmount)})` : fmt(displayAmount)}
-                    </td>
+                    {columns.map((col) =>
+                      col.key === "account" ? (
+                        <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                          <span className="text-xs text-gray-400 mr-1">
+                            {isOpen ? "▼" : "▶"}
+                          </span>
+                          <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                          {a.name}
+                          {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
+                        </td>
+                      ) : (
+                        <td key={col.key} className={`px-4 py-2 text-right font-mono ${rowColor}`}>
+                          {isCredit ? `(${fmt(displayAmount)})` : fmt(displayAmount)}
+                        </td>
+                      )
+                    )}
                   </tr>
                   {isOpen && (
                     <tr>
@@ -491,16 +496,21 @@ function CapitalPanel({ accounts, total }: { accounts: CapitalAccount[]; total: 
               const isContribution = a.amount > 0;
               return (
                 <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                    <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                    {a.name}
-                    <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                      ({isContribution ? "contribution" : "distribution"})
-                    </span>
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                    {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                  {columns.map((col) =>
+                    col.key === "account" ? (
+                      <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                        <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                        {a.name}
+                        <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                          ({isContribution ? "contribution" : "distribution"})
+                        </span>
+                      </td>
+                    ) : (
+                      <td key={col.key} className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                        {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    )
+                  )}
                 </tr>
               );
             })}

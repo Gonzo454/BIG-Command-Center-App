@@ -266,12 +266,17 @@ function AccountPanel({
               return (
                 <Fragment key={a.number}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer" onClick={() => toggleDrillDown(a.number, a.ytd)}>
-                    <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                      <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
-                      <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                      {a.name}
-                    </td>
-                    <td className={`px-4 py-2 text-right font-mono ${colorClass}`}>{fmt(displayAmount)}</td>
+                    {columns.map((col) =>
+                      col.key === "account" ? (
+                        <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                          <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
+                          <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                          {a.name}
+                        </td>
+                      ) : (
+                        <td key={col.key} className={`px-4 py-2 text-right font-mono ${colorClass}`}>{fmt(displayAmount)}</td>
+                      )
+                    )}
                   </tr>
                   {isOpen && (
                     <tr>

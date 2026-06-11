@@ -507,15 +507,20 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
                     className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                     onClick={() => toggleDrillDown(a.number, a.amount)}
                   >
-                    <td className="px-6 py-2 text-gray-700 dark:text-gray-300">
-                      <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
-                      <span className="text-xs text-gray-400 mr-2">{a.number}</span>
-                      {a.name}
-                      {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
-                    </td>
-                    <td className={`px-6 py-2 text-right font-mono ${isCredit ? "text-green-600" : (isExpenseTable ? "text-red-600" : "text-green-600")}`}>
-                      {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(Math.abs(a.amount))}
-                    </td>
+                    {columns.map((col) =>
+                      col.key === "account" ? (
+                        <td key={col.key} className="px-6 py-2 text-gray-700 dark:text-gray-300">
+                          <span className="text-xs text-gray-400 mr-1">{isOpen ? "▼" : "▶"}</span>
+                          <span className="text-xs text-gray-400 mr-2">{a.number}</span>
+                          {a.name}
+                          {isCredit && <span className="ml-1 text-xs text-green-600 font-medium">(credit)</span>}
+                        </td>
+                      ) : (
+                        <td key={col.key} className={`px-6 py-2 text-right font-mono ${isCredit ? "text-green-600" : (isExpenseTable ? "text-red-600" : "text-green-600")}`}>
+                          {isCredit ? `(${fmt(Math.abs(a.amount))})` : fmt(Math.abs(a.amount))}
+                        </td>
+                      )
+                    )}
                   </tr>
                   {isOpen && (
                     <tr>
@@ -607,9 +612,14 @@ function CashFlowTab({ data }: { data: CashFlowData }) {
           normalMaxHeight={320}
           className={`border-l-4 ${borderColors[s.color] || "border-l-gray-500"}`}
           headerRight={
-            <p className={`text-sm font-mono font-semibold ${s.section.total >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {fmtK(s.section.total)}
-            </p>
+            <div className="flex items-center gap-3">
+              {"subtitle" in s && s.subtitle && (
+                <p className="text-xs text-gray-500">{s.subtitle}</p>
+              )}
+              <p className={`text-sm font-mono font-semibold ${s.section.total >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {fmtK(s.section.total)}
+              </p>
+            </div>
           }
         >
             <table className="w-full text-sm">
@@ -883,17 +893,34 @@ function BudgetTable({ title, accounts }: { title: string; accounts: BudgetAccou
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((a) => (
               <tr key={a.number}>
-                <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                  <span className="text-xs text-gray-400 mr-2">{a.number}</span>{a.name}
-                </td>
-                <td className="px-4 py-2 text-right font-mono">{fmt(a.actual)}</td>
-                <td className="px-4 py-2 text-right font-mono text-gray-500">{fmt(a.budget)}</td>
-                <td className={`px-4 py-2 text-right font-mono ${(a.variance || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {fmt(a.variance || 0)}
-                </td>
-                <td className={`px-4 py-2 text-right font-mono ${(a.percentVariance || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {fmtPct(a.percentVariance || 0)}
-                </td>
+                {columns.map((col) => {
+                  switch (col.key) {
+                    case "account":
+                      return (
+                        <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                          <span className="text-xs text-gray-400 mr-2">{a.number}</span>{a.name}
+                        </td>
+                      );
+                    case "actual":
+                      return <td key={col.key} className="px-4 py-2 text-right font-mono">{fmt(a.actual)}</td>;
+                    case "budget":
+                      return <td key={col.key} className="px-4 py-2 text-right font-mono text-gray-500">{fmt(a.budget)}</td>;
+                    case "variance":
+                      return (
+                        <td key={col.key} className={`px-4 py-2 text-right font-mono ${(a.variance || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {fmt(a.variance || 0)}
+                        </td>
+                      );
+                    case "percent":
+                      return (
+                        <td key={col.key} className={`px-4 py-2 text-right font-mono ${(a.percentVariance || 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {fmtPct(a.percentVariance || 0)}
+                        </td>
+                      );
+                    default:
+                      return null;
+                  }
+                })}
               </tr>
             ))}
           </tbody>
@@ -967,35 +994,56 @@ function YoYTable({ title, accounts, invertColor, mode }: { title: string; accou
               const excluded = mode === "operating" && isExcluded(a.number);
               return (
                 <tr key={a.number} className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${excluded ? "opacity-40" : ""}`}>
-                  <td className={`px-4 py-2 text-gray-700 dark:text-gray-300 ${excluded ? "line-through" : ""}`}>
-                    <span className="text-xs text-gray-400 mr-2">{a.number}</span>
-                    {a.name}
-                    {excluded && isNonRecurring(a.number) && (
-                      <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
-                        non-recurring
-                      </span>
-                    )}
-                    {excluded && isInterco(a.number) && (
-                      <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
-                        inter-co
-                      </span>
-                    )}
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
-                    {fmt(a.actual)}
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
-                    {fmt(a.ytd || 0)}
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono text-gray-500 ${excluded ? "line-through" : ""}`}>
-                    {fmt(a.lastYearYtd || 0)}
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono font-semibold ${
-                    excluded ? "text-gray-400" :
-                    (invertColor ? (a.yoyVariance || 0) <= 0 : (a.yoyVariance || 0) >= 0) ? "text-green-600" : "text-red-600"
-                  }`}>
-                    {a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "—"}
-                  </td>
+                  {columns.map((col) => {
+                    switch (col.key) {
+                      case "account":
+                        return (
+                          <td key={col.key} className={`px-4 py-2 text-gray-700 dark:text-gray-300 ${excluded ? "line-through" : ""}`}>
+                            <span className="text-xs text-gray-400 mr-2">{a.number}</span>
+                            {a.name}
+                            {excluded && isNonRecurring(a.number) && (
+                              <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
+                                non-recurring
+                              </span>
+                            )}
+                            {excluded && isInterco(a.number) && (
+                              <span className="ml-2 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded px-1.5 py-0.5 no-underline inline-block">
+                                inter-co
+                              </span>
+                            )}
+                          </td>
+                        );
+                      case "thisMonth":
+                        return (
+                          <td key={col.key} className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
+                            {fmt(a.actual)}
+                          </td>
+                        );
+                      case "ytd":
+                        return (
+                          <td key={col.key} className={`px-4 py-2 text-right font-mono text-gray-900 dark:text-white ${excluded ? "line-through" : ""}`}>
+                            {fmt(a.ytd || 0)}
+                          </td>
+                        );
+                      case "lastYear":
+                        return (
+                          <td key={col.key} className={`px-4 py-2 text-right font-mono text-gray-500 ${excluded ? "line-through" : ""}`}>
+                            {fmt(a.lastYearYtd || 0)}
+                          </td>
+                        );
+                      case "yoy":
+                        return (
+                          <td key={col.key} className={`px-4 py-2 text-right font-mono font-semibold ${
+                            excluded ? "text-gray-400" :
+                            (invertColor ? (a.yoyVariance || 0) <= 0 : (a.yoyVariance || 0) >= 0) ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {a.lastYearYtd ? fmtPct(a.yoyVariance || 0) : "—"}
+                          </td>
+                        );
+                      default:
+                        return null;
+                    }
+                  })}
                 </tr>
               );
             })}
@@ -1066,16 +1114,21 @@ function FinancialsCapitalPanel({ accounts, total }: { accounts: CapitalAccount[
               const isContribution = a.amount > 0;
               return (
                 <tr key={a.number} className="hover:bg-gray-50 dark:hover:bg-gray-750">
-                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                    <span className="text-xs text-gray-400 mr-1">{a.number}</span>
-                    {a.name}
-                    <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                      ({isContribution ? "contribution" : "distribution"})
-                    </span>
-                  </td>
-                  <td className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
-                    {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                  {columns.map((col) =>
+                    col.key === "account" ? (
+                      <td key={col.key} className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                        <span className="text-xs text-gray-400 mr-1">{a.number}</span>
+                        {a.name}
+                        <span className={`ml-1 text-xs font-medium ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                          ({isContribution ? "contribution" : "distribution"})
+                        </span>
+                      </td>
+                    ) : (
+                      <td key={col.key} className={`px-4 py-2 text-right font-mono ${isContribution ? "text-blue-600" : "text-orange-600"}`}>
+                        {isContribution ? "" : "-"}${Math.abs(a.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    )
+                  )}
                 </tr>
               );
             })}
