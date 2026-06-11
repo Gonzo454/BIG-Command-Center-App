@@ -233,7 +233,8 @@ export async function GET(request: NextRequest) {
     const hotelFilter = { properties_ids: [ENTITY_PROPERTY_IDS.hotel] };
 
     // For QTD/Custom: need YTD subtraction (fetch baseline before range start)
-    const needSubtraction = basisLabel !== "YTD" && basisLabel !== "MTD";
+    // Skip when range already starts Jan 1 (Q1 QTD = YTD, no baseline needed)
+    const needSubtraction = basisLabel !== "YTD" && basisLabel !== "MTD" && ytdFrom !== firstOfYear();
     const baselineEnd = needSubtraction
       ? (() => { const d = new Date(ytdFrom + "T00:00:00"); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })()
       : "";
