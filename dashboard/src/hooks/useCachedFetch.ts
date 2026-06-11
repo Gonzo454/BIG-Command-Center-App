@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback } from "react";
+import { fetchJsonRetry } from "@/lib/fetchRetry";
 
 /**
  * Client-side fetch cache by query key.
@@ -16,9 +17,8 @@ export function useCachedFetch<T>() {
       const cached = cache.current.get(key);
       if (cached) return cached;
 
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok) cache.current.set(key, data);
+      const data = await fetchJsonRetry<T>(url);
+      cache.current.set(key, data);
       return data;
     },
     []
@@ -32,8 +32,7 @@ export function useCachedFetch<T>() {
     (url: string, cacheKey?: string) => {
       const key = cacheKey || url;
       if (cache.current.has(key)) return;
-      fetch(url)
-        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      fetchJsonRetry<T>(url)
         .then((data) => cache.current.set(key, data))
         .catch(() => {});
     },

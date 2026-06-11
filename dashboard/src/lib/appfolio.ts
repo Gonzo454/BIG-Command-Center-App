@@ -29,6 +29,29 @@ export function firstOfYear(): string {
   return `${centralNow().getFullYear()}-01-01`;
 }
 
+// Retry transient AppFolio failures (rate limits, gateway errors, network blips)
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  retries = 3,
+  backoffMs = 1000
+): Promise<Response> {
+  let lastErr: Error = new Error("fetch failed");
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+    }
+    if (attempt < retries) {
+      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 export async function fetchReport<T = Record<string, unknown>>(
   reportName: string,
   body: Record<string, unknown> = {},
@@ -47,7 +70,7 @@ export async function fetchReport<T = Record<string, unknown>>(
     `${APPFOLIO_CLIENT_ID}:${APPFOLIO_CLIENT_SECRET}`
   ).toString("base64");
 
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://${APPFOLIO_DATABASE}.appfolio.com/api/v2/reports/${reportName}.json`,
     {
       method: "POST",
@@ -93,7 +116,7 @@ export async function fetchPvReport<T = Record<string, unknown>>(
     `${PV_CLIENT_ID}:${PV_CLIENT_SECRET}`
   ).toString("base64");
 
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://${PV_DATABASE}.appfolio.com/api/v2/reports/${reportName}.json`,
     {
       method: "POST",
@@ -136,15 +159,17 @@ export function parseAmount(v: string | number | null | undefined): number {
 
 /**
  * Return a JSON Response with Vercel CDN edge caching headers.
- * s-maxage=60: serve from edge cache for 60s
- * stale-while-revalidate=300: serve stale for 5min while refreshing in background
+ * s-maxage=300: serve from edge cache for 5min
+ * stale-while-revalidate=3600: serve stale for 1hr while refreshing in background,
+ * so users get instant responses while fresh data loads behind the scenes
  */
 export function cachedJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
+      "Cache-Control":
+        status === 200 ? "s-maxage=300, stale-while-revalidate=3600" : "no-store",
     },
   });
 }

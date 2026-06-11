@@ -8,6 +8,7 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
+import { fetchJsonRetry } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -121,6 +122,7 @@ export default function PropertyDetailPage() {
   const [kpi, setKpi] = useState<KPIProperty | null>(null);
   const [cashData, setCashData] = useState<CashAccountsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
   const [dateFrom, setDateFrom] = useState<string | undefined>();
@@ -140,14 +142,18 @@ export default function PropertyDetailPage() {
       if (period) qp.set("period", period);
       if (ownershipView) qp.set("view", "joe");
 
-      const res = await fetch(`/api/property-pnl?${qp.toString()}`);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const json = await res.json();
+      const json = await fetchJsonRetry<PropertyPnl>(
+        `/api/property-pnl?${qp.toString()}`,
+        3,
+        2000,
+        () => setRetrying(true)
+      );
       setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
   }
 
@@ -278,7 +284,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {loading ? (
-        <LoadingState />
+        <LoadingState message={retrying ? "Large data load in progress — still working" : "Loading data"} />
       ) : error ? (
         <div className="text-center py-20 text-red-500">{error}</div>
       ) : data ? (
