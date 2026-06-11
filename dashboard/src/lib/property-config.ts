@@ -18,8 +18,16 @@ export type AssetClass =
   | "hotel"            // Hotel / hospitality
   | "mgmt_company";   // Management company (BIG) — not a property
 
+export type BusinessEntity =
+  | "jrw"           // JRW CRE Portfolio (Joe's direct property investments)
+  | "big"           // BIG (Blackdeer Investment Group) — management company
+  | "park_vista"    // Park Vista Senior Housing
+  | "badger_hotel"  // Badger Hotel Group
+  | "badger_realty"; // Badger Realty — brokerage
+
 export interface PropertyConfig {
   assetClass: AssetClass;
+  businessEntity: BusinessEntity;
   managedOnly: boolean;
   archived: boolean;
   archiveReason?: string;
@@ -30,21 +38,25 @@ export interface PropertyConfig {
 export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
   "2172 MPW, LLC (Land Leases)": {
     assetClass: "land",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
   },
   "CG Silver Badger, LLC": {
     assetClass: "residential",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
   },
   "Greywolf Industrial II, LLC CIC Industrial": {
     assetClass: "industrial",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
   },
   "HC1 Acquisitions Honey Creek I": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: true,
     archived: true,
     archiveReason: "Sold",
@@ -52,77 +64,91 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
   },
   "Honey Badger, LLC Honey Creek II": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
     zeroVacancyLoss: true,
   },
   "Honey Creek IV, LLC": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: true,
     archiveReason: "Sold",
   },
   "Prairie Square": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: true,
     archived: false,
   },
   "Spooner St": {
     assetClass: "residential",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
     alwaysStable: true,
   },
   "Water Tower Place": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: true,
     archived: false,
   },
   "2080 MPW LLC": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
   },
   "Greyworks LLC": {
     assetClass: "industrial",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: false,
   },
   "Badger Hotel Group": {
     assetClass: "hotel",
+    businessEntity: "badger_hotel",
     managedOnly: false,
     archived: false,
   },
   "Blackdeer Investment Group": {
     assetClass: "mgmt_company",
+    businessEntity: "big",
     managedOnly: false,
     archived: false,
   },
   "Research Park": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: true,
     archived: false,
   },
   "Vantage IV": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: true,
     archived: false,
   },
   // Archived entities
   "Germantown Warhawks": {
     assetClass: "land",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: true,
     archiveReason: "Sold",
   },
   "Columbia St Mary's - Red Badger LLC": {
     assetClass: "residential",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: true,
     archiveReason: "Sold",
   },
   "Honey Creek III": {
     assetClass: "office_mg",
+    businessEntity: "jrw",
     managedOnly: false,
     archived: true,
     archiveReason: "Back to bank",
@@ -131,8 +157,17 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
 
 const DEFAULT_CONFIG: PropertyConfig = {
   assetClass: "office_mg",
+  businessEntity: "jrw",
   managedOnly: false,
   archived: false,
+};
+
+export const BUSINESS_ENTITY_LABELS: Record<BusinessEntity, string> = {
+  jrw: "JRW CRE Portfolio",
+  big: "Blackdeer Investment Group",
+  park_vista: "Park Vista Senior Housing",
+  badger_hotel: "Badger Hotel Group",
+  badger_realty: "Badger Realty",
 };
 
 export function getPropertyConfig(name: string): PropertyConfig {
