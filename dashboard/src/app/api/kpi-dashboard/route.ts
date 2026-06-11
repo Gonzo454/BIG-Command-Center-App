@@ -484,10 +484,14 @@ export async function GET(request: NextRequest) {
           .filter((p) => p.businessEntity === entity)
           .sort((a, b) => b.revenue - a.revenue);
         if (entityProps.length === 0) return null;
+        // BIG is a pure management company — its summary reflects only its own
+        // corporate P&L, not the P&L of third-party-owned properties it manages.
+        const summaryProps =
+          entity === "big" ? entityProps.filter((p) => !p.managedOnly) : entityProps;
         return {
           entity,
           label: BUSINESS_ENTITY_LABELS[entity],
-          summary: computeEntitySummary(entityProps),
+          summary: computeEntitySummary(summaryProps.length > 0 ? summaryProps : entityProps),
           properties: entityProps,
         };
       })
