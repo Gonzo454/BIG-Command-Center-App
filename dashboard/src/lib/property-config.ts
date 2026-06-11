@@ -269,7 +269,8 @@ export const BENCHMARKS: Record<AssetClass, BenchmarkTargets> = {
 export type PropertyStatus = "Strong" | "Stable" | "Review";
 
 /**
- * NOI-based status grading (per Joe's thresholds).
+ * Status grading (per Joe's thresholds).
+ * Occupancy ≥ 80% → Strong (green)
  * Monthly NOI > +$5k → Strong (green)
  * Monthly NOI between −$5k and +$5k → Stable (black)
  * Monthly NOI < −$5k → Review (red)
@@ -278,11 +279,13 @@ export type PropertyStatus = "Strong" | "Stable" | "Review";
  */
 export function gradeProperty(metrics: {
   monthlyNoi: number;
+  occupancyRate?: number;
   propertyName?: string;
 }): PropertyStatus {
   const cfg = metrics.propertyName ? getPropertyConfig(metrics.propertyName) : undefined;
   if (cfg?.alwaysStable) return "Stable";
 
+  if (metrics.occupancyRate !== undefined && metrics.occupancyRate >= 80) return "Strong";
   if (metrics.monthlyNoi > 5000) return "Strong";
   if (metrics.monthlyNoi < -5000) return "Review";
   return "Stable";

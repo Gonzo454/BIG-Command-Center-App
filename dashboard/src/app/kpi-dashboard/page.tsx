@@ -95,9 +95,10 @@ const statusColor = (s: string) => {
   return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
 };
 
-function propertyHref(name: string): string {
-  if (name === "Badger Hotel Group") return "/hotel/dashboard";
-  return `/properties/${encodeURIComponent(name)}`;
+function propertyHref(p: PropertyKPI): string {
+  if (p.businessEntity === "park_vista") return `/pv/communities/${p.slug}`;
+  if (p.name === "Badger Hotel Group") return "/hotel/dashboard";
+  return `/properties/${encodeURIComponent(p.name)}`;
 }
 
 export default function KPIDashboardPage() {
@@ -228,7 +229,7 @@ function EntityPanel({ section, periodLabel }: { section: EntitySection; periodL
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <MetricCard label="Revenue" value={fmtM(s.revenue)} />
+        <MetricCard label="Revenue" value={fmtM(s.revenue)} color="text-emerald-600" />
         <MetricCard label="NOI" value={fmtM(s.noi)} sub={`${s.noiMargin}% margin`} color={s.noi >= 0 ? "text-emerald-600" : "text-red-600"} />
         <MetricCard
           label="DSCR"
@@ -289,7 +290,7 @@ function PropertyTable({ title, subtitle, rows }: { title?: string; subtitle?: s
             {rows.map((c) => (
               <tr key={c.slug} className="hover:bg-gray-50 dark:hover:bg-gray-750">
                 <td className="px-4 py-3">
-                  <Link href={propertyHref(c.name)} className="text-[#E07B2A] hover:underline font-medium">
+                  <Link href={propertyHref(c)} className="text-[#E07B2A] hover:underline font-medium">
                     {c.name}
                   </Link>
                   {c.managedOnly && <span className="text-xs text-blue-400 ml-2">(managed)</span>}
@@ -300,7 +301,7 @@ function PropertyTable({ title, subtitle, rows }: { title?: string; subtitle?: s
                     {c.status}
                   </span>
                 </td>
-                <td className="px-3 py-3 text-right font-mono">{fmtK(c.revenue)}</td>
+                <td className="px-3 py-3 text-right font-mono text-emerald-600">{fmtK(c.revenue)}</td>
                 <td className={`px-3 py-3 text-right font-mono ${c.noi >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                   {fmtK(c.noi)}
                 </td>
