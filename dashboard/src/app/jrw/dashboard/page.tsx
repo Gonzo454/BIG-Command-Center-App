@@ -59,7 +59,7 @@ export default function ExecutiveDashboard() {
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
       const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch("/api/account-totals"),
+        fetch(`/api/account-totals${qs}`),
         fetch(`/api/income-statement${qs}`),
         fetch("/api/rent-roll"),
       ]);
@@ -92,7 +92,7 @@ export default function ExecutiveDashboard() {
       const params = new URLSearchParams({ from, to, period });
       const qs = `?${params.toString()}`;
       const [propRes, pnlRes, rentRes] = await Promise.all([
-        fetch("/api/account-totals"),
+        fetch(`/api/account-totals${qs}`),
         fetch(`/api/income-statement${qs}`),
         fetch("/api/rent-roll"),
       ]);
