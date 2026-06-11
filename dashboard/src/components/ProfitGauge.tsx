@@ -71,7 +71,7 @@ export function ProfitGauge({ name, netIncome, maxAbsolute, href }: ProfitGaugeP
         {name}
       </p>
       <p className="text-xs font-mono" style={{ color }}>
-        {netIncome >= 0 ? "+" : ""}
+        {netIncome >= 0 ? "+" : "-"}
         ${Math.abs(netIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </p>
     </div>

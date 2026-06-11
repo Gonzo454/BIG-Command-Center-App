@@ -32,6 +32,8 @@ interface PropertyPnl {
   propertyName: string;
   totalIncome: number;
   totalExpenses: number;
+  debtService?: number;
+  noi?: number;
   netIncome: number;
   accounts: Account[];
   capitalAccounts?: CapitalAccount[];
@@ -260,22 +262,14 @@ export default function PropertyDetailPage() {
             />
             <KpiCard
               label="NOI"
+              value={data.noi ?? data.netIncome}
+              color={(data.noi ?? data.netIncome) >= 0 ? "text-emerald-600" : "text-red-600"}
+            />
+            <KpiCard
+              label={data.debtService ? "Net After Debt Svc" : "Net Income"}
               value={data.netIncome}
               color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
             />
-            {kpi && kpi.netAfterDebt !== null ? (
-              <KpiCard
-                label="Net After Debt Svc"
-                value={kpi.netAfterDebt}
-                color={kpi.netAfterDebt >= 0 ? "text-emerald-600" : "text-red-600"}
-              />
-            ) : (
-              <KpiCard
-                label="Net Income"
-                value={data.netIncome}
-                color={data.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}
-              />
-            )}
             <KpiCard
               label="Total Expenses"
               value={data.totalExpenses}
@@ -553,7 +547,9 @@ function KpiCard({
         {label}
       </p>
       <p className={`font-bold mt-1 ${color}`} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
-        ${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        {value < 0
+          ? `($${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 0 })})`
+          : `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
       </p>
     </>
   );
