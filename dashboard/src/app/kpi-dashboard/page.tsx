@@ -229,7 +229,7 @@ function EntityPanel({ section, periodLabel }: { section: EntitySection; periodL
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <MetricCard label="Revenue" value={fmtM(s.revenue)} />
+        <MetricCard label="Revenue" value={fmtM(s.revenue)} color="text-emerald-600" />
         <MetricCard label="NOI" value={fmtM(s.noi)} sub={`${s.noiMargin}% margin`} color={s.noi >= 0 ? "text-emerald-600" : "text-red-600"} />
         <MetricCard
           label="DSCR"
@@ -301,7 +301,7 @@ function PropertyTable({ title, subtitle, rows }: { title?: string; subtitle?: s
                     {c.status}
                   </span>
                 </td>
-                <td className="px-3 py-3 text-right font-mono">{fmtK(c.revenue)}</td>
+                <td className="px-3 py-3 text-right font-mono text-emerald-600">{fmtK(c.revenue)}</td>
                 <td className={`px-3 py-3 text-right font-mono ${c.noi >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                   {fmtK(c.noi)}
                 </td>
