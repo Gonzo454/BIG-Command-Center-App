@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -139,7 +140,7 @@ export default function FinancialsPage() {
     const key = cacheKey || `pnl:${qs}`;
     const cached = pnlCache.current.get(key);
     if (cached) return cached;
-    const res = await fetch(`/api/income-statement${qs}`);
+    const res = await apiFetch(`/api/income-statement${qs}`);
     const data = await res.json();
     pnlCache.current.set(key, data);
     return data;
@@ -149,7 +150,7 @@ export default function FinancialsPage() {
     const key = `cf:${p}`;
     const cached = cfCache.current.get(key);
     if (cached) return cached;
-    const res = await fetch(`/api/cash-flow?period=${p}`);
+    const res = await apiFetch(`/api/cash-flow?period=${p}`);
     const data = await res.json();
     cfCache.current.set(key, data);
     return data;
@@ -163,7 +164,7 @@ export default function FinancialsPage() {
     const key = cacheKey || `budget:${qs}`;
     const cached = budgetCache.current.get(key);
     if (cached) return cached;
-    const res = await fetch(`/api/budget${qs}`);
+    const res = await apiFetch(`/api/budget${qs}`);
     const data = await res.json();
     budgetCache.current.set(key, data);
     return data;
@@ -446,7 +447,7 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
     const params = new URLSearchParams({ account: accountNum });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    fetch(`/api/property-pnl/detail?${params.toString()}`)
+    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         setDetail(d.transactions || []);

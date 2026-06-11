@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -51,7 +52,7 @@ export default function LeaseExpirationsPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    fetch("/api/lease-expirations")
+    apiFetch("/api/lease-expirations")
       .then((r) => r.json())
       .then((d) => {
         setBuckets(d.buckets || null);

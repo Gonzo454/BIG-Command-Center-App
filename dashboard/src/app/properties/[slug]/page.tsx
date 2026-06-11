@@ -8,7 +8,7 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
-import { fetchJsonRetry } from "@/lib/fetchRetry";
+import { fetchJsonRetry, apiFetch } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -161,13 +161,13 @@ export default function PropertyDetailPage() {
     if (!initialized.current) {
       initialized.current = true;
       fetchData();
-      fetch(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
+      apiFetch(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
         .then((r) => r.json())
         .then((d) => {
           if (!d.error) setCashData(d);
         })
         .catch(console.error);
-      fetch("/api/kpi-dashboard")
+      apiFetch("/api/kpi-dashboard")
         .then((r) => r.json())
         .then((d) => {
           const match = (d.properties || []).find(
@@ -485,7 +485,7 @@ function PropertyAccountPanel({
     const params = new URLSearchParams({ account: accountNum, property: propertyName });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    fetch(`/api/property-pnl/detail?${params.toString()}`)
+    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         setDetail(d.transactions || []);

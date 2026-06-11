@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -29,7 +30,7 @@ export default function VendorsPage() {
     setLoading(true);
     const qs = from && to ? `?from=${from}&to=${to}` : "";
     try {
-      const res = await fetch(`/api/check-register${qs}`);
+      const res = await apiFetch(`/api/check-register${qs}`);
       setData(await res.json());
     } catch (err) {
       console.error(err);

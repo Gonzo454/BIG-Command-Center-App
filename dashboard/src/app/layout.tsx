@@ -4,6 +4,7 @@ import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { AgentM } from "@/components/AgentM";
 import { CacheWarmer } from "@/components/CacheWarmer";
+import { OfflineProvider } from "@/components/OfflineProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({
         <main className="flex-1 ml-64 p-8">{children}</main>
         <AgentM />
         <CacheWarmer />
+        <OfflineProvider />
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { useEffect, useState, useCallback } from "react";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -59,7 +60,7 @@ export default function PvDashboardPage() {
 
   const fetchData = useCallback(() => {
     const view = ownershipView ? "&view=joe" : "";
-    fetch(`/api/park-vista?from=${range.from}&to=${range.to}&period=${range.period}${view}`)
+    apiFetch(`/api/park-vista?from=${range.from}&to=${range.to}&period=${range.period}${view}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(console.error)

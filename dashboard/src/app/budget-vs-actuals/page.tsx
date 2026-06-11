@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -81,7 +82,7 @@ export default function BudgetVsActualsPage() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    fetch(`/api/budget${qs}`)
+    apiFetch(`/api/budget${qs}`)
       .then((r) => r.json())
       .then(setData)
       .catch(console.error)

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ExportButtons } from "@/components/ExportButtons";
-import { fetchJsonRetry } from "@/lib/fetchRetry";
+import { fetchJsonRetry, apiFetch } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -93,7 +93,7 @@ export default function PvFinancialsPage() {
       const key = `${from}:${to}:${ownershipView}`;
       if (cache.current[key]) return;
       const view = ownershipView ? "&view=joe" : "";
-      fetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${p}${view}`)
+      apiFetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${p}${view}`)
         .then((r) => r.json())
         .then((d) => {
           if (!d.error) cache.current[key] = d;
