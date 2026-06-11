@@ -239,14 +239,31 @@ export default function BigDashboardPage() {
               value={summary.totalExpenses}
               color="text-red-600"
               href="#section-expenses"
+              subLabel={summary.totalCapital && summary.totalCapital > 0 ? "Owner Capital Contributions" : undefined}
+              sub={
+                summary.totalCapital && summary.totalCapital > 0
+                  ? `+${fmt(summary.totalCapital)}`
+                  : undefined
+              }
+              subColor="text-blue-600"
             />
-            <KpiCard
-              label="Operating Net Income"
-              value={summary.netIncome}
-              color={summary.netIncome >= 0 ? "text-green-600" : "text-red-600"}
-              sub="revenue − expenses"
-              subColor="text-gray-400"
-            />
+            {summary.totalCapital && summary.totalCapital > 0 ? (
+              <KpiCard
+                label="Reconciled Net Income"
+                value={summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital}
+                color={(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) >= 0 ? "text-green-600" : "text-red-600"}
+                sub="revenue − expenses + owner capital"
+                subColor="text-gray-400"
+              />
+            ) : (
+              <KpiCard
+                label="Net Income"
+                value={summary.netIncome}
+                color={summary.netIncome >= 0 ? "text-green-600" : "text-red-600"}
+                sub="revenue − expenses"
+                subColor="text-gray-400"
+              />
+            )}
             <div className="flex items-center justify-center">
               <ProfitGauge
                 name="Profitability"
@@ -259,40 +276,6 @@ export default function BigDashboardPage() {
               />
             </div>
           </div>
-
-          {/* Cash Position — operating result + owner capital activity */}
-          {!!summary.totalCapital && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 px-6 py-4">
-              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Operating Net Income</p>
-                  <p className={`text-lg font-bold font-mono ${summary.netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {summary.netIncome < 0 ? "-" : ""}{fmt(summary.netIncome)}
-                  </p>
-                </div>
-                <span className="text-2xl text-gray-300 font-light">+</span>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">
-                    Owner Capital {summary.totalCapital >= 0 ? "Contributions" : "Distributions"}
-                  </p>
-                  <p className={`text-lg font-bold font-mono ${summary.totalCapital >= 0 ? "text-blue-600" : "text-orange-600"}`}>
-                    {summary.totalCapital < 0 ? "-" : "+"}{fmt(summary.totalCapital)}
-                  </p>
-                </div>
-                <span className="text-2xl text-gray-300 font-light">=</span>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase">Net Cash Position</p>
-                  <p className={`text-lg font-bold font-mono ${(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) < 0 ? "-" : ""}
-                    {fmt(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital)}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 text-center mt-2">
-                Owner contributions are equity activity, not revenue — shown separately so operating performance isn&apos;t distorted
-              </p>
-            </div>
-          )}
 
           {/* Revenue / Expense Tables — two-column like property pages */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -350,7 +333,7 @@ export default function BigDashboardPage() {
                     : "text-red-700"
                 }`}
               >
-                Net Cash Position (incl. owner capital):{" "}
+                Reconciled Net Income (incl. owner capital):{" "}
                 {(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) < 0 ? "-" : ""}
                 {fmt(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital)}
               </p>
@@ -597,6 +580,7 @@ function KpiCard({
   href,
   sub,
   subColor,
+  subLabel,
 }: {
   label: string;
   value: number;
@@ -604,6 +588,7 @@ function KpiCard({
   href?: string;
   sub?: string;
   subColor?: string;
+  subLabel?: string;
 }) {
   const inner = (
     <>
@@ -615,6 +600,9 @@ function KpiCard({
         {value < 0 ? "-" : ""}
         {fmtShort(value)}
       </p>
+      {subLabel && (
+        <p className="text-xs font-medium text-gray-500 uppercase mt-2">{subLabel}</p>
+      )}
       {sub && (
         <p className={`text-xs mt-1 font-medium ${subColor || "text-gray-500"}`}>{sub}</p>
       )}
