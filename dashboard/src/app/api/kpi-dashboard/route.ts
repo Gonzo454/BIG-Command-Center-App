@@ -435,9 +435,10 @@ export async function GET(request: NextRequest) {
         ? Math.round(Math.max(0, Math.min(100, ((totalRentBilled - ar.delinquent) / totalRentBilled) * 100)) * 10) / 10
         : 100;
 
-      // Status grading: NOI-based 3-tier (Strong/Stable/Review)
+      // Status grading: 3-tier (Strong/Stable/Review)
       const monthlyNoi = monthsElapsed > 0 ? noi / monthsElapsed : noi;
-      const status = gradeProperty({ monthlyNoi, propertyName: name });
+      const occForGrading = occ.totalSqft > 0 || occ.totalUnits > 0 ? occupancyRate : undefined;
+      const status = gradeProperty({ monthlyNoi, occupancyRate: occForGrading, propertyName: name });
 
       return {
         name,
@@ -619,7 +620,11 @@ export async function GET(request: NextRequest) {
         rentPerSf: null,
         collectionRate: 100,
         delinquent: 0,
-        status: monthlyNoi > 5000 ? "Strong" as const : monthlyNoi < -5000 ? "Review" as const : "Stable" as const,
+        status: gradeProperty({
+          monthlyNoi,
+          occupancyRate: occ.total > 0 ? (occ.occupied / occ.total) * 100 : undefined,
+          propertyName: c.name,
+        }),
         targets: {
           oer: `${pvBench.oerLow}–${pvBench.oerHigh}%`,
           noiMargin: `${pvBench.noiMarginLow}–${pvBench.noiMarginHigh}%`,
