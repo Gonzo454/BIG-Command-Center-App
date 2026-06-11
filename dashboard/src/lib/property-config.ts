@@ -46,7 +46,8 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
   "HC1 Acquisitions Honey Creek I": {
     assetClass: "office_mg",
     managedOnly: true,
-    archived: false,
+    archived: true,
+    archiveReason: "Sold",
     zeroVacancyLoss: true,
   },
   "Honey Badger, LLC Honey Creek II": {
