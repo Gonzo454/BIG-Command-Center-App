@@ -16,11 +16,12 @@ interface RentRollRow {
   past_due?: string;
 }
 
-interface AccountTotalsRow {
-  property_name?: string;
-  net_amount?: string;
-  account_number?: string;
+interface GLRow {
   account_name?: string;
+  property_name?: string;
+  post_date?: string;
+  debit?: string;
+  credit?: string;
 }
 
 interface IncomeRow {
@@ -38,7 +39,7 @@ interface ARRow {
   "90_plus"?: string;
 }
 
-const DEBT_SERVICE_PREFIXES = ["8510", "8520", "8530"];
+const DEBT_SERVICE_PREFIXES = ["8510", "8511", "8520", "8525", "8530"];
 
 function isDebtService(acctNumber: string): boolean {
   return DEBT_SERVICE_PREFIXES.some((p) => acctNumber.startsWith(p));
@@ -87,10 +88,18 @@ export async function GET(request: NextRequest) {
       return d.toISOString().split("T")[0];
     }
 
+    // Always fetch YTD GL for annualized DSCR (debt coverage is meaningless on partial months)
+    const ytdStart = firstOfYear();
+
     const basePromises: Promise<unknown[]>[] = [
       fetchReport<RentRollRow>("rent_roll"),
-      fetchReport<AccountTotalsRow>("account_totals", {
+      fetchReport<GLRow>("general_ledger", {
         posted_on_from: qtdFrom,
+        posted_on_to: qtdTo,
+      }),
+      // YTD GL for annualized DSCR
+      fetchReport<GLRow>("general_ledger", {
+        posted_on_from: ytdStart,
         posted_on_to: qtdTo,
       }),
       fetchReport<IncomeRow>("income_statement", {
@@ -116,39 +125,78 @@ export async function GET(request: NextRequest) {
 
     const results = await Promise.all(basePromises);
     const rentRows = results[0] as RentRollRow[];
-    const accountRows = results[1] as AccountTotalsRow[];
-    const hotelIS = results[2] as IncomeRow[];
-    const arRows = results[3] as ARRow[];
-    const hotelISPrev = !isQ1 ? (results[4] as IncomeRow[]) : [];
+    const glRows = results[1] as GLRow[];
+    const ytdGlRows = results[2] as GLRow[];
+    const hotelIS = results[3] as IncomeRow[];
+    const arRows = results[4] as ARRow[];
+    const hotelISPrev = !isQ1 ? (results[5] as IncomeRow[]) : [];
 
-    // --- Per-property financials from account_totals ---
+    // --- Per-property financials from general_ledger ---
     const propertyFinancials = new Map<string, {
       income: number;
       expenses: number;
       debtService: number;
     }>();
 
-    for (const row of accountRows) {
+    for (const row of glRows) {
       const name = (row.property_name || "").trim();
       if (!name) continue;
-      // Skip BIG management company from property table (Section 9)
       const cfg = getPropertyConfig(name);
       if (cfg.assetClass === "mgmt_company") continue;
       if (cfg.archived) continue;
+
+      const acctField = (row.account_name || "").trim();
+      const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
+      if (!acctMatch) continue;
+      let account = acctMatch[1];
+      if (account.endsWith("-00")) account = account.slice(0, -3);
+      const prefix = account.charAt(0);
+
+      // Skip capital accounts (3xxx)
+      if (isCapitalAccount(account)) continue;
 
       if (!propertyFinancials.has(name)) {
         propertyFinancials.set(name, { income: 0, expenses: 0, debtService: 0 });
       }
       const entry = propertyFinancials.get(name)!;
-      const net = parseAmount(row.net_amount);
-      const acctNum = (row.account_number || "").trim();
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
 
-      if (acctNum && isCapitalAccount(acctNum)) continue;
-      if (acctNum && isDebtService(acctNum)) {
-        entry.debtService += Math.abs(net);
+      if (isDebtService(account)) {
+        entry.debtService += (debit - credit);
+      } else if (prefix === "4" || prefix === "5") {
+        // Revenue/income accounts: credit-normal
+        entry.income += (credit - debit);
+      } else if (prefix === "6" || prefix === "7" || prefix === "8") {
+        // Operating expense accounts: debit-normal
+        entry.expenses += (debit - credit);
+      }
+    }
+
+    // --- Annualized DSCR: aggregate YTD NOI + debt service per property ---
+    // DSCR = YTD NOI / YTD Debt Service (annualization cancels out)
+    const ytdDebtByProperty = new Map<string, number>();
+    const ytdNoiByProperty = new Map<string, { income: number; expenses: number }>();
+    for (const row of ytdGlRows) {
+      const name = (row.property_name || "").trim();
+      if (!name) continue;
+      const acctField = (row.account_name || "").trim();
+      const acctMatch = acctField.match(/^(\d{4}-\d{4}(-\d{2})?)/);
+      if (!acctMatch) continue;
+      let account = acctMatch[1];
+      if (account.endsWith("-00")) account = account.slice(0, -3);
+      const prefix = account.charAt(0);
+      if (isCapitalAccount(account)) continue;
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
+
+      if (isDebtService(account)) {
+        ytdDebtByProperty.set(name, (ytdDebtByProperty.get(name) || 0) + (debit - credit));
       } else {
-        if (net > 0) entry.income += net;
-        else entry.expenses += Math.abs(net);
+        if (!ytdNoiByProperty.has(name)) ytdNoiByProperty.set(name, { income: 0, expenses: 0 });
+        const e = ytdNoiByProperty.get(name)!;
+        if (prefix === "4" || prefix === "5") e.income += (credit - debit);
+        else if (prefix === "6" || prefix === "7" || prefix === "8") e.expenses += (debit - credit);
       }
     }
 
@@ -156,31 +204,27 @@ export async function GET(request: NextRequest) {
     function extractIS(rows: IncomeRow[]) {
       let totalIncome = 0;
       let totalExpenses = 0;
-      let debtService = 0;
       for (const row of rows) {
         const name = (row.account_name || "").trim().toLowerCase();
         const amount = parseAmount(row.year_to_date);
-        const acctNum = (row.account_number || "").trim();
-
         if (name === "total income") { totalIncome = amount; continue; }
         if (name === "total expense" || name === "total expenses") { totalExpenses = Math.abs(amount); continue; }
-        if (name === "net income" || name === "net operating income") continue;
-
-        if (acctNum && isDebtService(acctNum)) debtService += Math.abs(amount);
       }
-      return { income: totalIncome, expenses: totalExpenses, debtService };
+      return { income: totalIncome, expenses: totalExpenses };
     }
 
-    // Inject Hotel (BIG excluded from property table per spec)
+    // Inject Hotel income/expenses (BIG excluded from property table per spec)
+    // Preserve GL-based debt service for Hotel
+    const hotelGlDebt = propertyFinancials.get("Badger Hotel Group")?.debtService || 0;
     const hotelCur = extractIS(hotelIS);
     if (hotelISPrev.length === 0) {
-      propertyFinancials.set("Badger Hotel Group", hotelCur);
+      propertyFinancials.set("Badger Hotel Group", { ...hotelCur, debtService: hotelGlDebt });
     } else {
       const prev = extractIS(hotelISPrev);
       propertyFinancials.set("Badger Hotel Group", {
         income: hotelCur.income - prev.income,
         expenses: hotelCur.expenses - prev.expenses,
-        debtService: hotelCur.debtService - prev.debtService,
+        debtService: hotelGlDebt,
       });
     }
 
@@ -302,8 +346,13 @@ export async function GET(request: NextRequest) {
       const expenses = Math.round(fin.expenses);
       const noi = revenue - expenses;
       const noiMargin = revenue > 0 ? (noi / revenue) * 100 : 0;
-      const netAfterDebt = fin.debtService > 0 ? noi - Math.round(fin.debtService) : null;
-      const dscr = fin.debtService > 0 ? noi / fin.debtService : 0;
+      // DSCR uses YTD data (annualization cancels: YTD NOI / YTD Debt = Annual NOI / Annual Debt)
+      const ytdDebt = ytdDebtByProperty.get(name) || 0;
+      const ytdNoi = ytdNoiByProperty.has(name)
+        ? ytdNoiByProperty.get(name)!.income - ytdNoiByProperty.get(name)!.expenses
+        : 0;
+      const netAfterDebt = ytdDebt > 0 ? noi - Math.round(fin.debtService) : null;
+      const dscr = ytdDebt > 0 ? ytdNoi / ytdDebt : 0;
       const oer = revenue > 0 ? (expenses / revenue) * 100 : 0;
 
       // Occupancy: SF-based for commercial, unit-based for residential
@@ -386,7 +435,13 @@ export async function GET(request: NextRequest) {
     const occupiedSqft = activeProperties.reduce((s, c) => s + c.occupiedSqft, 0);
     const totalVacancyLoss = activeProperties.reduce((s, c) => s + c.vacancyLoss, 0);
     const totalDebtService = activeProperties.reduce((s, c) => s + c.debtService, 0);
-    const portfolioDscr = totalDebtService > 0 ? portfolioNoi / totalDebtService : 0;
+    // Portfolio DSCR from YTD totals (same annualized approach as per-property)
+    const totalYtdDebt = activeProperties.reduce((s, c) => s + (ytdDebtByProperty.get(c.name) || 0), 0);
+    const totalYtdNoi = activeProperties.reduce((s, c) => {
+      const yn = ytdNoiByProperty.get(c.name);
+      return s + (yn ? yn.income - yn.expenses : 0);
+    }, 0);
+    const portfolioDscr = totalYtdDebt > 0 ? totalYtdNoi / totalYtdDebt : 0;
     const totalDelinquent = activeProperties.reduce((s, c) => s + c.delinquent, 0);
     const reviewCount = activeProperties.filter((c) => c.status === "Review").length;
     const stableCount = activeProperties.filter((c) => c.status === "Stable").length;

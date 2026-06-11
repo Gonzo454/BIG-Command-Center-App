@@ -328,16 +328,16 @@ export default function KPIDashboardPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="font-semibold text-gray-900 dark:text-white">Financial Health &amp; Collections</h2>
-          <p className="text-xs text-gray-500 mt-0.5">DSCR = NOI &divide; Debt Service &middot; OER targets vary by asset class &middot; Collection target: 95%+</p>
+          <p className="text-xs text-gray-500 mt-0.5">OER = Expenses &divide; Revenue &middot; NOI Margin = NOI &divide; Revenue &middot; Collection target: 95%+</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-blue-50 dark:bg-gray-700 text-xs uppercase">
               <tr>
                 <th className="text-left px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Property</th>
-                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">DSCR</th>
                 <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">OER</th>
-                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Debt Svc</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">NOI Margin</th>
+                <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">DSCR</th>
                 <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Collection</th>
                 <th className="text-right px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Delinquent</th>
                 <th className="text-center px-3 py-3 font-bold text-gray-700 dark:text-gray-300">Status</th>
@@ -351,15 +351,16 @@ export default function KPIDashboardPage() {
                       {c.name}
                     </Link>
                   </td>
-                  <td className={`px-3 py-3 text-right font-mono font-semibold ${c.dscr === 0 ? "text-gray-400" : c.dscr >= 1.25 ? "text-emerald-600" : c.dscr >= 1.0 ? "text-amber-600" : "text-red-600"}`}>
-                    {c.dscr > 0 ? `${c.dscr}x` : "—"}
-                    {c.dscr > 0 && <span className="text-xs text-gray-400 ml-1">(min {c.targets.dscrMin}x)</span>}
-                  </td>
                   <td className="px-3 py-3 text-right font-mono">
-                    <span>{c.oer}%</span>
+                    <span className={c.oer <= 50 ? "text-emerald-600" : c.oer <= 65 ? "text-amber-600" : "text-red-600"}>{c.oer}%</span>
                     <span className="text-xs text-gray-400 ml-1">({c.targets.oer})</span>
                   </td>
-                  <td className="px-3 py-3 text-right font-mono">{c.debtService > 0 ? fmtK(c.debtService) : "—"}</td>
+                  <td className={`px-3 py-3 text-right font-mono font-semibold ${c.noiMargin >= 50 ? "text-emerald-600" : c.noiMargin >= 30 ? "text-amber-600" : "text-red-600"}`}>
+                    {c.noiMargin}%
+                  </td>
+                  <td className={`px-3 py-3 text-right font-mono ${c.dscr === 0 ? "text-gray-400" : c.dscr >= 1.25 ? "text-emerald-600" : c.dscr >= 1.0 ? "text-amber-600" : "text-red-600"}`}>
+                    {c.dscr > 0 ? `${c.dscr}x` : "—"}
+                  </td>
                   <td className={`px-3 py-3 text-right font-mono ${c.collectionRate >= 95 ? "text-emerald-600" : c.collectionRate >= 90 ? "text-amber-600" : "text-red-600"}`}>
                     {c.collectionRate}%
                   </td>
