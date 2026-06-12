@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { cachedJson } from "@/lib/appfolio";
-import { buildPortfolioSeries } from "@/lib/portfolio-series";
+import { buildPortfolioSeries, MIRROR_CHECK_FROM } from "@/lib/portfolio-series";
 
 export const maxDuration = 60;
 
@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const series = await buildPortfolioSeries(24, joeView);
 
     const mirrorWarn = series.mirror.some(
-      (m) => Math.abs(m.variance) > 500 && (m.big5820 !== 0 || m.jrwFee !== 0)
+      (m) =>
+        m.month >= MIRROR_CHECK_FROM &&
+        Math.abs(m.variance) > 500 &&
+        (m.big5820 !== 0 || m.jrwFee !== 0)
     );
 
     return cachedJson({

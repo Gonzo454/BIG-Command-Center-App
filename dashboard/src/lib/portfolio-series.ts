@@ -1,6 +1,7 @@
 import { fetchReport, fetchPvReport, parseAmount } from "@/lib/appfolio";
 import { classifyEntityByName } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
+import { getPropertyConfig } from "@/lib/property-config";
 
 export interface GLRow {
   account_name?: string;
@@ -39,6 +40,61 @@ export interface PortfolioSeries {
 }
 
 const DEBT_SERVICE_PREFIXES = ["8510", "8511", "8520", "8525", "8530"];
+
+/**
+ * Mirror check compares like-for-like: BIG's 5820 fee revenue billed to
+ * JRW-owned properties vs the management-fee expense those same properties
+ * book. BIG also collects fees from managed-only/non-JRW payers (Water Tower,
+ * Vantage, Research Park, Prairie Square, the hotel, third parties) which
+ * have no JRW expense mirror and are excluded from both sides.
+ */
+const JRW_PARTY_ALIASES = [
+  "2172 mpw",
+  "2080 mpw",
+  "mpw",
+  "cg silver",
+  "greywolf",
+  "greyworks",
+  "cic2",
+  "hc1",
+  "honey creek 1",
+  "honey creek i",
+  "honey badger",
+  "honey creek ii",
+  "honey creek iv",
+  "spooner",
+  "germantown",
+  "columbia st",
+  "red badger",
+  "honey creek iii",
+];
+
+const NON_JRW_PARTY_MARKERS = [
+  "water tower",
+  "prairie square",
+  "research park",
+  "vantage",
+  "metro crossing",
+  "station 955",
+  "badger hotel",
+  "gc real estate",
+  "hc4",
+  "tfi",
+];
+
+function isJrwParty(partyName: string | undefined): boolean {
+  const p = (partyName || "").toLowerCase();
+  if (!p) return false;
+  if (NON_JRW_PARTY_MARKERS.some((m) => p.includes(m))) return false;
+  return JRW_PARTY_ALIASES.some((a) => p.includes(a));
+}
+
+/**
+ * Months before the AppFolio migration settled contain catch-up/beginning
+ * balance entries (fees billed in one month, expensed in another), so the
+ * mirror check only evaluates months from this point forward.
+ */
+export const MIRROR_CHECK_FROM = "2025-09";
 
 export function lastCompleteMonthEnd(now = new Date()): string {
   const d = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -183,12 +239,16 @@ export async function buildPortfolioSeries(
       } else if (!account.startsWith("5756")) {
         target[i].revenue += (credit - debit) * pct;
       }
-      if (section === "big" && account.startsWith("5820")) {
+      if (section === "big" && account.startsWith("5820") && isJrwParty(r.party_name)) {
         mirrorBig[i] += credit - debit;
       }
     } else if (prefix === "6" || prefix === "7") {
       target[i].expenses += (debit - credit) * pct;
-      if (section === "jrw" && (account.startsWith("6300") || account.startsWith("7301") || account.startsWith("7300"))) {
+      if (
+        section === "jrw" &&
+        getPropertyConfig(propertyName).businessEntity === "jrw" &&
+        (account.startsWith("6300") || account.startsWith("7301") || account.startsWith("7300"))
+      ) {
         mirrorJrw[i] += debit - credit;
       }
     } else if (prefix === "8" && section === "jrw") {
@@ -226,6 +286,7 @@ export async function buildPortfolioSeries(
   }));
 
   for (const m of mirror) {
+    if (m.month < MIRROR_CHECK_FROM) continue;
     if (Math.abs(m.variance) > 500 && (m.big5820 !== 0 || m.jrwFee !== 0)) {
       console.warn(
         `[mirror-check] ${m.month}: BIG 5820 fee income (${m.big5820}) vs JRW mgmt-fee expense (${m.jrwFee}) variance ${m.variance} exceeds ±$500`

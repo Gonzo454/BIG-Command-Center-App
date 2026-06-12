@@ -253,7 +253,7 @@ export function PortfolioPerformanceChart({
           <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             {VIEW_META.find((v) => v.key === view)?.title}
             {data?.mirrorWarn && (
-              <span title="BIG 5820 fee revenue does not tie to JRW management-fee expense within ±$500 — see console for details" className="text-amber-500 cursor-help">⚠</span>
+              <span title="BIG 5820 fees billed to JRW properties do not tie to JRW management-fee expense within ±$500 for one or more months" className="text-amber-500 cursor-help">⚠</span>
             )}
           </p>
           <p className="text-xs text-gray-400">{VIEW_META.find((v) => v.key === view)?.subtitle}</p>

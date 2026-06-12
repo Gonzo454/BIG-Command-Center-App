@@ -146,7 +146,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-gray-800 text-xs text-gray-500 flex justify-between">
         <span>Data refreshes every 5 min</span>
-        <span>v3.10.24</span>
+        <span>v3.11.27</span>
       </div>
     </aside>
   );
