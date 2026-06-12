@@ -114,12 +114,17 @@ export async function buildPortfolioSeries(
           if (name === "total income") income = amount;
           if (name === "total expense" || name === "total expenses") expenses = Math.abs(amount);
         }
-        return { month, income, expenses };
+        return { month, income, expenses, failed: false };
       } catch {
-        return { month, income: 0, expenses: 0 };
+        return { month, income: 0, expenses: 0, failed: true };
       }
     }),
   ]);
+
+  const failedMonths = pvMonths.filter((m) => m.failed).map((m) => m.month);
+  if (failedMonths.length > 0) {
+    throw new Error(`PV income statement unavailable for: ${failedMonths.join(", ")}`);
+  }
 
   const idx = new Map(months.map((m, i) => [m, i]));
   const jrw = months.map(emptyMonth);
