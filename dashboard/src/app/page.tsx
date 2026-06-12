@@ -263,10 +263,10 @@ export default function CommandCenterPage() {
               {ownershipView ? "Joe's Share · NOI" : "NOI"} · {data.period.basis}
               {ownershipView && <span className="ml-1 text-[#E07B2A]">(% vary by entity)</span>}
             </p>
-            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
-              <span className="whitespace-nowrap">{data.jrw.occupancyRate}% occ.</span>
-              <span className="whitespace-nowrap">{data.jrw.propertyCount} properties</span>
-            </div>
+            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
+              <li>{data.jrw.occupancyRate}% occupancy</li>
+              <li>{data.jrw.propertyCount} properties</li>
+            </ul>
             {data.jrw.monthlyTrend && (
               <Sparkline data={data.jrw.monthlyTrend} />
             )}
@@ -289,10 +289,10 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's 51% Share" : "Total Revenue"} · {data.period.basis}
             </p>
-            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
-              <span className={`whitespace-nowrap ${data.big.margin < 0 ? "text-red-500" : ""}`}>{data.big.margin}% margin</span>
-              <span className="whitespace-nowrap">{data.big.propertiesManaged} managed</span>
-            </div>
+            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
+              <li className={data.big.margin < 0 ? "text-red-500" : ""}>{data.big.margin}% margin</li>
+              <li>{data.big.propertiesManaged} managed</li>
+            </ul>
             {data.big.monthlyTrend && (
               <Sparkline data={data.big.monthlyTrend} />
             )}
@@ -318,12 +318,10 @@ export default function CommandCenterPage() {
               <p className="text-xs text-gray-400 mb-2">
                 {ownershipView ? "Joe's 51% Share · " : ""}Net Income · {data.period.basis}
               </p>
-              <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
-                <span className={`whitespace-nowrap ${data.pv.netIncome >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {fmtK(data.pv.totalIncome)} rev
-                </span>
-                <span className="whitespace-nowrap">{data.pv.communityCount} communities</span>
-              </div>
+              <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
+                <li className="text-emerald-600">{fmtK(data.pv.totalIncome)} revenue</li>
+                <li>{data.pv.communityCount} communities</li>
+              </ul>
             </div>
           </Link>
         )}
@@ -331,9 +329,7 @@ export default function CommandCenterPage() {
         <Link href="/hotel/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-red-200 transition-all cursor-pointer h-full">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-12 w-12 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-2xl">
-                🏨
-              </div>
+              <img src="/comfort-logo.png" alt="Comfort Suites" className="h-12 w-auto object-contain" />
               <span className="text-gray-400 group-hover:text-red-600 transition-colors">→</span>
             </div>
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
@@ -345,10 +341,12 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's Share · GOP" : "GOP"} · {data.period.basis}
             </p>
-            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
-              <span className="whitespace-nowrap">{fmtK(data.hotel.roomRevenue)} rooms</span>
-              <span className="whitespace-nowrap">{fmtK(data.hotel.totalRevenue)} rev</span>
-            </div>
+            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
+              <li className="text-emerald-600">{fmtK(data.hotel.roomRevenue)} room revenue</li>
+              <li className={(data.hotel.netIncome ?? 0) < 0 ? "text-red-500" : ""}>
+                {fmtK(data.hotel.netIncome ?? 0)} net income
+              </li>
+            </ul>
             {data.hotel.monthlyTrend && (
               <Sparkline data={data.hotel.monthlyTrend} />
             )}
@@ -371,10 +369,10 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-400 mb-2">
               Real estate &amp; market intelligence
             </p>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>CoStar access</span>
-              <span>Market comps</span>
-            </div>
+            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
+              <li>CoStar access</li>
+              <li>Market comps</li>
+            </ul>
           </div>
         </Link>
       </div>
