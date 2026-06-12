@@ -283,7 +283,7 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
               Blackdeer I.G.
             </p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
               {fmtK(data.big.totalIncome)}
             </p>
             <p className="text-xs text-gray-400 mb-2">
