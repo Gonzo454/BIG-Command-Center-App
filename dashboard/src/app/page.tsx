@@ -249,7 +249,7 @@ export default function CommandCenterPage() {
               <span className="text-gray-400 group-hover:text-green-600 transition-colors">→</span>
             </div>
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              JRW Portfolio
+              JRW Real Estate Holdings
             </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
               {fmtK(data.jrw.noi)}
