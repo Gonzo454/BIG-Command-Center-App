@@ -5,6 +5,9 @@ import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { PortfolioPerformanceChart, type PortfolioTtmData } from "@/components/PortfolioPerformanceChart";
+import { PortfolioContributionDonut } from "@/components/PortfolioContributionDonut";
+import { PortfolioReportsSection } from "@/components/PortfolioReportsSection";
 
 interface SummaryData {
   jrw: {
@@ -26,6 +29,7 @@ interface SummaryData {
     roomRevenue: number;
     totalRevenue: number;
     gop: number;
+    netIncome?: number;
     monthlyTrend?: number[];
   };
   pv?: {
@@ -86,6 +90,7 @@ export default function CommandCenterPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
+  const [ttmData, setTtmData] = useState<PortfolioTtmData | null>(null);
   const initialized = useRef(false);
   const skipNextToggleEffect = useRef(true);
   const dataCache = useRef<Map<string, SummaryData>>(new Map());
@@ -240,7 +245,7 @@ export default function CommandCenterPage() {
       )}
 
       {/* Business Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {/* JRW Portfolio */}
         <Link href="/jrw/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
@@ -322,6 +327,34 @@ export default function CommandCenterPage() {
             </div>
           </Link>
         )}
+        {/* Badger Hotel Group */}
+        <Link href="/hotel/dashboard" className="block group">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-red-200 transition-all cursor-pointer h-full">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-12 w-12 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-2xl">
+                🏨
+              </div>
+              <span className="text-gray-400 group-hover:text-red-600 transition-colors">→</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              Badger Hotel Group
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              {fmtK(data.hotel.gop)}
+            </p>
+            <p className="text-xs text-gray-400 mb-2">
+              {ownershipView ? "Joe's Share · GOP" : "GOP"} · {data.period.basis}
+            </p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{fmtK(data.hotel.roomRevenue)} rooms</span>
+              <span>{fmtK(data.hotel.totalRevenue)} rev</span>
+            </div>
+            {data.hotel.monthlyTrend && (
+              <Sparkline data={data.hotel.monthlyTrend} />
+            )}
+          </div>
+        </Link>
+
         {/* Badger Realty */}
         <Link href="/badger-realty" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer h-full">
@@ -345,6 +378,24 @@ export default function CommandCenterPage() {
           </div>
         </Link>
       </div>
+
+      {/* Portfolio Performance — Combined */}
+      <div>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+          Portfolio Performance — Combined
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <PortfolioPerformanceChart joeView={ownershipView} onData={setTtmData} />
+          </div>
+          <div>
+            <PortfolioContributionDonut data={ttmData} />
+          </div>
+        </div>
+      </div>
+
+      {/* Reports */}
+      <PortfolioReportsSection joeView={ownershipView} />
 
       {/* Station 955 Loan Card */}
       <Link href="/loans/station-955" className="block group">
