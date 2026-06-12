@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -96,8 +96,7 @@ export default function BigPnlPage() {
       if (toDate) params.set("to", toDate);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      apiFetch(`/api/big-management${qs}`)
-        .then((r) => r.json())
+      apiJson(`/api/big-management${qs}`)
         .then((d) => {
           const data: PnlData = {
             summary: d.summary || null,
@@ -125,8 +124,7 @@ export default function BigPnlPage() {
     const key = `${fromDate}:${toDate}:${period}`;
     if (dataCache.current.has(key)) return;
     const params = new URLSearchParams({ from: fromDate, to: toDate, period });
-    apiFetch(`/api/big-management?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/big-management?${params.toString()}`)
       .then((d) => {
         dataCache.current.set(key, {
           summary: d.summary || null,
@@ -183,9 +181,6 @@ export default function BigPnlPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           BIG Management — P&L Statement
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Profit & Loss for Blackdeer Investment Group as a management company
-        </p>
       </div>
 
       {/* Refresh indicator bar */}
@@ -297,8 +292,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    apiFetch(`/api/big-management/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/big-management/detail?${params.toString()}`)
       .then((d) => {
         setDetail(d.transactions || []);
         if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
@@ -358,7 +352,7 @@ function AccountPanel({
                       <td colSpan={2} className="p-0">
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
-                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                            <p className="text-xs text-gray-500 py-1">Lots of cash loading here, please be patient.</p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">No transactions found</p>
                           ) : (

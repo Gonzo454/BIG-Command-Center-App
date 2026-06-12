@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -129,8 +129,7 @@ export default function KPIDashboardPage() {
       if (to) params.set("to", to);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      const res = await apiFetch(`/api/kpi-dashboard${qs}`);
-      const d = await res.json();
+      const d = await apiJson(`/api/kpi-dashboard${qs}`);
       dataCache.current.set(key, d);
       if (!prefetchOnly) setData(d);
     } catch (err) {

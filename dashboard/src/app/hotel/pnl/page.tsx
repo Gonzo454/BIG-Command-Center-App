@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -78,8 +78,7 @@ export default function HotelPnlPage() {
       if (toDate) params.set("to", toDate);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      apiFetch(`/api/hotel${qs}`)
-        .then((r) => r.json())
+      apiJson(`/api/hotel${qs}`)
         .then((d) => {
           const data: HotelPnlData = {
             summary: d.summary || null,
@@ -101,8 +100,7 @@ export default function HotelPnlPage() {
     const key = `${fromDate}:${toDate}:${period}`;
     if (dataCache.current.has(key)) return;
     const params = new URLSearchParams({ from: fromDate, to: toDate, period });
-    apiFetch(`/api/hotel?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/hotel?${params.toString()}`)
       .then((d) => {
         dataCache.current.set(key, {
           summary: d.summary || null,
@@ -214,8 +212,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum, entity: "hotel" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    apiFetch(`/api/big-management/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/big-management/detail?${params.toString()}`)
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
@@ -256,7 +253,7 @@ function AccountPanel({
                       <td colSpan={2} className="p-0">
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
-                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                            <p className="text-xs text-gray-500 py-1">Lots of cash loading here, please be patient.</p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">No transactions found</p>
                           ) : (

@@ -178,7 +178,7 @@ export default function ExecutiveDashboard() {
             JRW Portfolio performance overview
           </p>
         </div>
-        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+        <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">
           <button
             onClick={() => setOwnershipView(false)}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all ${
@@ -239,7 +239,7 @@ export default function ExecutiveDashboard() {
       )}
 
       {loading ? (
-        <LoadingState message="Lots of money loading here, please be patient." />
+        <LoadingState />
       ) : (
         <div className={refreshing ? "opacity-75 transition-opacity" : ""}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

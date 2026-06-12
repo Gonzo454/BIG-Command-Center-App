@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/fetchRetry";
+import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -104,24 +105,33 @@ export default function CommandCenterPage() {
         setLoading(true);
       }
     }
-    try {
-      const params = new URLSearchParams();
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-      if (period) params.set("period", period);
-      if (ownershipView) params.set("view", "joe");
-      const qs = params.toString() ? `?${params.toString()}` : "";
-      const res = await apiFetch(`/api/command-center${qs}`);
-      const d = await res.json();
-      dataCache.current.set(key, d);
-      if (!prefetchOnly) setData(d);
-    } catch (err) {
-      console.error("Failed to fetch command center data:", err);
-    } finally {
-      if (!prefetchOnly) {
-        setLoading(false);
-        setRefreshing(false);
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (period) params.set("period", period);
+    if (ownershipView) params.set("view", "joe");
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    // Keep the spinner up and retry until valid data arrives
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await apiFetch(`/api/command-center${qs}`);
+        if (!res.ok) throw new Error(`Command center request failed (${res.status})`);
+        const d = await res.json();
+        if (typeof d?.jrw?.noi !== "number" || typeof d?.big?.netIncome !== "number") {
+          throw new Error("Command center data incomplete");
+        }
+        dataCache.current.set(key, d);
+        if (!prefetchOnly) setData(d);
+        break;
+      } catch (err) {
+        console.error("Failed to fetch command center data:", err);
+        if (prefetchOnly || cached || attempt === 2) break;
+        await new Promise((r) => setTimeout(r, 3000));
       }
+    }
+    if (!prefetchOnly) {
+      setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -165,7 +175,7 @@ export default function CommandCenterPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading Command Center...</p>
+        <LoadingState />
       </div>
     );
   }
@@ -184,14 +194,14 @@ export default function CommandCenterPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Command Center
+            Executive Overview
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Four businesses, run independently
+            Portfolio Businesses Performance.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+          <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">
             <button
               onClick={() => setOwnershipView(false)}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all ${
@@ -220,6 +230,9 @@ export default function CommandCenterPage() {
             </button>
           </div>
         </div>
+      </div>
+      <div className="h-0.5 w-full bg-[#E07B2A] rounded" />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <DateRangePicker onRangeChange={handleRangeChange} />
       </div>
       {refreshing && (

@@ -1,6 +1,7 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { LoadingState } from "@/components/LoadingState";
+import { apiJson } from "@/lib/fetchRetry";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -50,8 +51,7 @@ export default function PvCommunitiesPage() {
 
   const fetchData = useCallback(() => {
     const view = ownershipView ? "&view=joe" : "";
-    apiFetch(`/api/park-vista?from=${range.from}&to=${range.to}&period=${range.period}${view}`)
-      .then((r) => r.json())
+    apiJson(`/api/park-vista?from=${range.from}&to=${range.to}&period=${range.period}${view}`)
       .then((d) => setData(d))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -63,9 +63,7 @@ export default function PvCommunitiesPage() {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-gray-500">Loading communities...</p>
-      </div>
+      <LoadingState />
     );
   }
 
@@ -88,7 +86,7 @@ export default function PvCommunitiesPage() {
             {data.portfolio.communityCount} communities · {data.portfolio.totalUnits} total units
           </p>
         </div>
-        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+        <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">
           <button
             onClick={() => setOwnershipView(false)}
             className={`px-3 py-1.5 text-xs font-medium transition-all ${

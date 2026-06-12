@@ -1,9 +1,10 @@
 "use client";
 
+import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { ExportButtons } from "@/components/ExportButtons";
-import { fetchJsonRetry, apiFetch } from "@/lib/fetchRetry";
+import { fetchJsonRetry, apiJson } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -93,8 +94,7 @@ export default function PvFinancialsPage() {
       const key = `${from}:${to}:${ownershipView}`;
       if (cache.current[key]) return;
       const view = ownershipView ? "&view=joe" : "";
-      apiFetch(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${p}${view}`)
-        .then((r) => r.json())
+      apiJson(`/api/park-vista/community-pnl?community=portfolio&from=${from}&to=${to}&period=${p}${view}`)
         .then((d) => {
           if (!d.error) cache.current[key] = d;
         })
@@ -124,7 +124,7 @@ export default function PvFinancialsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+          <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">
             <button
               onClick={() => setOwnershipView(false)}
               className={`px-3 py-1.5 text-xs font-medium transition-all ${
@@ -171,9 +171,7 @@ export default function PvFinancialsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <p className="text-gray-500">Loading...</p>
-        </div>
+        <LoadingState />
       ) : error ? (
         <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 text-red-700 dark:text-red-300">
           {error}

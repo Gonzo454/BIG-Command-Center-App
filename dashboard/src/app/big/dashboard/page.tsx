@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -106,8 +106,7 @@ export default function BigDashboardPage() {
       if (to) params.set("to", to);
       if (period) params.set("period", period);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      apiFetch(`/api/big-management${qs}`)
-        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      apiJson(`/api/big-management${qs}`)
         .then((d) => {
           const data: BigDashCache = {
             summary: d.summary || null,
@@ -131,8 +130,7 @@ export default function BigDashboardPage() {
     const key = `${from}:${to}:${period}`;
     if (dataCache.current.has(key)) return;
     const params = new URLSearchParams({ from, to, period });
-    apiFetch(`/api/big-management?${params.toString()}`)
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    apiJson(`/api/big-management?${params.toString()}`)
       .then((d) => {
         if (!d.summary) return;
         dataCache.current.set(key, {
@@ -394,8 +392,7 @@ function AccountPanel({
     const params = new URLSearchParams({ account: accountNum });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    apiFetch(`/api/big-management/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/big-management/detail?${params.toString()}`)
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
@@ -453,7 +450,7 @@ function AccountPanel({
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
                             <p className="text-xs text-gray-500 py-1">
-                              Loading...
+                              Lots of cash loading here, please be patient.
                             </p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -19,8 +19,7 @@ export default function PropertiesPage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      apiFetch("/api/account-totals")
-        .then((r) => r.json())
+      apiJson("/api/account-totals")
         .then((data) => setProperties(data.properties || []))
         .finally(() => setLoading(false));
     }

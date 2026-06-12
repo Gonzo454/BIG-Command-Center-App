@@ -32,6 +32,38 @@ export async function fetchJsonRetry<T = unknown>(
 }
 
 /**
+ * Fetches JSON from an API route with full retry protection: apiFetch retries
+ * transient failures internally, and any non-ok response or parse failure is
+ * retried again here with a wait, so the caller's loading state stays up until
+ * valid JSON arrives. Error bodies are never returned as data.
+ * Defaults to the same loose typing as `res.json()` for drop-in use.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function apiJson<T = any>(
+  url: string,
+  init?: RequestInit,
+  outerRetries = 2,
+  waitMs = 3000
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await apiFetch(url, init);
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      return (await res.json()) as T;
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (
+        err.name === "AbortError" ||
+        /^API error 4(?!29)/.test(err.message) ||
+        attempt >= outerRetries
+      )
+        throw err;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+}
+
+/**
  * Drop-in replacement for fetch() on GET API calls that retries transient
  * failures (5xx, 429, network errors) with backoff before resolving, so
  * initial page loads survive a cold-start hiccup. Resolves with the last

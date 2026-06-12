@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -44,8 +44,7 @@ export default function CashFlowPage() {
 
   function fetchData(p: string) {
     setLoading(true);
-    apiFetch(`/api/cash-flow?period=${p}`)
-      .then((r) => r.json())
+    apiJson(`/api/cash-flow?period=${p}`)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -209,8 +208,7 @@ function CashFlowSection({
     setExpandedTotal(Math.abs(accountAmount));
     setDetailLoading(true);
     const params = new URLSearchParams({ account: accountNum });
-    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/property-pnl/detail?${params.toString()}`)
       .then((d) => setDetail(d.transactions || []))
       .catch(() => setDetail([]))
       .finally(() => setDetailLoading(false));
@@ -253,7 +251,7 @@ function CashFlowSection({
                       <td colSpan={2} className="p-0">
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
-                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                            <p className="text-xs text-gray-500 py-1">Lots of cash loading here, please be patient.</p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">No transactions found</p>
                           ) : (

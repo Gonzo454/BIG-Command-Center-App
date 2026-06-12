@@ -8,7 +8,7 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
-import { fetchJsonRetry, apiFetch } from "@/lib/fetchRetry";
+import { fetchJsonRetry, apiJson } from "@/lib/fetchRetry";
 
 interface Account {
   name: string;
@@ -122,7 +122,6 @@ export default function PropertyDetailPage() {
   const [kpi, setKpi] = useState<KPIProperty | null>(null);
   const [cashData, setCashData] = useState<CashAccountsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
   const [dateFrom, setDateFrom] = useState<string | undefined>();
@@ -145,15 +144,13 @@ export default function PropertyDetailPage() {
       const json = await fetchJsonRetry<PropertyPnl>(
         `/api/property-pnl?${qp.toString()}`,
         3,
-        2000,
-        () => setRetrying(true)
+        2000
       );
       setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
-      setRetrying(false);
     }
   }
 
@@ -161,14 +158,12 @@ export default function PropertyDetailPage() {
     if (!initialized.current) {
       initialized.current = true;
       fetchData();
-      apiFetch(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
-        .then((r) => r.json())
+      apiJson(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
         .then((d) => {
           if (!d.error) setCashData(d);
         })
         .catch(console.error);
-      apiFetch("/api/kpi-dashboard")
-        .then((r) => r.json())
+      apiJson("/api/kpi-dashboard")
         .then((d) => {
           const match = (d.properties || []).find(
             (c: KPIProperty & { slug: string }) =>
@@ -228,7 +223,7 @@ export default function PropertyDetailPage() {
             </>
           )}
         </div>
-        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+        <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">
           <button
             onClick={() => setOwnershipView(false)}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-all ${
@@ -284,7 +279,7 @@ export default function PropertyDetailPage() {
       </div>
 
       {loading ? (
-        <LoadingState message={retrying ? "Large data load in progress — still working" : "Loading data"} />
+        <LoadingState />
       ) : error ? (
         <div className="text-center py-20 text-red-500">{error}</div>
       ) : data ? (
@@ -485,8 +480,7 @@ function PropertyAccountPanel({
     const params = new URLSearchParams({ account: accountNum, property: propertyName });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/property-pnl/detail?${params.toString()}`)
       .then((d) => {
         setDetail(d.transactions || []);
         if (d.total !== undefined) setExpandedAccountTotal(Math.abs(d.total));
@@ -542,7 +536,7 @@ function PropertyAccountPanel({
                       <td colSpan={2} className="p-0">
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
-                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                            <p className="text-xs text-gray-500 py-1">Lots of cash loading here, please be patient.</p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">No transactions found</p>
                           ) : (

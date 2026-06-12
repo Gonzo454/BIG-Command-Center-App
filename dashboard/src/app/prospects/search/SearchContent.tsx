@@ -1,6 +1,7 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { LoadingState } from "@/components/LoadingState";
+import { apiJson } from "@/lib/fetchRetry";
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import summary from "@/data/prospect-summary.json";
@@ -86,10 +87,7 @@ export function ProspectSearchContent() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
-    apiFetch(`/api/prospects?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then((r) => r.json())
+    apiJson(`/api/prospects?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
         if (!cancelled) {
           setProspects(data.prospects);
@@ -153,8 +151,7 @@ export function ProspectSearchContent() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
-    apiFetch(`/api/prospects?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/prospects?${params.toString()}`)
       .then((data) => {
         const rows = data.prospects as Prospect[];
         const headers = [
@@ -291,7 +288,7 @@ export function ProspectSearchContent() {
       {/* Results Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
+          <LoadingState />
         ) : prospects.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             No prospects match your filters.

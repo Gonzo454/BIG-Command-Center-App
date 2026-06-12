@@ -1,6 +1,7 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { LoadingState } from "@/components/LoadingState";
+import { apiJson } from "@/lib/fetchRetry";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import summary from "@/data/prospect-summary.json";
@@ -41,8 +42,7 @@ export default function ProspectDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch("/api/prospects?limit=25&sortBy=score&sortDir=desc")
-      .then((r) => r.json())
+    apiJson("/api/prospects?limit=25&sortBy=score&sortDir=desc")
       .then((d) => setTopProspects(d.prospects))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -253,7 +253,7 @@ export default function ProspectDashboard() {
           </p>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
+          <LoadingState />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -140,8 +140,7 @@ export default function FinancialsPage() {
     const key = cacheKey || `pnl:${qs}`;
     const cached = pnlCache.current.get(key);
     if (cached) return cached;
-    const res = await apiFetch(`/api/income-statement${qs}`);
-    const data = await res.json();
+    const data = await apiJson(`/api/income-statement${qs}`);
     pnlCache.current.set(key, data);
     return data;
   }, []);
@@ -150,8 +149,7 @@ export default function FinancialsPage() {
     const key = `cf:${p}`;
     const cached = cfCache.current.get(key);
     if (cached) return cached;
-    const res = await apiFetch(`/api/cash-flow?period=${p}`);
-    const data = await res.json();
+    const data = await apiJson(`/api/cash-flow?period=${p}`);
     cfCache.current.set(key, data);
     return data;
   }, []);
@@ -164,8 +162,7 @@ export default function FinancialsPage() {
     const key = cacheKey || `budget:${qs}`;
     const cached = budgetCache.current.get(key);
     if (cached) return cached;
-    const res = await apiFetch(`/api/budget${qs}`);
-    const data = await res.json();
+    const data = await apiJson(`/api/budget${qs}`);
     budgetCache.current.set(key, data);
     return data;
   }, []);
@@ -447,8 +444,7 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
     const params = new URLSearchParams({ account: accountNum });
     if (dateFrom) params.set("from", dateFrom);
     if (dateTo) params.set("to", dateTo);
-    apiFetch(`/api/property-pnl/detail?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`/api/property-pnl/detail?${params.toString()}`)
       .then((d) => {
         setDetail(d.transactions || []);
         if (d.total !== undefined) setExpandedTotal(Math.abs(d.total));
@@ -501,7 +497,7 @@ function AccountTable({ title, accounts, dateFrom, dateTo }: { title: string; ac
                       <td colSpan={2} className="p-0">
                         <div className="bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t border-gray-200 dark:border-gray-600">
                           {detailLoading ? (
-                            <p className="text-xs text-gray-500 py-1">Loading...</p>
+                            <p className="text-xs text-gray-500 py-1">Lots of cash loading here, please be patient.</p>
                           ) : detail.length === 0 ? (
                             <p className="text-xs text-gray-400 py-1">No transactions found</p>
                           ) : (

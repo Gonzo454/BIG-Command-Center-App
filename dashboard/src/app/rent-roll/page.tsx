@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "@/lib/fetchRetry";
+import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
@@ -31,8 +31,7 @@ export default function RentRollPage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      apiFetch("/api/rent-roll")
-        .then((r) => r.json())
+      apiJson("/api/rent-roll")
         .then(setData)
         .finally(() => setLoading(false));
     }
