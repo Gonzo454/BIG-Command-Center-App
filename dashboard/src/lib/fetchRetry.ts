@@ -52,7 +52,12 @@ export async function apiJson<T = any>(
       return (await res.json()) as T;
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
-      if (err.name === "AbortError" || attempt >= outerRetries) throw err;
+      if (
+        err.name === "AbortError" ||
+        /^API error 4(?!29)/.test(err.message) ||
+        attempt >= outerRetries
+      )
+        throw err;
       await new Promise((r) => setTimeout(r, waitMs));
     }
   }

@@ -88,7 +88,10 @@ export default function PvCommunityDetailPage({
         }
         setData(d);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setData((prev) => prev ?? ({ error: "Failed to load community data" } as PnLData));
+      })
       .finally(() => setLoading(false));
   }
 
