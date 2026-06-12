@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const jrwNav = [
-  { href: "/jrw/dashboard", label: "Portfolio Dashboard", icon: "📊" },
+  { href: "/jrw/dashboard", label: "Real Estate Holdings", icon: "📊" },
   { href: "/kpi-dashboard", label: "KPI Dashboard", icon: "📈" },
   { href: "/properties", label: "Properties", icon: "🏢" },
   { href: "/financials", label: "Financial Reports", icon: "💰" },
