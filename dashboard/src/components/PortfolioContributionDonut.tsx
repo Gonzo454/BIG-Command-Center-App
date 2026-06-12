@@ -40,9 +40,9 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
     // Badger placeholder carves out a fixed share of the whole
     const scale = 1 - BADGER_PLACEHOLDER_PCT;
     return [
-      { name: "JRW Real Estate", value: (jrw.revenue / realTotal) * scale, color: "#22c55e", netIncome: jrw.net },
+      { name: "JRW Real Estate", value: (jrw.revenue / realTotal) * scale, color: "#2563eb", netIncome: jrw.net },
       { name: "Blackdeer I.G.", value: (big.revenue / realTotal) * scale, color: "#f59e0b", netIncome: big.net },
-      { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#ef4444", netIncome: hotel.net },
+      { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#06b6d4", netIncome: hotel.net },
       { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#a855f7", netIncome: pvshm.net },
       { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#9ca3af", netIncome: null, placeholder: true },
     ].filter((s) => s.value > 0);

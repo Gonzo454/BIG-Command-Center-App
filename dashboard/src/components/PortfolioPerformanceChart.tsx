@@ -35,9 +35,9 @@ export interface PortfolioTtmData {
 }
 
 const ENTITY_META: { key: EntityKey; label: string; color: string }[] = [
-  { key: "jrw", label: "JRW Real Estate", color: "#22c55e" },
+  { key: "jrw", label: "JRW Real Estate", color: "#2563eb" },
   { key: "big", label: "Blackdeer I.G.", color: "#f59e0b" },
-  { key: "hotel", label: "Badger Hotel", color: "#ef4444" },
+  { key: "hotel", label: "Badger Hotel", color: "#06b6d4" },
   { key: "pvshm", label: "Park Vista SHM", color: "#a855f7" },
 ];
 
@@ -319,7 +319,7 @@ export function PortfolioPerformanceChart({
                     const meta = ENTITY_META.find((e) => e.key === name);
                     const v = typeof value === "number" ? value : 0;
                     return [
-                      <span key="v" style={{ color: v < 0 ? "#ef4444" : undefined }}>{fmtK(v)}</span>,
+                      <span key="v" style={{ color: v < 0 || name === "expenses" ? "#ef4444" : "#16a34a" }}>{name === "expenses" && v > 0 ? `(${fmtK(v)})` : fmtK(v)}</span>,
                       meta
                         ? meta.label
                         : name === "ttm"
