@@ -172,10 +172,10 @@ export default function ExecutiveDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Executive Dashboard
+            JRW Real Estate Holdings
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            JRW Portfolio performance overview
+            Property Performance
           </p>
         </div>
         <div className="flex items-center rounded-lg border border-[#E07B2A] overflow-hidden">

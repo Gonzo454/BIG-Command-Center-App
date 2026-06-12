@@ -197,7 +197,7 @@ export default function CommandCenterPage() {
             Executive Overview
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Portfolio Businesses Performance.
+            Portfolio Businesses Performance
           </p>
         </div>
         <div className="flex items-center gap-3">
