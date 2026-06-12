@@ -19,8 +19,9 @@ export type ManagedEntity = keyof typeof ENTITY_PROPERTY_IDS;
  */
 export function classifyEntityByName(
   propertyName: string
-): "big" | "hotel" | "jrw" {
+): "big" | "hotel" | "jrw" | "pv" {
   if (propertyName.startsWith("Blackdeer Investment Group")) return "big";
   if (propertyName.startsWith("Badger Hotel Group")) return "hotel";
+  if (propertyName.startsWith("Park Vista")) return "pv";
   return "jrw";
 }

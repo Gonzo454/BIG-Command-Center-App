@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Command Center",
+  title: "Portfolio Command Center",
   description: "Executive command center — JRW Portfolio, BIG Management, Badger Hotel",
 };
 

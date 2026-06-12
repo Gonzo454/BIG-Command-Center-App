@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { fetchReport, fetchPvReport, parseAmount, firstOfYear, firstOfMonth, firstOfQuarter, today, cachedJson } from "@/lib/appfolio";
 import { getOwnership } from "@/lib/ownership";
 import { getPropertyConfig } from "@/lib/property-config";
+import { JOE_PV_BUILDINGS } from "@/lib/pv-buildings";
 
 export const maxDuration = 60;
 
@@ -56,40 +57,69 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-// Park Vista's financials live in the dedicated PV AppFolio database,
-// so its gauge value is computed there instead of the JRW database.
-async function fetchParkVistaNet(
+// Joe-owned Park Vista *buildings* live in the dedicated PV AppFolio
+// database. They appear as JRW real estate holdings, weighted by Joe's
+// equity share (the PVSHM management company is a separate business and is
+// no longer shown among the real estate holdings).
+async function fetchJoePvBuildings(
   rangeFrom: string,
   rangeTo: string,
   isMtd: boolean,
   isYtd: boolean,
-): Promise<number> {
+  ownershipView: boolean,
+): Promise<{ name: string; netAmount: number; endingBalance: number; ownershipPct: number }[]> {
+  const buildings = Object.entries(JOE_PV_BUILDINGS);
+  if (buildings.length === 0) return [];
   try {
-    if (isMtd || isYtd) {
-      const rows = await fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: rangeFrom,
-        posted_on_to: rangeTo,
-      });
-      const t = extractTotals(rows, isMtd ? "month_to_date" : "year_to_date");
-      return Math.round(t.totalIncome - t.totalExpenses);
+    const allPv = await fetchPvReport<AccountTotalsRow>("account_totals", {
+      posted_on_from: rangeFrom,
+      posted_on_to: rangeTo,
+    });
+    const idByName = new Map<string, number>();
+    for (const p of allPv) {
+      const name = (p.property_name || "").trim();
+      if (name && p.property_id && !idByName.has(name)) idByName.set(name, p.property_id);
     }
-    const beforeFrom = dayBefore(rangeFrom);
-    const baselineFrom = beforeFrom.slice(0, 8) + "01";
-    const [end, start] = await Promise.all([
-      fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: rangeFrom,
-        posted_on_to: rangeTo,
-      }),
-      fetchPvReport<IncomeRow>("income_statement", {
-        posted_on_from: baselineFrom,
-        posted_on_to: beforeFrom,
-      }),
-    ]);
-    const e = extractTotals(end, "year_to_date");
-    const s = extractTotals(start, "year_to_date");
-    return Math.round((e.totalIncome - s.totalIncome) - (e.totalExpenses - s.totalExpenses));
+    return await mapWithConcurrency(buildings, 2, async ([name, cfg]) => {
+      const propId = idByName.get(name);
+      const base = { name: cfg.label || name, endingBalance: 0, ownershipPct: cfg.pct };
+      if (!propId) return { ...base, netAmount: 0 };
+      const filter = { properties_ids: [propId] };
+      let net = 0;
+      if (isMtd || isYtd) {
+        const rows = await fetchPvReport<IncomeRow>("income_statement", {
+          posted_on_from: rangeFrom,
+          posted_on_to: rangeTo,
+          properties: filter,
+        }).catch(() => [] as IncomeRow[]);
+        const t = extractTotals(rows, isMtd ? "month_to_date" : "year_to_date");
+        net = t.totalIncome - t.totalExpenses;
+      } else {
+        const beforeFrom = dayBefore(rangeFrom);
+        const baselineFrom = beforeFrom.slice(0, 8) + "01";
+        const [end, start] = await Promise.all([
+          fetchPvReport<IncomeRow>("income_statement", {
+            posted_on_from: rangeFrom,
+            posted_on_to: rangeTo,
+            properties: filter,
+          }).catch(() => [] as IncomeRow[]),
+          fetchPvReport<IncomeRow>("income_statement", {
+            posted_on_from: baselineFrom,
+            posted_on_to: beforeFrom,
+            properties: filter,
+          }).catch(() => [] as IncomeRow[]),
+        ]);
+        const e = extractTotals(end, "year_to_date");
+        const s = extractTotals(start, "year_to_date");
+        net = (e.totalIncome - s.totalIncome) - (e.totalExpenses - s.totalExpenses);
+      }
+      return {
+        ...base,
+        netAmount: Math.round(ownershipView ? net * cfg.pct : net),
+      };
+    });
   } catch {
-    return 0;
+    return [];
   }
 }
 
@@ -134,6 +164,8 @@ export async function GET(request: NextRequest) {
       const name = (p.property_name || "").trim();
       if (!name || !p.property_id) continue;
       if (getPropertyConfig(name).archived) continue;
+      // PV management co. is a separate business, not a real estate holding
+      if (isParkVista(name)) continue;
       if (!propertyEntries.has(name)) {
         propertyEntries.set(name, p.property_id);
       }
@@ -144,9 +176,7 @@ export async function GET(request: NextRequest) {
     // Step 2: Per-property income_statement — same authoritative source the
     // drill-down pages use, so gauges always match drill-down values.
     // Concurrency-limited to avoid AppFolio rate limiting.
-    const pvNetPromise = entries.some(([name]) => isParkVista(name))
-      ? fetchParkVistaNet(rangeFrom, rangeTo, isMtd, isYtd)
-      : Promise.resolve(0);
+    const pvBuildingsPromise = fetchJoePvBuildings(rangeFrom, rangeTo, isMtd, isYtd, ownershipView);
 
     if (isMtd || isYtd) {
       const column = isMtd ? "month_to_date" : "year_to_date";
@@ -157,12 +187,12 @@ export async function GET(request: NextRequest) {
           properties: { properties_ids: [propId] },
         }).catch(() => [] as IncomeRow[])
       );
-      const pvNet = await pvNetPromise;
+      const pvBuildings = await pvBuildingsPromise;
 
       const properties = entries.map(([name], i) => {
         const t = extractTotals(isResults[i], column);
-        const netAmount = isParkVista(name) ? pvNet : Math.round(t.totalIncome - t.totalExpenses);
-        const pct = getOwnership(isParkVista(name) ? "Park Vista" : name);
+        const netAmount = Math.round(t.totalIncome - t.totalExpenses);
+        const pct = getOwnership(name);
         return {
           name,
           netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
@@ -171,6 +201,7 @@ export async function GET(request: NextRequest) {
         };
       });
 
+      properties.push(...pvBuildings);
       properties.sort((a, b) => b.netAmount - a.netAmount);
       return cachedJson({ properties, ownershipView });
     }
@@ -195,17 +226,15 @@ export async function GET(request: NextRequest) {
       ]);
       return { end, start };
     });
-    const pvNet = await pvNetPromise;
+    const pvBuildings = await pvBuildingsPromise;
 
     const properties = entries.map(([name], i) => {
       const end = extractTotals(pairResults[i].end, "year_to_date");
       const start = extractTotals(pairResults[i].start, "year_to_date");
-      const netAmount = isParkVista(name)
-        ? pvNet
-        : Math.round(
-            (end.totalIncome - start.totalIncome) - (end.totalExpenses - start.totalExpenses)
-          );
-      const pct = getOwnership(isParkVista(name) ? "Park Vista" : name);
+      const netAmount = Math.round(
+        (end.totalIncome - start.totalIncome) - (end.totalExpenses - start.totalExpenses)
+      );
+      const pct = getOwnership(name);
       return {
         name,
         netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
@@ -214,6 +243,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    properties.push(...pvBuildings);
     properties.sort((a, b) => b.netAmount - a.netAmount);
     return cachedJson({ properties, ownershipView });
   } catch (err) {

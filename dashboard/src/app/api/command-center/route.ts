@@ -79,6 +79,7 @@ function computeMonthlyTrendFromGL(
       const prefix = account.charAt(0);
       const propertyName = r.property_name || "";
       const section = classifyEntityByName(propertyName);
+      if (section === "pv") continue;
       const pct = ownershipAdjusted ? getOwnership(propertyName) : 1;
 
       const debit = parseFloat(r.debit || "0") || 0;
