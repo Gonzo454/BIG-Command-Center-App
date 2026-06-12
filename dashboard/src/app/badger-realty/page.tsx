@@ -96,7 +96,7 @@ export default function BadgerRealtyPage() {
       {/* How it connects */}
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-100 dark:border-blue-800">
         <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
-          How Badger Realty fits in the Command Center
+          How Badger Realty fits in the Portfolio Command Center
         </h3>
         <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
           <li>Provides market rent comps for KPI in-place vs. market comparisons</li>

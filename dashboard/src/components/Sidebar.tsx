@@ -106,7 +106,7 @@ export function Sidebar() {
         >
           <img src="/command-center-icon.png" alt="" className="w-9 h-9 rounded-lg object-contain" />
           <div>
-            <p className="text-lg font-semibold leading-tight">Command Center</p>
+            <p className="text-lg font-semibold leading-tight">Portfolio Command Center</p>
             <p className={`text-xs leading-snug ${pathname === "/" ? "text-white/70" : "text-gray-400"}`}>
               Independent Businesses.
               <br />
