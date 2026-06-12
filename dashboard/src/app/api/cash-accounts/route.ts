@@ -14,14 +14,17 @@ interface AccountTotalsRow {
   property_name?: string;
 }
 
-// Cash / escrow asset accounts: operating cash (1110/1114/1140),
-// escrow & reserves (1117/1123/1354), other deposit accounts (1150/1160)
+// Cash / escrow asset accounts: operating cash is GL 1110 only and escrow
+// is GL 1123 only (1110-0000-00 / 1123-0000-00 variants cover Blackdeer and
+// the hotel). GL 1114 and 1117 hold stale AppFolio-migration beginning
+// balances and must be excluded.
 function classifyCashAccount(num: string, name: string): "operating" | "escrow" | null {
+  if (num.startsWith("1114") || num.startsWith("1117")) return null;
   const lower = name.toLowerCase();
-  if (lower.includes("escrow") || lower.includes("reserve") || num.startsWith("1117") || num.startsWith("1123") || num.startsWith("1354")) {
+  if (lower.includes("escrow") || lower.includes("reserve") || num.startsWith("1123") || num.startsWith("1354")) {
     return "escrow";
   }
-  if (num.startsWith("1110") || num.startsWith("1114") || num.startsWith("1140") || (num.startsWith("11") && (lower.includes("cash") || lower.includes("money market") || lower.includes("deposit")))) {
+  if (num.startsWith("1110") || num.startsWith("1140") || (num.startsWith("11") && (lower.includes("cash") || lower.includes("money market") || lower.includes("deposit")))) {
     return "operating";
   }
   return null;

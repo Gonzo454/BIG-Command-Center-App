@@ -3,6 +3,7 @@ import { fetchReport, fetchPvReport, parseAmount, firstOfYear, firstOfMonth, fir
 import { getOwnership } from "@/lib/ownership";
 import { getPropertyConfig } from "@/lib/property-config";
 import { JOE_PV_BUILDINGS } from "@/lib/pv-buildings";
+import { ENTITY_PROPERTY_IDS } from "@/lib/appfolio-entities";
 
 export const maxDuration = 60;
 
@@ -169,6 +170,13 @@ export async function GET(request: NextRequest) {
       if (!propertyEntries.has(name)) {
         propertyEntries.set(name, p.property_id);
       }
+    }
+
+    // Badger Hotel Group never appears in account_totals (AppFolio treats it
+    // as an internal management entity) but has GL activity under a known
+    // property id, so include it explicitly.
+    if (!propertyEntries.has("Badger Hotel Group") && !getPropertyConfig("Badger Hotel Group").archived) {
+      propertyEntries.set("Badger Hotel Group", ENTITY_PROPERTY_IDS.hotel);
     }
 
     const entries = Array.from(propertyEntries.entries());

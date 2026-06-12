@@ -73,8 +73,7 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
     assetClass: "office_mg",
     businessEntity: "jrw",
     managedOnly: false,
-    archived: true,
-    archiveReason: "Sold",
+    archived: false,
   },
   "Prairie Square": {
     assetClass: "office_mg",
