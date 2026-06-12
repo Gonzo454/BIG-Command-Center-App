@@ -42,9 +42,9 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
     return [
       { name: "JRW Real Estate", value: (jrw.revenue / realTotal) * scale, color: "#2563eb", netIncome: jrw.net },
       { name: "Blackdeer I.G.", value: (big.revenue / realTotal) * scale, color: "#f59e0b", netIncome: big.net },
-      { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#06b6d4", netIncome: hotel.net },
-      { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#9ca3af", netIncome: pvshm.net },
-      { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#a855f7", netIncome: null, placeholder: true },
+      { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#a855f7", netIncome: hotel.net },
+      { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#06b6d4", netIncome: pvshm.net },
+      { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#eab308", netIncome: null, placeholder: true },
     ].filter((s) => s.value > 0);
   }, [data]);
 

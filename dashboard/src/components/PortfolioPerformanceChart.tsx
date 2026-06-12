@@ -37,8 +37,8 @@ export interface PortfolioTtmData {
 const ENTITY_META: { key: EntityKey; label: string; color: string }[] = [
   { key: "jrw", label: "JRW Real Estate", color: "#2563eb" },
   { key: "big", label: "Blackdeer I.G.", color: "#f59e0b" },
-  { key: "hotel", label: "Badger Hotel", color: "#06b6d4" },
-  { key: "pvshm", label: "Park Vista SHM", color: "#9ca3af" },
+  { key: "hotel", label: "Badger Hotel", color: "#a855f7" },
+  { key: "pvshm", label: "Park Vista SHM", color: "#06b6d4" },
 ];
 
 type EntityKey = "jrw" | "big" | "hotel" | "pvshm";
