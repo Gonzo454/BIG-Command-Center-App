@@ -263,9 +263,9 @@ export default function CommandCenterPage() {
               {ownershipView ? "Joe's Share · NOI" : "NOI"} · {data.period.basis}
               {ownershipView && <span className="ml-1 text-[#E07B2A]">(% vary by entity)</span>}
             </p>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{data.jrw.occupancyRate}% occ.</span>
-              <span>{data.jrw.propertyCount} properties</span>
+            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
+              <span className="whitespace-nowrap">{data.jrw.occupancyRate}% occ.</span>
+              <span className="whitespace-nowrap">{data.jrw.propertyCount} properties</span>
             </div>
             {data.jrw.monthlyTrend && (
               <Sparkline data={data.jrw.monthlyTrend} />
@@ -289,9 +289,9 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's 51% Share" : "Total Revenue"} · {data.period.basis}
             </p>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span className={data.big.margin < 0 ? "text-red-500" : ""}>{data.big.margin}% margin</span>
-              <span>{data.big.propertiesManaged} managed</span>
+            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
+              <span className={`whitespace-nowrap ${data.big.margin < 0 ? "text-red-500" : ""}`}>{data.big.margin}% margin</span>
+              <span className="whitespace-nowrap">{data.big.propertiesManaged} managed</span>
             </div>
             {data.big.monthlyTrend && (
               <Sparkline data={data.big.monthlyTrend} />
@@ -318,11 +318,11 @@ export default function CommandCenterPage() {
               <p className="text-xs text-gray-400 mb-2">
                 {ownershipView ? "Joe's 51% Share · " : ""}Net Income · {data.period.basis}
               </p>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span className={data.pv.netIncome >= 0 ? "text-emerald-600" : "text-red-500"}>
+              <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
+                <span className={`whitespace-nowrap ${data.pv.netIncome >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                   {fmtK(data.pv.totalIncome)} rev
                 </span>
-                <span>{data.pv.communityCount} communities</span>
+                <span className="whitespace-nowrap">{data.pv.communityCount} communities</span>
               </div>
             </div>
           </Link>
@@ -345,9 +345,9 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's Share · GOP" : "GOP"} · {data.period.basis}
             </p>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{fmtK(data.hotel.roomRevenue)} rooms</span>
-              <span>{fmtK(data.hotel.totalRevenue)} rev</span>
+            <div className="flex flex-wrap justify-between gap-x-2 text-xs text-gray-500">
+              <span className="whitespace-nowrap">{fmtK(data.hotel.roomRevenue)} rooms</span>
+              <span className="whitespace-nowrap">{fmtK(data.hotel.totalRevenue)} rev</span>
             </div>
             {data.hotel.monthlyTrend && (
               <Sparkline data={data.hotel.monthlyTrend} />

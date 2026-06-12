@@ -108,6 +108,15 @@ function entityTotalsFromGL(glRows: GLRow[], joeView: boolean): Record<"jrw" | "
 }
 
 async function pvTotalsForRange(from: string, to: string, joeView: boolean): Promise<EntityTotals> {
+  if (from.slice(0, 4) !== to.slice(0, 4)) {
+    // Cross-year range (e.g. TTM): AppFolio's year_to_date column only covers
+    // one fiscal year, so split into per-calendar-year segments
+    const [a, b] = await Promise.all([
+      pvTotalsForRange(from, `${from.slice(0, 4)}-12-31`, joeView),
+      pvTotalsForRange(`${to.slice(0, 4)}-01-01`, to, joeView),
+    ]);
+    return { revenue: a.revenue + b.revenue, expenses: a.expenses + b.expenses };
+  }
   const pct = joeView ? getOwnership("Park Vista") : 1;
   try {
     const rows = await fetchPvReport<IncomeRow>("income_statement", {
