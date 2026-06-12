@@ -43,14 +43,14 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
       { name: "JRW Real Estate", value: (jrw.revenue / realTotal) * scale, color: "#2563eb", netIncome: jrw.net },
       { name: "Blackdeer I.G.", value: (big.revenue / realTotal) * scale, color: "#f59e0b", netIncome: big.net },
       { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#06b6d4", netIncome: hotel.net },
-      { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#a855f7", netIncome: pvshm.net },
-      { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#9ca3af", netIncome: null, placeholder: true },
+      { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#9ca3af", netIncome: pvshm.net },
+      { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#a855f7", netIncome: null, placeholder: true },
     ].filter((s) => s.value > 0);
   }, [data]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full flex flex-col">
-      <p className="text-sm font-semibold text-gray-900 dark:text-white">Portfolio Contribution</p>
+      <p className="text-sm font-semibold text-gray-900 dark:text-white" title="Each business's share of total trailing-12-month revenue, with its TTM net income shown beside it.">Portfolio Contribution</p>
       <p className="text-xs text-gray-400 mb-1">Share of trailing 12-month revenue</p>
       {slices.length === 0 ? (
         <div className="flex-1 flex items-center justify-center min-h-[180px]">

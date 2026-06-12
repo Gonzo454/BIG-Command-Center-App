@@ -94,7 +94,7 @@ function isJrwParty(partyName: string | undefined): boolean {
  * balance entries (fees billed in one month, expensed in another), so the
  * mirror check only evaluates months from this point forward.
  */
-export const MIRROR_CHECK_FROM = "2025-09";
+export const MIRROR_CHECK_FROM = "2025-10";
 
 export function lastCompleteMonthEnd(now = new Date()): string {
   const d = new Date(now.getFullYear(), now.getMonth(), 0);

@@ -38,18 +38,18 @@ const ENTITY_META: { key: EntityKey; label: string; color: string }[] = [
   { key: "jrw", label: "JRW Real Estate", color: "#2563eb" },
   { key: "big", label: "Blackdeer I.G.", color: "#f59e0b" },
   { key: "hotel", label: "Badger Hotel", color: "#06b6d4" },
-  { key: "pvshm", label: "Park Vista SHM", color: "#a855f7" },
+  { key: "pvshm", label: "Park Vista SHM", color: "#9ca3af" },
 ];
 
 type EntityKey = "jrw" | "big" | "hotel" | "pvshm";
 
 type ChartView = "net" | "revexp" | "cumulative" | "ttm";
 
-const VIEW_META: { key: ChartView; label: string; title: string; subtitle: string }[] = [
-  { key: "net", label: "Net", title: "Combined Owner Net Income", subtitle: "Trailing 12 months \u00b7 monthly by entity" },
-  { key: "revexp", label: "Rev vs Exp", title: "Combined Revenue vs Expenses", subtitle: "Trailing 12 months \u00b7 combined monthly revenue and expenses" },
-  { key: "cumulative", label: "Cumul", title: "Cumulative Owner Net Income", subtitle: "Trailing 12 months \u00b7 running net income by entity" },
-  { key: "ttm", label: "TTM", title: "TTM Owner Net Income", subtitle: "Trailing-12-month combined net income ending each month" },
+const VIEW_META: { key: ChartView; label: string; title: string; subtitle: string; tooltip: string }[] = [
+  { key: "net", label: "Net", title: "Combined Owner Net Income", subtitle: "Trailing 12 months \u00b7 monthly by entity", tooltip: "Each month's net income (revenue minus expenses) per business, stacked to a combined monthly total." },
+  { key: "revexp", label: "Rev vs Exp", title: "Combined Revenue vs Expenses", subtitle: "Trailing 12 months \u00b7 combined monthly revenue and expenses", tooltip: "Total monthly revenue (green) next to total monthly expenses (red) across all businesses combined." },
+  { key: "cumulative", label: "Cumul", title: "Cumulative Owner Net Income", subtitle: "Trailing 12 months \u00b7 running net income by entity", tooltip: "Running total of net income per business over the trailing 12 months \u2014 shows pace, not monthly swings." },
+  { key: "ttm", label: "TTM", title: "TTM Owner Net Income", subtitle: "Trailing-12-month combined net income ending each month", tooltip: "Trailing-12-month sum of combined net income ending at each month \u2014 the smoothed annual run rate." },
 ];
 
 const fmtK = (n: number) => {
@@ -274,9 +274,10 @@ export function PortfolioPerformanceChart({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-2">
-        {VIEW_META.map(({ key, label }) => (
+        {VIEW_META.map(({ key, label, tooltip }) => (
           <button
             key={key}
+            title={tooltip}
             onClick={() => setView(key)}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               view === key
@@ -313,7 +314,7 @@ export function PortfolioPerformanceChart({
                   interval={0}
                 />
 
-                <ReferenceLine y={0} stroke="#9ca3af" />
+                <ReferenceLine y={0} stroke="#4b5563" />
                 <Tooltip
                   formatter={(value, name) => {
                     const meta = ENTITY_META.find((e) => e.key === name);
