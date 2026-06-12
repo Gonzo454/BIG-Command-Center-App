@@ -43,12 +43,13 @@ const ENTITY_META: { key: EntityKey; label: string; color: string }[] = [
 
 type EntityKey = "jrw" | "big" | "hotel" | "pvshm";
 
-type ChartView = "net" | "revexp" | "cumulative";
+type ChartView = "net" | "revexp" | "cumulative" | "ttm";
 
 const VIEW_META: { key: ChartView; label: string; title: string; subtitle: string }[] = [
-  { key: "net", label: "Net Income", title: "Combined Owner Net Income", subtitle: "Trailing 12 months \u00b7 monthly by entity with TTM total" },
-  { key: "revexp", label: "Revenue vs Expenses", title: "Combined Revenue vs Expenses", subtitle: "Trailing 12 months \u00b7 combined monthly revenue and expenses" },
-  { key: "cumulative", label: "Cumulative", title: "Cumulative Owner Net Income", subtitle: "Trailing 12 months \u00b7 running net income by entity" },
+  { key: "net", label: "Net", title: "Combined Owner Net Income", subtitle: "Trailing 12 months \u00b7 monthly by entity" },
+  { key: "revexp", label: "Rev vs Exp", title: "Combined Revenue vs Expenses", subtitle: "Trailing 12 months \u00b7 combined monthly revenue and expenses" },
+  { key: "cumulative", label: "Cumul", title: "Cumulative Owner Net Income", subtitle: "Trailing 12 months \u00b7 running net income by entity" },
+  { key: "ttm", label: "TTM", title: "TTM Owner Net Income", subtitle: "Trailing-12-month combined net income ending each month" },
 ];
 
 const fmtK = (n: number) => {
@@ -132,15 +133,13 @@ export function PortfolioPerformanceChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joeView]);
 
-  const { chartData, dataStartIdx, domain, ticks, ttmDomain, ttmTicks } = useMemo(() => {
+  const { chartData, dataStartIdx, domain, ticks } = useMemo(() => {
     if (!data)
       return {
         chartData: [],
         dataStartIdx: 0,
         domain: [0, 0] as [number, number],
         ticks: [] as number[],
-        ttmDomain: [0, 0] as [number, number],
-        ttmTicks: [] as number[],
       };
 
     const value = (e: EntityMonth) =>
@@ -204,8 +203,6 @@ export function PortfolioPerformanceChart({
 
     let lo = 0;
     let hi = 0;
-    let ttmLo = 0;
-    let ttmHi = 0;
     for (const m of visible) {
       if (view === "revexp") {
         hi = Math.max(hi, m.revenue as number, m.expenses as number);
@@ -219,6 +216,11 @@ export function PortfolioPerformanceChart({
         }
         hi = Math.max(hi, m.c_total as number);
         lo = Math.min(lo, m.c_total as number);
+      } else if (view === "ttm") {
+        if (m.ttm !== null) {
+          hi = Math.max(hi, m.ttm as number);
+          lo = Math.min(lo, m.ttm as number);
+        }
       } else {
         for (const { key } of ENTITY_META) {
           const v = m[key] as number;
@@ -226,23 +228,11 @@ export function PortfolioPerformanceChart({
         }
         hi = Math.max(hi, m.total as number);
         lo = Math.min(lo, m.total as number);
-        if (m.ttm !== null) {
-          ttmHi = Math.max(ttmHi, m.ttm as number);
-          ttmLo = Math.min(ttmLo, m.ttm as number);
-        }
       }
     }
-    const left = niceAxis(lo, hi);
-    const right = niceAxis(ttmLo, ttmHi);
+    const axis = niceAxis(lo, hi);
 
-    return {
-      chartData: visible,
-      dataStartIdx,
-      domain: left.domain,
-      ticks: left.ticks,
-      ttmDomain: right.domain,
-      ttmTicks: right.ticks,
-    };
+    return { chartData: visible, dataStartIdx, domain: axis.domain, ticks: axis.ticks };
   }, [data, afterDebt, hidden, view]);
 
   const ttmAvailable = chartData.some((m) => m.ttm !== null);
@@ -322,18 +312,7 @@ export function PortfolioPerformanceChart({
                   ticks={ticks}
                   interval={0}
                 />
-                {view === "net" && ttmAvailable && (
-                  <YAxis
-                    yAxisId="ttm"
-                    orientation="right"
-                    tickFormatter={fmtAxis}
-                    tick={{ fontSize: 10, fill: "#6b7280" }}
-                    width={64}
-                    domain={ttmDomain}
-                    ticks={ttmTicks}
-                    interval={0}
-                  />
-                )}
+
                 <ReferenceLine y={0} stroke="#9ca3af" />
                 <Tooltip
                   formatter={(value, name) => {
@@ -359,15 +338,12 @@ export function PortfolioPerformanceChart({
                   labelFormatter={(m) => monthLabel(String(m))}
                   contentStyle={{ fontSize: 11 }}
                 />
-                {view === "net" && (
-                  <>
-                    {ENTITY_META.map(({ key, color }) => (
-                      <Bar key={key} dataKey={key} stackId="net" fill={color} maxBarSize={36} />
-                    ))}
-                    {ttmAvailable && (
-                      <Line yAxisId="ttm" type="monotone" dataKey="ttm" stroke="#1f2937" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls={false} name="ttm" />
-                    )}
-                  </>
+                {view === "net" &&
+                  ENTITY_META.map(({ key, color }) => (
+                    <Bar key={key} dataKey={key} stackId="net" fill={color} maxBarSize={36} />
+                  ))}
+                {view === "ttm" && (
+                  <Line type="monotone" dataKey="ttm" stroke="#1f2937" strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls={false} name="ttm" />
                 )}
                 {view === "revexp" && (
                   <>
@@ -410,10 +386,10 @@ export function PortfolioPerformanceChart({
               </button>
             ))
             )}
-            {view === "net" && (
+            {view === "ttm" && (
               <span className="flex items-center gap-1.5 text-[11px]">
                 <span className="w-4 h-0.5 rounded bg-gray-800 dark:bg-gray-200" />
-                <span className="text-gray-600 dark:text-gray-300">TTM Total (right axis)</span>
+                <span className="text-gray-600 dark:text-gray-300">TTM Total</span>
               </span>
             )}
             {view === "cumulative" && (
@@ -423,7 +399,7 @@ export function PortfolioPerformanceChart({
               </span>
             )}
           </div>
-          {view === "net" && (!ttmAvailable || dataStartIdx > 0) && (
+          {view === "ttm" && (!ttmAvailable || dataStartIdx > 0) && (
             <p className="text-[10px] text-gray-400 mt-1.5">
               TTM line begins where a full 12 months of GL history is available.
             </p>
