@@ -197,7 +197,7 @@ export default function CommandCenterPage() {
             Command Center
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Four businesses, run independently
+            Independent Businesses. Unified Control.
           </p>
         </div>
         <div className="flex items-center gap-3">
