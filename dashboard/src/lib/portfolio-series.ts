@@ -13,6 +13,7 @@ export interface GLRow {
 
 interface IncomeRow {
   account_name?: string;
+  account_number?: string;
   month_to_date?: string;
   year_to_date?: string;
 }
@@ -23,7 +24,7 @@ export interface EntityMonth {
   revenue: number;
   expenses: number;
   netIncome: number;
-  /** JRW only: interest portion of debt service (no principal) */
+  /** interest portion of debt service (no principal) */
   interestExpense?: number;
 }
 
@@ -106,17 +107,34 @@ export async function buildPortfolioSeries(
           posted_on_from: `${month}-01`,
           posted_on_to: `${month}-${String(lastDay).padStart(2, "0")}`,
         });
+        // Sum per-account rows so PV matches the main-DB Operations basis:
+        // 4xxx/5xxx revenue, 6xxx/7xxx operating expenses excluding
+        // depreciation/amortization; 8xxx (debt service, misc adjustments)
+        // excluded except mortgage interest which feeds After Debt Service.
         let income = 0;
         let expenses = 0;
+        let interest = 0;
         for (const row of rows) {
+          const acct = (row.account_number || "").trim();
+          if (!acct) continue;
           const name = (row.account_name || "").toLowerCase().trim();
           const amount = parseAmount(row.month_to_date);
-          if (name === "total income") income = amount;
-          if (name === "total expense" || name === "total expenses") expenses = Math.abs(amount);
+          const prefix = acct.charAt(0);
+          if (prefix === "4" || prefix === "5") {
+            income += amount;
+          } else if (prefix === "6" || prefix === "7") {
+            if (!/deprec|amort/.test(name)) expenses += amount;
+          } else if (
+            prefix === "8" &&
+            DEBT_SERVICE_PREFIXES.some((p) => acct.startsWith(p)) &&
+            !name.includes("principal")
+          ) {
+            interest += amount;
+          }
         }
-        return { month, income, expenses, failed: false };
+        return { month, income, expenses, interest, failed: false };
       } catch {
-        return { month, income: 0, expenses: 0, failed: true };
+        return { month, income: 0, expenses: 0, interest: 0, failed: true };
       }
     }),
   ]);
@@ -134,6 +152,7 @@ export async function buildPortfolioSeries(
   const mirrorBig = new Array(months.length).fill(0);
   const mirrorJrw = new Array(months.length).fill(0);
   jrw.forEach((m) => (m.interestExpense = 0));
+  pvshm.forEach((m) => (m.interestExpense = 0));
 
   for (const r of glRows) {
     const month = (r.post_date || "").slice(0, 7);
@@ -187,6 +206,7 @@ export async function buildPortfolioSeries(
     if (i === undefined) continue;
     pvshm[i].revenue = pm.income * pvPct;
     pvshm[i].expenses = pm.expenses * pvPct;
+    pvshm[i].interestExpense = pm.interest * pvPct;
   }
 
   for (const series of [jrw, big, hotel, pvshm]) {

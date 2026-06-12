@@ -130,8 +130,8 @@ export function PortfolioPerformanceChart({
         ticks: [] as number[],
       };
 
-    const value = (e: EntityMonth, key: EntityKey) =>
-      key === "jrw" && afterDebt ? e.netIncome - (e.interestExpense || 0) : e.netIncome;
+    const value = (e: EntityMonth) =>
+      afterDebt ? e.netIncome - (e.interestExpense || 0) : e.netIncome;
 
     // months with no activity at all (before GL history begins) are skipped
     const hasActivity = data.months.map((_, i) =>
@@ -150,12 +150,12 @@ export function PortfolioPerformanceChart({
       let exp = 0;
       for (const { key } of ENTITY_META) {
         const e = data.entities[key][i];
-        const v = e ? value(e, key) : 0;
+        const v = e ? value(e) : 0;
         row[key] = hidden.has(key) ? 0 : v;
         if (!hidden.has(key)) {
           total += v;
           rev += e?.revenue || 0;
-          exp += (e?.expenses || 0) + (key === "jrw" && afterDebt ? e?.interestExpense || 0 : 0);
+          exp += (e?.expenses || 0) + (afterDebt ? e?.interestExpense || 0 : 0);
         }
       }
       row.total = total;

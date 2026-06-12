@@ -52,6 +52,9 @@ interface SummaryData {
   ownershipView?: boolean;
 }
 
+const signColor = (n: number) =>
+  n < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400";
+
 const fmtK = (n: number) =>
   (n < 0 ? "-" : "") +
   "$" +
@@ -256,7 +259,7 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
               Real Estate Holdings
             </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+            <p className={`text-2xl font-bold mt-1 ${signColor(data.jrw.noi)}`}>
               {fmtK(data.jrw.noi)}
             </p>
             <p className="text-xs text-gray-400 mb-2">
@@ -283,14 +286,14 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
               Blackdeer I.G.
             </p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+            <p className={`text-2xl font-bold mt-1 ${signColor(data.big.totalIncome)}`}>
               {fmtK(data.big.totalIncome)}
             </p>
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's 51% Share" : "Total Revenue"} · {data.period.basis}
             </p>
             <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
-              <li className={data.big.margin < 0 ? "text-red-500" : ""}>{data.big.margin}% margin</li>
+              <li className={signColor(data.big.margin)}>{data.big.margin}% margin</li>
               <li>{data.big.propertiesManaged} managed</li>
             </ul>
             {data.big.monthlyTrend && (
@@ -312,14 +315,14 @@ export default function CommandCenterPage() {
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
                 Park Vista SHM
               </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className={`text-2xl font-bold mt-1 ${signColor(data.pv.netIncome)}`}>
                 {fmtK(data.pv.netIncome)}
               </p>
               <p className="text-xs text-gray-400 mb-2">
                 {ownershipView ? "Joe's 51% Share · " : ""}Net Income · {data.period.basis}
               </p>
               <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
-                <li className="text-emerald-600">{fmtK(data.pv.totalIncome)} revenue</li>
+                <li className={signColor(data.pv.totalIncome)}>{fmtK(data.pv.totalIncome)} revenue</li>
                 <li>{data.pv.communityCount} communities</li>
               </ul>
             </div>
@@ -335,15 +338,15 @@ export default function CommandCenterPage() {
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
               Badger Hotel Group
             </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+            <p className={`text-2xl font-bold mt-1 ${signColor(data.hotel.gop)}`}>
               {fmtK(data.hotel.gop)}
             </p>
             <p className="text-xs text-gray-400 mb-2">
               {ownershipView ? "Joe's Share · GOP" : "GOP"} · {data.period.basis}
             </p>
             <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
-              <li className="text-emerald-600">{fmtK(data.hotel.roomRevenue)} room revenue</li>
-              <li className={(data.hotel.netIncome ?? 0) < 0 ? "text-red-500" : ""}>
+              <li className={signColor(data.hotel.roomRevenue)}>{fmtK(data.hotel.roomRevenue)} room revenue</li>
+              <li className={signColor(data.hotel.netIncome ?? 0)}>
                 {fmtK(data.hotel.netIncome ?? 0)} net income
               </li>
             </ul>
