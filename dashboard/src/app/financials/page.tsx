@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
 
@@ -171,7 +172,18 @@ export default function FinancialsPage() {
     if (initialized.current) return;
     initialized.current = true;
     setLoading(true);
-    Promise.all([fetchPnl(), fetchCf("mtd"), fetchBudget()])
+    const persisted = resolvePersistedRange();
+    const usePersisted = persisted && persisted.period !== "mtd";
+    const pnlPromise = usePersisted
+      ? fetchPnl(persisted.from, persisted.to, persisted.period)
+      : fetchPnl();
+    // The Budget tab shares the same DateRangePicker (cc:dateRange) as P&L, so
+    // honor the persisted range here too — otherwise the picker shows YTD while
+    // the table renders default data. Cash Flow has its own MTD/YTD toggle.
+    const budgetPromise = usePersisted
+      ? fetchBudget(persisted.from, persisted.to)
+      : fetchBudget();
+    Promise.all([pnlPromise, fetchCf("mtd"), budgetPromise])
       .then(([pnl, cf, budget]) => {
         setPnlData(pnl);
         setCfData(cf);

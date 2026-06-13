@@ -1,53 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  PRESETS,
+  firstOfMonth,
+  persistRange,
+  resolvePersistedRange,
+  today,
+} from "@/lib/date-range";
 
 interface DateRangePickerProps {
   onRangeChange: (from: string, to: string, period: string) => void;
 }
 
-function firstOfMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function firstOfPrevMonth(): string {
-  const d = new Date();
-  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function lastOfPrevMonth(): string {
-  const d = new Date();
-  const last = new Date(d.getFullYear(), d.getMonth(), 0);
-  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
-}
-
-function firstOfQuarter(): string {
-  const d = new Date();
-  const q = Math.floor(d.getMonth() / 3) * 3;
-  return `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
-}
-
-function firstOfYear(): string {
-  return `${new Date().getFullYear()}-01-01`;
-}
-
-function today(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
-const presets = [
-  { label: "Prev Mo", period: "prevmo", from: firstOfPrevMonth, to: lastOfPrevMonth },
-  { label: "MTD", period: "mtd", from: firstOfMonth, to: today },
-  { label: "QTD", period: "qtd", from: firstOfQuarter, to: today },
-  { label: "YTD", period: "ytd", from: firstOfYear, to: today },
-];
-
 export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
   const [activePreset, setActivePreset] = useState("MTD");
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(today());
+  const restored = useRef(false);
+
+  // Restore the persisted selection on mount so the picker reflects the period
+  // the page is actually showing after a refresh. Done in an effect (not the
+  // initial render) to avoid an SSR/hydration mismatch. We only update the
+  // picker's display here — the page reads the same persisted range for its
+  // initial fetch, so we must NOT call onRangeChange and trigger a 2nd fetch.
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    const persisted = resolvePersistedRange();
+    if (!persisted) return;
+    setActivePreset(persisted.preset);
+    setFromDate(persisted.from);
+    setToDate(persisted.to);
+  }, []);
 
   function selectPreset(label: string, period: string, from: () => string, to: () => string) {
     const f = from();
@@ -55,12 +40,13 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
     setActivePreset(label);
     setFromDate(f);
     setToDate(t);
+    persistRange(label, f, t, period);
     onRangeChange(f, t, period);
   }
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {presets.map((p) => (
+      {PRESETS.map((p) => (
         <button
           key={p.label}
           onClick={() => selectPreset(p.label, p.period, p.from, p.to)}
@@ -80,6 +66,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
           onChange={(e) => {
             setFromDate(e.target.value);
             setActivePreset("Custom");
+            persistRange("Custom", e.target.value, toDate, "custom");
             onRangeChange(e.target.value, toDate, "custom");
           }}
           className="px-2 py-1 text-xs border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600"
@@ -91,6 +78,7 @@ export function DateRangePicker({ onRangeChange }: DateRangePickerProps) {
           onChange={(e) => {
             setToDate(e.target.value);
             setActivePreset("Custom");
+            persistRange("Custom", fromDate, e.target.value, "custom");
             onRangeChange(fromDate, e.target.value, "custom");
           }}
           className="px-2 py-1 text-xs border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-600"

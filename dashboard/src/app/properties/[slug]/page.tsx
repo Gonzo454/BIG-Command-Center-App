@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
@@ -157,7 +158,12 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      fetchData();
+      const persisted = resolvePersistedRange();
+      if (persisted && persisted.period !== "mtd") {
+        fetchData(persisted.from, persisted.to, persisted.period);
+      } else {
+        fetchData();
+      }
       apiJson(`/api/cash-accounts?property=${encodeURIComponent(slug)}`)
         .then((d) => {
           if (!d.error) setCashData(d);

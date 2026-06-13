@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
 
@@ -139,7 +140,14 @@ export default function BigPnlPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    load(undefined, undefined, "ytd", "default:default:ytd");
+    const persisted = resolvePersistedRange();
+    if (persisted) {
+      setFrom(persisted.from);
+      setTo(persisted.to);
+      load(persisted.from, persisted.to, persisted.period);
+    } else {
+      load(undefined, undefined, "ytd", "default:default:ytd");
+    }
 
     // Prefetch MTD and QTD in background after initial load
     const d = new Date();

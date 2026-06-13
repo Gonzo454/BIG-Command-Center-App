@@ -5,6 +5,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { PortfolioPerformanceChart, type PortfolioTtmData } from "@/components/PortfolioPerformanceChart";
 import { PortfolioContributionDonut } from "@/components/PortfolioContributionDonut";
 import { PortfolioReportsSection } from "@/components/PortfolioReportsSection";
@@ -151,7 +152,13 @@ export default function CommandCenterPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    fetchData();
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      currentRange.current = { from: persisted.from, to: persisted.to, period: persisted.period };
+      fetchData(persisted.from, persisted.to, persisted.period);
+    } else {
+      fetchData();
+    }
     // Prefetch QTD and YTD in the background (MTD is the default load)
     const todayStr = new Date().toISOString().split("T")[0];
     const d = new Date();

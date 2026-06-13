@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 
 interface Check {
@@ -41,7 +42,12 @@ export default function VendorsPage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      fetchData();
+      const persisted = resolvePersistedRange();
+      if (persisted && persisted.period !== "mtd") {
+        fetchData(persisted.from, persisted.to);
+      } else {
+        fetchData();
+      }
     }
   }, []);
 

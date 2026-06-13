@@ -5,6 +5,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { useEffect, useState, useCallback } from "react";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 
 interface CommunitySnapshot {
@@ -58,6 +59,18 @@ export default function PvDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [ownershipView, setOwnershipView] = useState(false);
   const [range, setRange] = useState({ from: firstOfMonth(), to: todayStr(), period: "mtd" });
+  const [ready, setReady] = useState(false);
+
+  // Restore the persisted period on the client. useState initializers run
+  // during SSR (where localStorage is unavailable), so resolving there returns
+  // null and the picker/data would disagree on refresh.
+  useEffect(() => {
+    const p = resolvePersistedRange();
+    if (p && p.period !== "mtd") {
+      setRange({ from: p.from, to: p.to, period: p.period });
+    }
+    setReady(true);
+  }, []);
 
   const fetchData = useCallback(() => {
     const view = ownershipView ? "&view=joe" : "";
@@ -68,8 +81,9 @@ export default function PvDashboardPage() {
   }, [ownershipView, range]);
 
   useEffect(() => {
+    if (!ready) return;
     fetchData();
-  }, [fetchData]);
+  }, [ready, fetchData]);
 
   if (loading && !data) {
     return (

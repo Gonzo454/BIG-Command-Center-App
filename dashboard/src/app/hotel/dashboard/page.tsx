@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
 
@@ -77,7 +78,14 @@ export default function HotelDashboard() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    load();
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      setFrom(persisted.from);
+      setTo(persisted.to);
+      load(persisted.from, persisted.to, persisted.period);
+    } else {
+      load();
+    }
   }, [load]);
 
   function handleRangeChange(fromDate: string, toDate: string, period: string) {

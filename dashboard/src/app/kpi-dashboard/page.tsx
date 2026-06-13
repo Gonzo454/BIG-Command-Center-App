@@ -5,6 +5,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 
 interface PropertyKPI {
@@ -145,7 +146,12 @@ export default function KPIDashboardPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    fetchData();
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      fetchData(persisted.from, persisted.to, persisted.period);
+    } else {
+      fetchData();
+    }
     const d = new Date();
     const todayStr = d.toISOString().split("T")[0];
     const q = Math.floor(d.getMonth() / 3) * 3;

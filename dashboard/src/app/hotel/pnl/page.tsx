@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
 
@@ -114,7 +115,14 @@ export default function HotelPnlPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    load();
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      setFrom(persisted.from);
+      setTo(persisted.to);
+      load(persisted.from, persisted.to, persisted.period);
+    } else {
+      load();
+    }
     const d = new Date();
     const todayStr = d.toISOString().split("T")[0];
     const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;

@@ -5,6 +5,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { useEffect, useState, useRef, use } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 
 interface Account {
@@ -42,9 +43,24 @@ export default function PvCommunityDetailPage({
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("mtd");
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [ready, setReady] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
-  const initialized = useRef(false);
   const cache = useRef<Record<string, PnLData>>({});
+
+  // Restore the persisted period on the client. useState initializers run
+  // during SSR (where localStorage is unavailable), so resolving there returns
+  // null and the picker/data would disagree on refresh.
+  useEffect(() => {
+    const p = resolvePersistedRange();
+    if (p) {
+      if (p.period === "mtd" || p.period === "qtd" || p.period === "ytd") {
+        if (p.period !== "mtd") setPeriod(p.period as Period);
+      } else {
+        setCustomRange({ from: p.from, to: p.to });
+      }
+    }
+    setReady(true);
+  }, []);
 
   function rangeDates() {
     if (customRange) return customRange;
@@ -96,14 +112,10 @@ export default function PvCommunityDetailPage({
   }
 
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchData();
-      return;
-    }
+    if (!ready) return;
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, customRange, ownershipView]);
+  }, [ready, period, customRange, ownershipView]);
 
   const incomeAccounts = data?.accounts?.filter((a) => a.type === "income") || [];
   const expenseAccounts = data?.accounts?.filter((a) => a.type === "expense") || [];

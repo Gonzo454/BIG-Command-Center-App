@@ -5,6 +5,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { ExportButtons } from "@/components/ExportButtons";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ProfitGauge } from "@/components/ProfitGauge";
 import { CollapsiblePanel } from "@/components/CollapsiblePanel";
 interface Summary {
@@ -64,6 +65,17 @@ const fmtShort = (n: number) =>
   "$" + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
+
+const periodLabelFor = (period: string) =>
+  period === "mtd"
+    ? "MTD"
+    : period === "qtd"
+    ? "QTD"
+    : period === "ytd"
+    ? "YTD"
+    : period === "prevmo"
+    ? "Prev Mo"
+    : "Period";
 
 interface BigDashCache {
   summary: Summary;
@@ -149,7 +161,13 @@ export default function BigDashboardPage() {
     const d = new Date();
     const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const mtdTo = d.toISOString().split("T")[0];
-    fetchData(mtdFrom, mtdTo, "mtd");
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      setPeriodLabel(periodLabelFor(persisted.period));
+      fetchData(persisted.from, persisted.to, persisted.period);
+    } else {
+      fetchData(mtdFrom, mtdTo, "mtd");
+    }
     const q = Math.floor(d.getMonth() / 3) * 3;
     const qtdFrom = `${d.getFullYear()}-${String(q + 1).padStart(2, "0")}-01`;
     const ytdFrom = `${d.getFullYear()}-01-01`;
@@ -160,17 +178,7 @@ export default function BigDashboardPage() {
   }, [fetchData, prefetch]);
 
   function handleRangeChange(from: string, to: string, period: string) {
-    setPeriodLabel(
-      period === "mtd"
-        ? "MTD"
-        : period === "qtd"
-        ? "QTD"
-        : period === "ytd"
-        ? "YTD"
-        : period === "prevmo"
-        ? "Prev Mo"
-        : "Period"
-    );
+    setPeriodLabel(periodLabelFor(period));
     fetchData(from, to, period);
   }
 

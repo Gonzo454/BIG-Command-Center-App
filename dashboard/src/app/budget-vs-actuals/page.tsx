@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/fetchRetry";
 import { LoadingState } from "@/components/LoadingState";
 import { useEffect, useState, useRef } from "react";
 import { DateRangePicker } from "@/components/DateRangePicker";
+import { resolvePersistedRange } from "@/lib/date-range";
 import { ExportButtons } from "@/components/ExportButtons";
 
 interface Account {
@@ -91,7 +92,12 @@ export default function BudgetVsActualsPage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    fetchData();
+    const persisted = resolvePersistedRange();
+    if (persisted && persisted.period !== "mtd") {
+      fetchData(persisted.from, persisted.to);
+    } else {
+      fetchData();
+    }
   }, []);
 
   const incomeAccounts = data?.accounts.filter((a) => a.type === "income") || [];
