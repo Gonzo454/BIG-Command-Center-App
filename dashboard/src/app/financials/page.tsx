@@ -173,11 +173,17 @@ export default function FinancialsPage() {
     initialized.current = true;
     setLoading(true);
     const persisted = resolvePersistedRange();
-    const pnlPromise =
-      persisted && persisted.period !== "mtd"
-        ? fetchPnl(persisted.from, persisted.to, persisted.period)
-        : fetchPnl();
-    Promise.all([pnlPromise, fetchCf("mtd"), fetchBudget()])
+    const usePersisted = persisted && persisted.period !== "mtd";
+    const pnlPromise = usePersisted
+      ? fetchPnl(persisted.from, persisted.to, persisted.period)
+      : fetchPnl();
+    // The Budget tab shares the same DateRangePicker (cc:dateRange) as P&L, so
+    // honor the persisted range here too — otherwise the picker shows YTD while
+    // the table renders default data. Cash Flow has its own MTD/YTD toggle.
+    const budgetPromise = usePersisted
+      ? fetchBudget(persisted.from, persisted.to)
+      : fetchBudget();
+    Promise.all([pnlPromise, fetchCf("mtd"), budgetPromise])
       .then(([pnl, cf, budget]) => {
         setPnlData(pnl);
         setCfData(cf);

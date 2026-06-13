@@ -49,24 +49,29 @@ function periodDates(p: Period) {
 }
 
 export default function PvFinancialsPage() {
-  const [period, setPeriod] = useState<Period>(() => {
-    const p = resolvePersistedRange();
-    return p && (p.period === "mtd" || p.period === "qtd" || p.period === "ytd")
-      ? (p.period as Period)
-      : "mtd";
-  });
-  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(() => {
-    const p = resolvePersistedRange();
-    return p && p.period !== "mtd" && p.period !== "qtd" && p.period !== "ytd"
-      ? { from: p.from, to: p.to }
-      : null;
-  });
+  const [period, setPeriod] = useState<Period>("mtd");
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [ready, setReady] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
   const [data, setData] = useState<PnLData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const initialized = useRef(false);
   const cache = useRef<Record<string, PnLData>>({});
+
+  // Restore the persisted period on the client. useState initializers run
+  // during SSR (where localStorage is unavailable), so resolving there returns
+  // null and the picker/data would disagree on refresh.
+  useEffect(() => {
+    const p = resolvePersistedRange();
+    if (p) {
+      if (p.period === "mtd" || p.period === "qtd" || p.period === "ytd") {
+        if (p.period !== "mtd") setPeriod(p.period as Period);
+      } else {
+        setCustomRange({ from: p.from, to: p.to });
+      }
+    }
+    setReady(true);
+  }, []);
 
   const fetchData = useCallback(() => {
     const { from, to } = customRange ?? periodDates(period);
@@ -89,13 +94,9 @@ export default function PvFinancialsPage() {
   }, [period, customRange, ownershipView]);
 
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchData();
-      return;
-    }
+    if (!ready) return;
     fetchData();
-  }, [fetchData]);
+  }, [ready, fetchData]);
 
   // Prefetch other periods in background
   useEffect(() => {
