@@ -108,9 +108,7 @@ export function Sidebar() {
           <div>
             <p className="text-lg font-semibold leading-tight">Command Center</p>
             <p className={`text-xs leading-snug ${pathname === "/" ? "text-white/70" : "text-gray-400"}`}>
-              Independent Businesses.
-              <br />
-              Unified Control.
+              JRW Enterprises
             </p>
           </div>
         </Link>
@@ -146,7 +144,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-gray-800 text-xs text-gray-500 flex justify-between">
         <span>Data refreshes every 5 min</span>
-        <span>v3.14.36</span>
+        <span>v3.15.39</span>
       </div>
     </aside>
   );
