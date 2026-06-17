@@ -184,6 +184,16 @@ export default function BigDashboardPage() {
 
   const allAccounts = [...revenueAccounts, ...expenseAccounts];
 
+  // Owner capital contributions make the operating net income misleading
+  // (it reads negative when capital covered the costs), so the gauge and
+  // banner reconcile capital in whenever it exists — matching the
+  // Reconciled Net Income KPI card.
+  const capitalIncluded = !!(summary?.totalCapital && summary.totalCapital > 0);
+  const reconciledNet = summary
+    ? summary.netIncomeWithCapital ?? summary.netIncome + (summary.totalCapital || 0)
+    : 0;
+  const headlineNet = capitalIncluded ? reconciledNet : summary?.netIncome ?? 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -276,7 +286,7 @@ export default function BigDashboardPage() {
             <div className="flex items-center justify-center">
               <ProfitGauge
                 name="Profitability"
-                netIncome={summary.netIncome}
+                netIncome={headlineNet}
                 maxAbsolute={Math.max(
                   summary.totalRevenue,
                   summary.totalExpenses,
@@ -317,34 +327,29 @@ export default function BigDashboardPage() {
           {/* Net Income Bar */}
           <div
             className={`rounded-xl p-5 shadow-sm border text-center ${
-              summary.netIncome >= 0
+              headlineNet >= 0
                 ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
                 : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
             }`}
           >
             <p className="text-xs font-medium text-gray-500 uppercase">
-              BIG Management Operating Net Income ({periodLabel})
+              BIG Management Net Income ({periodLabel})
+              {capitalIncluded ? " — incl. owner capital" : ""}
             </p>
             <p
               className={`font-bold mt-1 ${
-                summary.netIncome >= 0 ? "text-green-700" : "text-red-700"
+                headlineNet >= 0 ? "text-green-700" : "text-red-700"
               }`}
               style={{ fontSize: "clamp(1.25rem, 3vw, 2rem)" }}
             >
-              {summary.netIncome < 0 ? "-" : ""}
-              {fmt(summary.netIncome)}
+              {headlineNet < 0 ? "-" : ""}
+              {fmt(headlineNet)}
             </p>
-            {!!summary.totalCapital && (
-              <p
-                className={`text-sm mt-1 font-semibold ${
-                  (summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) >= 0
-                    ? "text-green-700"
-                    : "text-red-700"
-                }`}
-              >
-                Reconciled Net Income (incl. owner capital):{" "}
-                {(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital) < 0 ? "-" : ""}
-                {fmt(summary.netIncomeWithCapital ?? summary.netIncome + summary.totalCapital)}
+            {capitalIncluded && (
+              <p className="text-sm mt-1 text-gray-500">
+                Operating Net Income (excl. owner capital):{" "}
+                {summary.netIncome < 0 ? "-" : ""}
+                {fmt(summary.netIncome)}
               </p>
             )}
             {summary.netIncomeLY !== 0 && (

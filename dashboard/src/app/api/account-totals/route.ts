@@ -10,6 +10,9 @@ export const maxDuration = 60;
 interface AccountTotalsRow {
   property_id?: number;
   property_name?: string;
+  net_amount?: string;
+  ending_balance?: string;
+  reserve_amount?: string;
 }
 
 interface IncomeRow {
@@ -126,6 +129,47 @@ async function fetchJoePvBuildings(
 
 const isParkVista = (name: string) => name.toLowerCase().startsWith("park vista");
 
+// Badger Hotel Group is absent from account_totals, so its period net income
+// comes from the income statement under its known property id.
+async function fetchHotelNet(
+  rangeFrom: string,
+  rangeTo: string,
+  isMtd: boolean,
+  isYtd: boolean,
+): Promise<number> {
+  const filter = { properties_ids: [ENTITY_PROPERTY_IDS.hotel] };
+  try {
+    if (isMtd || isYtd) {
+      const rows = await fetchReport<IncomeRow>("income_statement", {
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
+        properties: filter,
+      });
+      const t = extractTotals(rows, isMtd ? "month_to_date" : "year_to_date");
+      return t.totalIncome - t.totalExpenses;
+    }
+    const beforeFrom = dayBefore(rangeFrom);
+    const baselineFrom = beforeFrom.slice(0, 8) + "01";
+    const [end, start] = await Promise.all([
+      fetchReport<IncomeRow>("income_statement", {
+        posted_on_from: rangeFrom,
+        posted_on_to: rangeTo,
+        properties: filter,
+      }),
+      fetchReport<IncomeRow>("income_statement", {
+        posted_on_from: baselineFrom,
+        posted_on_to: beforeFrom,
+        properties: filter,
+      }),
+    ]);
+    const e = extractTotals(end, "year_to_date");
+    const s = extractTotals(start, "year_to_date");
+    return (e.totalIncome - s.totalIncome) - (e.totalExpenses - s.totalExpenses);
+  } catch {
+    return 0;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -154,104 +198,70 @@ export async function GET(request: NextRequest) {
     const isMtd = sameMonth(rangeFrom, rangeTo);
     const isYtd = rangeFrom.endsWith("-01-01") || period === "ytd";
 
-    // Step 1: Discover all property IDs via account_totals
+    // account_totals returns net_amount + ending_balance per property in a
+    // single call. This is the authoritative source for both columns and is
+    // immune to the per-property rate limiting that was zeroing net amounts.
     const allProperties = await fetchReport<AccountTotalsRow>("account_totals", {
       posted_on_from: rangeFrom,
       posted_on_to: rangeTo,
     });
 
-    const propertyEntries = new Map<string, number>();
+    const properties: {
+      name: string;
+      netAmount: number;
+      endingBalance: number;
+      ownershipPct: number;
+    }[] = [];
+
+    // account_totals can return more than one row per property (one per cash
+    // account), so accumulate net_amount + ending_balance across every row for
+    // a property before building its entry.
+    const agg = new Map<string, { net: number; ending: number }>();
+    const order: string[] = [];
     for (const p of allProperties) {
       const name = (p.property_name || "").trim();
-      if (!name || !p.property_id) continue;
+      if (!name) continue;
       if (getPropertyConfig(name).archived) continue;
       // PV management co. is a separate business, not a real estate holding
       if (isParkVista(name)) continue;
-      if (!propertyEntries.has(name)) {
-        propertyEntries.set(name, p.property_id);
+      if (!agg.has(name)) {
+        agg.set(name, { net: 0, ending: 0 });
+        order.push(name);
       }
+      const entry = agg.get(name)!;
+      entry.net += parseAmount(p.net_amount);
+      entry.ending += parseAmount(p.ending_balance);
     }
 
-    // Badger Hotel Group never appears in account_totals (AppFolio treats it
-    // as an internal management entity) but has GL activity under a known
-    // property id, so include it explicitly.
-    if (!propertyEntries.has("Badger Hotel Group") && !getPropertyConfig("Badger Hotel Group").archived) {
-      propertyEntries.set("Badger Hotel Group", ENTITY_PROPERTY_IDS.hotel);
-    }
-
-    const entries = Array.from(propertyEntries.entries());
-
-    // Step 2: Per-property income_statement — same authoritative source the
-    // drill-down pages use, so gauges always match drill-down values.
-    // Concurrency-limited to avoid AppFolio rate limiting.
-    const pvBuildingsPromise = fetchJoePvBuildings(rangeFrom, rangeTo, isMtd, isYtd, ownershipView);
-
-    if (isMtd || isYtd) {
-      const column = isMtd ? "month_to_date" : "year_to_date";
-      const isResults = await mapWithConcurrency(entries, 4, ([, propId]) =>
-        fetchReport<IncomeRow>("income_statement", {
-          posted_on_from: rangeFrom,
-          posted_on_to: rangeTo,
-          properties: { properties_ids: [propId] },
-        }).catch(() => [] as IncomeRow[])
-      );
-      const pvBuildings = await pvBuildingsPromise;
-
-      const properties = entries.map(([name], i) => {
-        const t = extractTotals(isResults[i], column);
-        const netAmount = Math.round(t.totalIncome - t.totalExpenses);
-        const pct = getOwnership(name);
-        return {
-          name,
-          netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
-          endingBalance: 0,
-          ownershipPct: pct,
-        };
-      });
-
-      properties.push(...pvBuildings);
-      properties.sort((a, b) => b.netAmount - a.netAmount);
-      return cachedJson({ properties, ownershipView });
-    }
-
-    // QTD / custom multi-month range: end IS + baseline IS per property (YTD subtraction)
-    const beforeFrom = dayBefore(rangeFrom);
-    const baselineFrom = beforeFrom.slice(0, 8) + "01";
-
-    const pairResults = await mapWithConcurrency(entries, 4, async ([, propId]) => {
-      const filter = { properties_ids: [propId] };
-      const [end, start] = await Promise.all([
-        fetchReport<IncomeRow>("income_statement", {
-          posted_on_from: rangeFrom,
-          posted_on_to: rangeTo,
-          properties: filter,
-        }).catch(() => [] as IncomeRow[]),
-        fetchReport<IncomeRow>("income_statement", {
-          posted_on_from: baselineFrom,
-          posted_on_to: beforeFrom,
-          properties: filter,
-        }).catch(() => [] as IncomeRow[]),
-      ]);
-      return { end, start };
-    });
-    const pvBuildings = await pvBuildingsPromise;
-
-    const properties = entries.map(([name], i) => {
-      const end = extractTotals(pairResults[i].end, "year_to_date");
-      const start = extractTotals(pairResults[i].start, "year_to_date");
-      const netAmount = Math.round(
-        (end.totalIncome - start.totalIncome) - (end.totalExpenses - start.totalExpenses)
-      );
+    for (const name of order) {
+      const { net, ending } = agg.get(name)!;
       const pct = getOwnership(name);
-      return {
+      const netAmount = Math.round(net);
+      properties.push({
         name,
         netAmount: ownershipView ? Math.round(netAmount * pct) : netAmount,
+        endingBalance: Math.round(ending),
+        ownershipPct: pct,
+      });
+    }
+
+    // Badger Hotel Group is absent from account_totals (AppFolio treats it as
+    // an internal management entity), so include it via its income statement.
+    if (!agg.has("Badger Hotel Group") && !getPropertyConfig("Badger Hotel Group").archived) {
+      const net = await fetchHotelNet(rangeFrom, rangeTo, isMtd, isYtd);
+      const pct = getOwnership("Badger Hotel Group");
+      properties.push({
+        name: "Badger Hotel Group",
+        netAmount: ownershipView ? Math.round(net * pct) : Math.round(net),
         endingBalance: 0,
         ownershipPct: pct,
-      };
-    });
+      });
+    }
 
+    // Joe-owned PV buildings (currently none configured) appear as JRW holdings.
+    const pvBuildings = await fetchJoePvBuildings(rangeFrom, rangeTo, isMtd, isYtd, ownershipView);
     properties.push(...pvBuildings);
+
     properties.sort((a, b) => b.netAmount - a.netAmount);
     return cachedJson({ properties, ownershipView });
   } catch (err) {

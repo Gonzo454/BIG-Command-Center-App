@@ -1,11 +1,21 @@
 import { NextRequest } from "next/server";
-import { firstOfYear, today } from "@/lib/appfolio";
-import { parseGL, classifyEntity, dateToSerial, Section } from "@/lib/gl-parser";
+import { fetchReport, firstOfYear, today, cachedJson } from "@/lib/appfolio";
+import { classifyEntityByName } from "@/lib/appfolio-entities";
+
+interface GLRow {
+  account_name?: string;
+  property_name?: string;
+  post_date?: string;
+  party_name?: string;
+  description?: string;
+  debit?: string;
+  credit?: string;
+}
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const account = params.get("account");
-  const entity = (params.get("entity") || "big") as Section;
+  const entity = params.get("entity") || "big";
   const from = params.get("from") || firstOfYear();
   const to = params.get("to") || today();
 
@@ -17,12 +27,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Strip trailing "-00" suffix to get the account prefix (e.g. "6304-0000-00" → "6304-0000")
-    const prefix = account.replace(/-00$/, "");
+    // The live general ledger is the same authoritative source the summary
+    // uses, so drill-down detail always matches the account totals and stays
+    // current (the static GL export went stale every day).
+    const glRows = await fetchReport<GLRow>("general_ledger", {
+      posted_on_from: from,
+      posted_on_to: to,
+    });
 
-    const allTransactions = parseGL();
-    const fromSerial = dateToSerial(from);
-    const toSerial = dateToSerial(to);
+    const prefix = account.replace(/-00$/, "");
 
     const transactions: {
       date: string;
@@ -32,39 +45,38 @@ export async function GET(request: NextRequest) {
       amount: number;
     }[] = [];
 
-    for (const t of allTransactions) {
-      if (t.date > 0 && (t.date < fromSerial || t.date > toSerial)) continue;
-      if (classifyEntity(t.entity) !== entity) continue;
-      if (!t.account.startsWith(prefix)) continue;
+    for (const row of glRows) {
+      if (classifyEntityByName((row.property_name || "").trim()) !== entity) continue;
 
-      const acctPrefix = t.account.charAt(0);
+      const code = (row.account_name || "").split(" - ")[0].trim();
+      if (!code) continue;
+      if (!code.replace(/-00$/, "").startsWith(prefix)) continue;
+
+      const debit = parseFloat(row.debit || "0") || 0;
+      const credit = parseFloat(row.credit || "0") || 0;
+      const acctPrefix = code.charAt(0);
+
       let net: number;
       if (acctPrefix === "4" || acctPrefix === "5") {
-        if (t.account.startsWith("5875") || t.account.startsWith("5873") || t.account.startsWith("5760")) {
-          net = t.debit - t.credit; // hotel labor/merchant/billbacks = expense
-        } else if (t.account.startsWith("5756")) {
+        if (code.startsWith("5875") || code.startsWith("5873") || code.startsWith("5760")) {
+          net = debit - credit; // hotel labor / merchant fees / billbacks = expense
+        } else if (code.startsWith("5756")) {
           continue; // gain on sale — skip
         } else {
-          net = t.credit - t.debit; // revenue
+          net = credit - debit; // revenue
         }
-      } else if (t.account.startsWith("6600") || t.account.startsWith("6650")) {
-        continue; // depreciation/amortization — skip
+      } else if (code.startsWith("6600") || code.startsWith("6650")) {
+        continue; // depreciation / amortization — skip
       } else {
-        net = t.debit - t.credit; // expenses
+        net = debit - credit; // expenses
       }
       if (net === 0) continue;
 
-      // Convert Excel serial date to ISO string
-      const dateObj = new Date((t.date - 25569) * 86400000);
-      const isoDate = t.date > 0
-        ? `${dateObj.getUTCFullYear()}-${String(dateObj.getUTCMonth() + 1).padStart(2, "0")}-${String(dateObj.getUTCDate()).padStart(2, "0")}`
-        : "";
-
       transactions.push({
-        date: isoDate,
-        vendor: t.payee || "—",
-        property: t.entity || "",
-        description: t.description || "",
+        date: row.post_date || "",
+        vendor: row.party_name || "—",
+        property: row.property_name || "",
+        description: row.description || "",
         amount: net,
       });
     }
@@ -74,7 +86,7 @@ export async function GET(request: NextRequest) {
       return Math.abs(b.amount) - Math.abs(a.amount);
     });
 
-    return Response.json({
+    return cachedJson({
       account,
       transactions,
       total: transactions.reduce((s, t) => s + t.amount, 0),
