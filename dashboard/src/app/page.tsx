@@ -22,6 +22,8 @@ interface SummaryData {
     totalIncome: number;
     totalExpenses: number;
     netIncome: number;
+    netIncomeWithCapital?: number;
+    capitalActivity?: number;
     margin: number;
     propertiesManaged: number;
     monthlyTrend?: number[];

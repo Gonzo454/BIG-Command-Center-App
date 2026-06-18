@@ -477,11 +477,29 @@ export async function GET(request: NextRequest) {
     const bigPct = ownershipView ? getOwnership("Blackdeer Investment Group") : 1;
     const hotelPct = ownershipView ? getOwnership("Badger Hotel Group") : 1;
 
-    // BIG margin
+    // BIG margin (reconciled with capital contributions so the margin reflects
+    // Joe's cash infusions — without them operating expenses exceed fee revenue)
     const adjBigIncome = bigPnL.income * bigPct;
     const adjBigOpex = bigPnL.opex * bigPct;
     const adjBigNet = adjBigIncome - adjBigOpex;
-    const bigMargin = adjBigIncome > 0 ? Math.round((adjBigNet / adjBigIncome) * 100) : 0;
+
+    // Capital activity from GL (3xxx accounts under Blackdeer Investment Group)
+    let bigCapital = 0;
+    for (const r of glRows) {
+      const postDate = r.post_date || "";
+      if (postDate < ytdFrom || postDate > ytdTo) continue;
+      const propName = (r.property_name || "").trim();
+      if (!propName.startsWith("Blackdeer Investment Group")) continue;
+      const acctField = (r.account_name || "").trim();
+      if (!/^3\d{3}-/.test(acctField)) continue;
+      const debit = parseFloat(r.debit || "0") || 0;
+      const credit = parseFloat(r.credit || "0") || 0;
+      bigCapital += credit - debit;
+    }
+    bigCapital *= bigPct;
+
+    const bigNetWithCapital = adjBigNet + bigCapital;
+    const bigMargin = adjBigIncome > 0 ? Math.round((bigNetWithCapital / adjBigIncome) * 100) : 0;
 
     // Monthly sparkline trends from GL
     const year = new Date().getFullYear();
@@ -550,6 +568,8 @@ export async function GET(request: NextRequest) {
         totalIncome: Math.round(adjBigIncome),
         totalExpenses: Math.round(adjBigOpex),
         netIncome: Math.round(adjBigNet),
+        netIncomeWithCapital: Math.round(bigNetWithCapital),
+        capitalActivity: Math.round(bigCapital),
         margin: bigMargin,
         propertiesManaged: bigManagedCount,
         monthlyTrend: bigTrend,
