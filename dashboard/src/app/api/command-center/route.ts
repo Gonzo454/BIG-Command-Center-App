@@ -387,7 +387,8 @@ export async function GET(request: NextRequest) {
       pvIncomeRaw = pvEndTotals.totalIncome - pvBaseTotals.totalIncome;
       pvExpensesRaw = pvEndTotals.totalExpenses - pvBaseTotals.totalExpenses;
     }
-    const pvBuildingPct = Object.keys(JOE_PV_BUILDINGS).length > 0 ? 0.51 : 0;
+    const pvBuildingEntries = Object.values(JOE_PV_BUILDINGS);
+    const pvBuildingPct = pvBuildingEntries.length > 0 ? pvBuildingEntries.reduce((sum, e) => sum + e.pct, 0) / pvBuildingEntries.length : 0;
 
     {
       // Use income_statement: JRW = all properties - BIG (Hotel stays in)
