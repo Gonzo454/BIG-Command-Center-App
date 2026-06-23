@@ -257,7 +257,7 @@ export default function CommandCenterPage() {
       )}
 
       {/* Business Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* JRW Portfolio */}
         <Link href="/jrw/dashboard" className="block group">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-green-200 transition-all cursor-pointer h-full">
@@ -304,6 +304,9 @@ export default function CommandCenterPage() {
             <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
               <li className={signColor(data.big.margin)}>{data.big.margin}% margin</li>
               <li>{data.big.propertiesManaged} managed</li>
+              <li className={signColor(data.hotel.gop)}>
+                Hotel: {fmtK(data.hotel.gop)} GOP
+              </li>
             </ul>
             {data.big.monthlyTrend && (
               <Sparkline data={data.big.monthlyTrend} />
@@ -337,56 +340,7 @@ export default function CommandCenterPage() {
             </div>
           </Link>
         )}
-        {/* Badger Hotel Group */}
-        <Link href="/hotel/dashboard" className="block group">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-red-200 transition-all cursor-pointer h-full">
-            <div className="flex items-center justify-between mb-3">
-              <img src="/comfort-logo.png" alt="Comfort Suites" className="h-12 w-auto object-contain" />
-              <span className="text-gray-400 group-hover:text-red-600 transition-colors">→</span>
-            </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              Badger Hotel Group
-            </p>
-            <p className={`text-2xl font-bold mt-1 ${signColor(data.hotel.gop)}`}>
-              {fmtK(data.hotel.gop)}
-            </p>
-            <p className="text-xs text-gray-400 mb-2">
-              {ownershipView ? "Joe's Share · GOP" : "GOP"} · {data.period.basis}
-            </p>
-            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
-              <li className={signColor(data.hotel.roomRevenue)}>{fmtK(data.hotel.roomRevenue)} room revenue</li>
-              <li className={signColor(data.hotel.netIncome ?? 0)}>
-                {fmtK(data.hotel.netIncome ?? 0)} net income
-              </li>
-            </ul>
-            {data.hotel.monthlyTrend && (
-              <Sparkline data={data.hotel.monthlyTrend} />
-            )}
-          </div>
-        </Link>
 
-        {/* Badger Realty */}
-        <Link href="/badger-realty" className="block group">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer h-full">
-            <div className="flex items-center justify-between mb-3">
-              <img src="/badger-realty-logo.png" alt="Badger Realty Team" className="h-12 w-auto object-contain" />
-              <span className="text-gray-400 group-hover:text-teal-600 transition-colors">→</span>
-            </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              Badger Realty Team
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-              Brokerage
-            </p>
-            <p className="text-xs text-gray-400 mb-2">
-              Real estate &amp; market intelligence
-            </p>
-            <ul className="list-disc list-inside text-xs text-gray-500 space-y-0.5">
-              <li>CoStar access</li>
-              <li>Market comps</li>
-            </ul>
-          </div>
-        </Link>
       </div>
 
       {/* Portfolio Performance — Combined */}

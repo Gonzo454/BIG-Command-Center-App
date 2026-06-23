@@ -122,13 +122,15 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
     assetClass: "office_mg",
     businessEntity: "big",
     managedOnly: true,
-    archived: false,
+    archived: true,
+    archiveReason: "Accounting not managed by Blackdeer",
   },
   "Vantage IV": {
     assetClass: "office_mg",
     businessEntity: "big",
     managedOnly: true,
-    archived: false,
+    archived: true,
+    archiveReason: "Accounting not managed by Blackdeer",
   },
   // Archived entities
   "Germantown Warhawks": {
@@ -151,6 +153,13 @@ export const PROPERTY_CONFIG: Record<string, PropertyConfig> = {
     managedOnly: false,
     archived: true,
     archiveReason: "Back to bank",
+  },
+  "Honey Creek 3 POA": {
+    assetClass: "office_mg",
+    businessEntity: "jrw",
+    managedOnly: false,
+    archived: true,
+    archiveReason: "Pass through account",
   },
 };
 
