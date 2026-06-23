@@ -4,8 +4,6 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { PortfolioTtmData } from "@/components/PortfolioPerformanceChart";
 
-// Badger Realty has no data source yet — fixed placeholder share
-const BADGER_PLACEHOLDER_PCT = 0.05;
 
 const fmtK = (n: number) => {
   const abs = Math.abs(n);
@@ -33,18 +31,14 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
     };
     const jrw = ttm("jrw");
     const big = ttm("big");
-    const hotel = ttm("hotel");
     const pvshm = ttm("pvshm");
-    const realTotal = jrw.revenue + big.revenue + hotel.revenue + pvshm.revenue;
+    // Hotel revenue is already included in JRW (portfolio-series merges it)
+    const realTotal = jrw.revenue + big.revenue + pvshm.revenue;
     if (realTotal <= 0) return [];
-    // Badger placeholder carves out a fixed share of the whole
-    const scale = 1 - BADGER_PLACEHOLDER_PCT;
     return [
-      { name: "JRW Real Estate", value: (jrw.revenue / realTotal) * scale, color: "#2563eb", netIncome: jrw.net },
-      { name: "Blackdeer I.G.", value: (big.revenue / realTotal) * scale, color: "#f59e0b", netIncome: big.net },
-      { name: "Badger Hotel", value: (hotel.revenue / realTotal) * scale, color: "#a855f7", netIncome: hotel.net },
-      { name: "Park Vista SHM", value: (pvshm.revenue / realTotal) * scale, color: "#06b6d4", netIncome: pvshm.net },
-      { name: "Badger Realty", value: BADGER_PLACEHOLDER_PCT, color: "#eab308", netIncome: null, placeholder: true },
+      { name: "JRW Real Estate", value: jrw.revenue / realTotal, color: "#2563eb", netIncome: jrw.net },
+      { name: "Blackdeer I.G.", value: big.revenue / realTotal, color: "#f59e0b", netIncome: big.net },
+      { name: "Park Vista SHM", value: pvshm.revenue / realTotal, color: "#06b6d4", netIncome: pvshm.net },
     ].filter((s) => s.value > 0);
   }, [data]);
 

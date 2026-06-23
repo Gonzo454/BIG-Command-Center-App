@@ -207,6 +207,7 @@ export async function buildPortfolioSeries(
   const pvshm = months.map(emptyMonth);
   const mirrorBig = new Array(months.length).fill(0);
   const mirrorJrw = new Array(months.length).fill(0);
+  const bigCapital = new Array(months.length).fill(0);
   jrw.forEach((m) => (m.interestExpense = 0));
   pvshm.forEach((m) => (m.interestExpense = 0));
 
@@ -226,24 +227,33 @@ export async function buildPortfolioSeries(
     const section = classifyEntityByName(propertyName);
     if (section === "pv") continue; // PVSHM tracked via PV database
 
+    // Hotel is part of JRW real estate; route hotel GL rows into both
+    // the jrw series (for the combined RE view) and hotel (for sub-detail)
     const target = section === "big" ? big : section === "hotel" ? hotel : jrw;
+    const jrwAlso = section === "hotel";
     const pct = !joeView ? 1 : section === "jrw" ? getOwnership(propertyName) : section === "hotel" ? hotelPct : 1;
 
     const debit = parseFloat(r.debit || "0") || 0;
     const credit = parseFloat(r.credit || "0") || 0;
 
-    if (prefix === "4" || prefix === "5") {
+    if (prefix === "3" && section === "big") {
+      // Capital contributions offset BIG expenses (Joe's cash infusions)
+      bigCapital[i] += (credit - debit) * pct;
+    } else if (prefix === "4" || prefix === "5") {
       // Contra-revenue accounts post as debits; 5756 inter-entity is excluded
       if (account.startsWith("5875") || account.startsWith("5873") || account.startsWith("5760")) {
         target[i].revenue -= (debit - credit) * pct;
+        if (jrwAlso) jrw[i].revenue -= (debit - credit) * pct;
       } else if (!account.startsWith("5756")) {
         target[i].revenue += (credit - debit) * pct;
+        if (jrwAlso) jrw[i].revenue += (credit - debit) * pct;
       }
       if (section === "big" && account.startsWith("5820") && isJrwParty(r.party_name)) {
         mirrorBig[i] += credit - debit;
       }
     } else if (prefix === "6" || prefix === "7") {
       target[i].expenses += (debit - credit) * pct;
+      if (jrwAlso) jrw[i].expenses += (debit - credit) * pct;
       if (
         section === "jrw" &&
         getPropertyConfig(propertyName).businessEntity === "jrw" &&
@@ -251,7 +261,7 @@ export async function buildPortfolioSeries(
       ) {
         mirrorJrw[i] += debit - credit;
       }
-    } else if (prefix === "8" && section === "jrw") {
+    } else if (prefix === "8" && (section === "jrw" || section === "hotel")) {
       if (DEBT_SERVICE_PREFIXES.some((p) => account.startsWith(p))) {
         const isInterest = acctField.toLowerCase().includes("interest") || !acctField.toLowerCase().includes("principal");
         if (isInterest) {
@@ -276,6 +286,13 @@ export async function buildPortfolioSeries(
       m.netIncome = m.revenue - m.expenses;
       if (m.interestExpense !== undefined) m.interestExpense = Math.round(m.interestExpense);
     }
+  }
+
+  // Reconcile BIG net income with capital contributions (same basis as
+  // command-center API's bigNetWithCapital — Joe's cash covers the shortfall
+  // between fee revenue and operating expenses)
+  for (let i = 0; i < months.length; i++) {
+    big[i].netIncome += Math.round(bigCapital[i]);
   }
 
   const mirror = months.map((month, i) => ({

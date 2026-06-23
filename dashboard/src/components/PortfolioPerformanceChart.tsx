@@ -34,14 +34,14 @@ export interface PortfolioTtmData {
   mirrorWarn: boolean;
 }
 
+// Hotel is merged into JRW in portfolio-series (JRW = all RE Joe owns)
 const ENTITY_META: { key: EntityKey; label: string; color: string }[] = [
   { key: "jrw", label: "JRW Real Estate", color: "#2563eb" },
   { key: "big", label: "Blackdeer I.G.", color: "#f59e0b" },
-  { key: "hotel", label: "Badger Hotel", color: "#a855f7" },
   { key: "pvshm", label: "Park Vista SHM", color: "#06b6d4" },
 ];
 
-type EntityKey = "jrw" | "big" | "hotel" | "pvshm";
+type EntityKey = "jrw" | "big" | "pvshm";
 
 type ChartView = "net" | "revexp" | "cumulative" | "ttm";
 
@@ -190,7 +190,7 @@ export function PortfolioPerformanceChart({
     const visible = monthly.slice(-12);
 
     // cumulative running net income per entity across the displayed window
-    const running: Record<EntityKey, number> = { jrw: 0, big: 0, hotel: 0, pvshm: 0 };
+    const running: Record<EntityKey, number> = { jrw: 0, big: 0, pvshm: 0 };
     let runningTotal = 0;
     for (const m of visible) {
       for (const { key } of ENTITY_META) {

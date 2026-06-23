@@ -2,6 +2,7 @@ import { fetchReport, fetchPvReport, firstOfYear, firstOfMonth, firstOfQuarter, 
 import { ENTITY_PROPERTY_IDS, classifyEntityByName } from "@/lib/appfolio-entities";
 import { getOwnership } from "@/lib/ownership";
 import { PV_COMMUNITIES } from "@/lib/pv-communities";
+import { JOE_PV_BUILDINGS } from "@/lib/pv-buildings";
 import { NextRequest } from "next/server";
 
 interface RentRollRow {
@@ -353,7 +354,9 @@ export async function GET(request: NextRequest) {
       hotelPnL = { income: htlInc, opex: htlExp, noi: htlInc - htlExp, netIncome: htlInc - htlExp };
     }
 
-    // JRW P&L: income_statement for all periods (JRW = all - BIG - Hotel)
+    // JRW P&L: income_statement for all periods
+    // JRW = all RE Joe owns = (main DB: all - BIG) + (PV DB: all buildings)
+    // Hotel stays in JRW because Joe owns 65% of the hotel real estate.
     let jrwIncome = 0;
     let jrwOpex = 0;
     let jrwDebtService = 0;
@@ -366,45 +369,60 @@ export async function GET(request: NextRequest) {
       return pd >= ytdFrom && pd <= ytdTo;
     });
 
+    // PV buildings' income (raw, before ownership weighting)
+    // Used for both PVSHM card and JRW total
+    let pvIncomeRaw: number;
+    let pvExpensesRaw: number;
+    if (isYtd) {
+      const pvTotals = extractSectionTotals(pvIS, "year_to_date");
+      pvIncomeRaw = pvTotals.totalIncome;
+      pvExpensesRaw = pvTotals.totalExpenses;
+    } else if (isMtd) {
+      const pvTotals = extractSectionTotals(pvIS, "month_to_date");
+      pvIncomeRaw = pvTotals.totalIncome;
+      pvExpensesRaw = pvTotals.totalExpenses;
+    } else {
+      const pvEndTotals = extractSectionTotals(pvIS, "year_to_date");
+      const pvBaseTotals = extractSectionTotals(pvBaselineIS, "year_to_date");
+      pvIncomeRaw = pvEndTotals.totalIncome - pvBaseTotals.totalIncome;
+      pvExpensesRaw = pvEndTotals.totalExpenses - pvBaseTotals.totalExpenses;
+    }
+    const pvBuildingEntries = Object.values(JOE_PV_BUILDINGS);
+    const pvBuildingPct = pvBuildingEntries.length > 0 ? pvBuildingEntries.reduce((sum, e) => sum + e.pct, 0) / pvBuildingEntries.length : 0;
+
     {
-      // Use income_statement: JRW = all properties - BIG - Hotel
-      // (income_statement is authoritative; GL-based P&L diverges due to
-      //  account classification and adjusting entries)
+      // Use income_statement: JRW = all properties - BIG (Hotel stays in)
+      // Plus PV buildings from separate database
       let jrwIncomeRaw: number;
       let jrwOpexRaw: number;
 
       if (isMtd) {
         const allTotals = extractSectionTotals(allIS, "month_to_date");
         const bigTotalsIS = extractSectionTotals(bigIS, "month_to_date");
-        const hotelTotalsIS = extractSectionTotals(hotelIS, "month_to_date");
-        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
-        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome + pvIncomeRaw;
+        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses + pvExpensesRaw;
       } else if (isYtd) {
         const allTotals = extractSectionTotals(allIS, "year_to_date");
         const bigTotalsIS = extractSectionTotals(bigIS, "year_to_date");
-        const hotelTotalsIS = extractSectionTotals(hotelIS, "year_to_date");
-        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome - hotelTotalsIS.totalIncome;
-        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses - hotelTotalsIS.totalExpenses;
+        jrwIncomeRaw = allTotals.totalIncome - bigTotalsIS.totalIncome + pvIncomeRaw;
+        jrwOpexRaw = allTotals.totalExpenses - bigTotalsIS.totalExpenses + pvExpensesRaw;
       } else {
         // QTD/Custom: year_to_date subtraction
         const allEnd = extractSectionTotals(allIS, "year_to_date");
         const allBase = extractSectionTotals(allBaselineIS, "year_to_date");
         const bigEnd = extractSectionTotals(bigIS, "year_to_date");
         const bigBase = extractSectionTotals(bigBaselineIS, "year_to_date");
-        const htlEnd = extractSectionTotals(hotelIS, "year_to_date");
-        const htlBase = extractSectionTotals(hotelBaselineIS, "year_to_date");
         const allInc = allEnd.totalIncome - allBase.totalIncome;
         const allExp = allEnd.totalExpenses - allBase.totalExpenses;
         const bigInc = bigEnd.totalIncome - bigBase.totalIncome;
         const bigExp = bigEnd.totalExpenses - bigBase.totalExpenses;
-        const htlInc = htlEnd.totalIncome - htlBase.totalIncome;
-        const htlExp = htlEnd.totalExpenses - htlBase.totalExpenses;
-        jrwIncomeRaw = allInc - bigInc - htlInc;
-        jrwOpexRaw = allExp - bigExp - htlExp;
+        jrwIncomeRaw = allInc - bigInc + pvIncomeRaw;
+        jrwOpexRaw = allExp - bigExp + pvExpensesRaw;
       }
 
       if (ownershipView) {
         // Approximate ownership weighting via GL revenue distribution
+        // Include both jrw and hotel sections (Hotel is part of JRW RE)
         let totalRaw = 0, totalWeighted = 0;
         for (const r of periodGlRows) {
           const acctField = (r.account_name || "").trim();
@@ -412,7 +430,7 @@ export async function GET(request: NextRequest) {
           if (!acctMatch) continue;
           const propertyName = r.property_name || "";
           const section = classifyEntityByName(propertyName);
-          if (section !== "jrw") continue;
+          if (section !== "jrw" && section !== "hotel") continue;
           const prefix = acctMatch[1].charAt(0);
           if (prefix !== "4") continue;
           const debit = parseFloat(r.debit || "0") || 0;
@@ -422,9 +440,13 @@ export async function GET(request: NextRequest) {
           totalRaw += amount;
           totalWeighted += amount * getOwnership(propertyName);
         }
+        // Main DB (CRE + Hotel) weighted by GL ratio
+        const mainDbIncomeRaw = jrwIncomeRaw - pvIncomeRaw;
+        const mainDbOpexRaw = jrwOpexRaw - pvExpensesRaw;
         const ratio = totalRaw > 0 ? totalWeighted / totalRaw : 1;
-        jrwIncome = jrwIncomeRaw * ratio;
-        jrwOpex = jrwOpexRaw * ratio;
+        // PV portion weighted at building-level ownership (51%)
+        jrwIncome = mainDbIncomeRaw * ratio + pvIncomeRaw * pvBuildingPct;
+        jrwOpex = mainDbOpexRaw * ratio + pvExpensesRaw * pvBuildingPct;
       } else {
         jrwIncome = jrwIncomeRaw;
         jrwOpex = jrwOpexRaw;
@@ -454,7 +476,8 @@ export async function GET(request: NextRequest) {
       }
 
       // JRW below-NOI items from GL (income/opex always from income_statement)
-      if (section === "jrw") {
+      // Hotel is part of JRW real estate, so include hotel section too
+      if (section === "jrw" || section === "hotel") {
         const pct = ownershipView ? getOwnership(propertyName) : 1;
         if (prefix === "6" || prefix === "7") {
           if (account.startsWith("6600") || account.startsWith("6650")) {
@@ -504,7 +527,8 @@ export async function GET(request: NextRequest) {
     // Monthly sparkline trends from GL
     const year = new Date().getFullYear();
     const monthlyData = computeMonthlyTrendFromGL(glRows, year, ownershipView);
-    const jrwTrend = monthlyData.map((m) => m.jrw);
+    // Hotel is part of JRW real estate, so combine in sparkline
+    const jrwTrend = monthlyData.map((m) => m.jrw + m.hotel);
     const bigTrend = monthlyData.map((m) => m.big);
     const hotelTrend = monthlyData.map((m) => m.hotel);
 
@@ -531,29 +555,15 @@ export async function GET(request: NextRequest) {
     // Fee reconciliation from GL
     const feeRecon = computeFeeReconciliationFromGL(glRows, ytdFrom, ytdTo);
 
-    // Park Vista P&L from PV AppFolio
+    // Park Vista P&L from PV AppFolio (for PVSHM management company card)
     const pvPct = ownershipView ? getOwnership("Park Vista") : 1;
-    let pvIncome: number;
-    let pvExpenses: number;
-    if (isYtd) {
-      const pvTotals = extractSectionTotals(pvIS, "year_to_date");
-      pvIncome = pvTotals.totalIncome * pvPct;
-      pvExpenses = pvTotals.totalExpenses * pvPct;
-    } else if (isMtd) {
-      const pvTotals = extractSectionTotals(pvIS, "month_to_date");
-      pvIncome = pvTotals.totalIncome * pvPct;
-      pvExpenses = pvTotals.totalExpenses * pvPct;
-    } else {
-      // QTD/Custom: YTD subtraction (end YTD minus baseline YTD)
-      const pvEndTotals = extractSectionTotals(pvIS, "year_to_date");
-      const pvBaseTotals = extractSectionTotals(pvBaselineIS, "year_to_date");
-      pvIncome = (pvEndTotals.totalIncome - pvBaseTotals.totalIncome) * pvPct;
-      pvExpenses = (pvEndTotals.totalExpenses - pvBaseTotals.totalExpenses) * pvPct;
-    }
+    const pvIncome = pvIncomeRaw * pvPct;
+    const pvExpenses = pvExpensesRaw * pvPct;
     const pvNet = pvIncome - pvExpenses;
 
-    const jrwPropertyCount = 17;
-    const bigManagedCount = 14;
+    // JRW: 8 CRE properties + 1 Hotel + 14 PV senior buildings
+    const jrwPropertyCount = 8 + 1 + PV_COMMUNITIES.length;
+    const bigManagedCount = 12;
 
     return cachedJson({
       jrw: {
