@@ -6,12 +6,13 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { resolvePersistedRange } from "@/lib/date-range";
-import { PortfolioPerformanceChart, type PortfolioTtmData } from "@/components/PortfolioPerformanceChart";
+import { PortfolioPerformanceChart } from "@/components/PortfolioPerformanceChart";
 import { PortfolioContributionDonut } from "@/components/PortfolioContributionDonut";
 import { PortfolioReportsSection } from "@/components/PortfolioReportsSection";
 
 interface SummaryData {
   jrw: {
+    totalIncome?: number;
     noi: number;
     occupancyRate: number;
     propertyCount: number;
@@ -96,7 +97,7 @@ export default function CommandCenterPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
-  const [ttmData, setTtmData] = useState<PortfolioTtmData | null>(null);
+
   const initialized = useRef(false);
   const skipNextToggleEffect = useRef(true);
   const dataCache = useRef<Map<string, SummaryData>>(new Map());
@@ -350,10 +351,10 @@ export default function CommandCenterPage() {
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2">
-            <PortfolioPerformanceChart joeView={ownershipView} onData={setTtmData} />
+            <PortfolioPerformanceChart joeView={ownershipView} />
           </div>
           <div>
-            <PortfolioContributionDonut data={ttmData} />
+            <PortfolioContributionDonut data={data} />
           </div>
         </div>
       </div>

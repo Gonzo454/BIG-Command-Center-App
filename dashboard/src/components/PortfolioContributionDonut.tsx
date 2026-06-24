@@ -2,8 +2,6 @@
 
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import type { PortfolioTtmData } from "@/components/PortfolioPerformanceChart";
-
 
 const fmtK = (n: number) => {
   const abs = Math.abs(n);
@@ -16,36 +14,36 @@ interface Slice {
   value: number;
   color: string;
   netIncome: number | null;
-  placeholder?: boolean;
 }
 
-export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | null }) {
+export interface DonutData {
+  jrw: { totalIncome?: number; noi: number };
+  big: { totalIncome: number; netIncomeWithCapital?: number; netIncome: number };
+  pv?: { totalIncome: number; netIncome: number };
+  period: { basis: string };
+}
+
+export function PortfolioContributionDonut({ data }: { data: DonutData | null }) {
+  const periodLabel = data?.period?.basis || "MTD";
+
   const slices: Slice[] = useMemo(() => {
     if (!data) return [];
-    const ttm = (key: "jrw" | "big" | "hotel" | "pvshm") => {
-      const months = data.entities[key].slice(-12);
-      return {
-        revenue: months.reduce((a, m) => a + m.revenue, 0),
-        net: months.reduce((a, m) => a + m.netIncome, 0),
-      };
-    };
-    const jrw = ttm("jrw");
-    const big = ttm("big");
-    const pvshm = ttm("pvshm");
-    // Hotel revenue is already included in JRW (portfolio-series merges it)
-    const realTotal = jrw.revenue + big.revenue + pvshm.revenue;
-    if (realTotal <= 0) return [];
+    const jrwRev = data.jrw.totalIncome ?? 0;
+    const bigRev = data.big.totalIncome ?? 0;
+    const pvRev = data.pv?.totalIncome ?? 0;
+    const total = jrwRev + bigRev + pvRev;
+    if (total <= 0) return [];
     return [
-      { name: "JRW Real Estate", value: jrw.revenue / realTotal, color: "#2563eb", netIncome: jrw.net },
-      { name: "Blackdeer I.G.", value: big.revenue / realTotal, color: "#f59e0b", netIncome: big.net },
-      { name: "Park Vista SHM", value: pvshm.revenue / realTotal, color: "#06b6d4", netIncome: pvshm.net },
+      { name: "JRW Real Estate", value: jrwRev / total, color: "#2563eb", netIncome: data.jrw.noi },
+      { name: "Blackdeer I.G.", value: bigRev / total, color: "#f59e0b", netIncome: data.big.netIncomeWithCapital ?? data.big.netIncome },
+      { name: "Park Vista SHM", value: pvRev / total, color: "#06b6d4", netIncome: data.pv?.netIncome ?? null },
     ].filter((s) => s.value > 0);
   }, [data]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full flex flex-col">
-      <p className="text-sm font-semibold text-gray-900 dark:text-white" title="Each business's share of total trailing-12-month revenue, with its TTM net income shown beside it.">Portfolio Contribution</p>
-      <p className="text-xs text-gray-400 mb-1">Share of trailing 12-month revenue</p>
+      <p className="text-sm font-semibold text-gray-900 dark:text-white" title={`Each business's share of ${periodLabel} revenue, with net income shown beside it.`}>Portfolio Contribution</p>
+      <p className="text-xs text-gray-400 mb-1">Share of {periodLabel} revenue</p>
       {slices.length === 0 ? (
         <div className="flex-1 flex items-center justify-center min-h-[180px]">
           <p className="text-xs text-gray-400 animate-pulse">Lots of cash loading here, please be patient.</p>
@@ -57,12 +55,7 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
               <PieChart>
                 <Pie data={slices} dataKey="value" nameKey="name" innerRadius={48} outerRadius={75} paddingAngle={2} strokeWidth={1}>
                   {slices.map((s) => (
-                    <Cell
-                      key={s.name}
-                      fill={s.color}
-                      strokeDasharray={s.placeholder ? "4 3" : undefined}
-                      fillOpacity={s.placeholder ? 0.4 : 1}
-                    />
+                    <Cell key={s.name} fill={s.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -78,12 +71,9 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
                 <span className="flex items-center gap-1.5">
                   <span
                     className="w-2.5 h-2.5 rounded-sm"
-                    style={{ backgroundColor: s.color, opacity: s.placeholder ? 0.4 : 1 }}
+                    style={{ backgroundColor: s.color }}
                   />
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {s.name}
-                    {s.placeholder && <span className="text-gray-400"> (placeholder)</span>}
-                  </span>
+                  <span className="text-gray-600 dark:text-gray-300">{s.name}</span>
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="text-gray-500">{(s.value * 100).toFixed(1)}%</span>
@@ -97,7 +87,7 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
             ))}
           </div>
           <p className="text-[10px] text-gray-400 mt-2">
-            Share of trailing 12-month revenue. Profitability (TTM Owner Net Income) shown beside each entity.
+            Share of {periodLabel} revenue. Net income shown beside each entity.
           </p>
         </>
       )}

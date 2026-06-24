@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
     if (paramFrom && paramTo) {
       rangeFrom = paramFrom;
       rangeTo = paramTo;
-      basisLabel = period === "mtd" ? "MTD" : period === "qtd" ? "QTD" : period === "ytd" ? "YTD" : "Custom";
+      basisLabel = period === "mtd" ? "MTD" : period === "qtd" ? "QTD" : period === "ytd" ? "YTD" : period === "prevmo" ? "Prior Month" : "Custom";
     } else if (period === "mtd") {
       rangeFrom = firstOfMonth();
       rangeTo = today();
@@ -244,6 +244,9 @@ export async function GET(request: NextRequest) {
       ? `${new Date(ytdFrom + "T00:00:00").getFullYear()}-01-01`
       : "";
 
+    // Track PV fetch failures so we don't CDN-cache incomplete responses
+    let pvFetchFailed = false;
+
     // All API calls in parallel (BIG database + PV database)
     const [bigIS, hotelIS, glRows, rentRows, arRows, pvIS, pvBaselineIS, allIS, bigBaselineIS, hotelBaselineIS, allBaselineIS] = await Promise.all([
       fetchReport<IncomeRow>("income_statement", {
@@ -265,12 +268,12 @@ export async function GET(request: NextRequest) {
       fetchPvReport<IncomeRow>("income_statement", {
         posted_on_from: ytdFrom,
         posted_on_to: ytdTo,
-      }).catch(() => [] as IncomeRow[]),
+      }).catch((e: unknown) => { console.error(`PV IS fetch failed (${basisLabel} ${ytdFrom}..${ytdTo}):`, e instanceof Error ? e.message : e); pvFetchFailed = true; return [] as IncomeRow[]; }),
       needSubtraction
         ? fetchPvReport<IncomeRow>("income_statement", {
             posted_on_from: baselineFrom,
             posted_on_to: baselineEnd,
-          }).catch(() => [] as IncomeRow[])
+          }).catch((e: unknown) => { console.error(`PV baseline fetch failed (${baselineFrom}..${baselineEnd}):`, e instanceof Error ? e.message : e); pvFetchFailed = true; return [] as IncomeRow[]; })
         : Promise.resolve([] as IncomeRow[]),
       // All-properties income_statement for JRW (JRW = all - BIG - Hotel)
       fetchReport<IncomeRow>("income_statement", {
@@ -567,6 +570,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson({
       jrw: {
+        totalIncome: Math.round(jrwIncome),
         noi: Math.round(jrwNoi),
         netIncome: Math.round(jrwNetIncome),
         occupancyRate,
@@ -609,7 +613,8 @@ export async function GET(request: NextRequest) {
         basis: basisLabel,
       },
       ownershipView,
-    });
+      pvDataAvailable: !pvFetchFailed,
+    }, 200, pvFetchFailed);
   } catch (err) {
     console.error("Command center error:", err);
     return Response.json(
