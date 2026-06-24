@@ -1,6 +1,6 @@
 {
   "name": "portfolio-command-center",
-  "version": "3.19.51",
+  "version": "3.19.52",
   "private": true,
   "scripts": {
     "dev": "next dev",

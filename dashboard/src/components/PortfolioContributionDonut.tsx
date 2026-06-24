@@ -36,12 +36,12 @@ export function PortfolioContributionDonut({ data, from, to, period }: DonutProp
       if (from && to) {
         const fromMonth = from.slice(0, 7);
         const toMonth = to.slice(0, 7);
-        return all.filter((m) => m.month >= fromMonth && m.month <= toMonth);
+        const filtered = all.filter((m) => m.month >= fromMonth && m.month <= toMonth);
+        if (filtered.length > 0) return filtered;
       }
-      // Default: current month (MTD)
-      const now = new Date();
-      const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      return all.filter((m) => m.month === curMonth);
+      // Fallback: latest available month (current month may not be in TTM data yet)
+      if (all.length > 0) return [all[all.length - 1]];
+      return [];
     };
     const agg = (key: "jrw" | "big" | "hotel" | "pvshm") => {
       const months = filterMonths(key);
