@@ -34,15 +34,20 @@ async function fetchWithRetry(
   url: string,
   init: RequestInit,
   retries = 3,
-  backoffMs = 1000
+  backoffMs = 1000,
+  timeoutMs = 20000
 ): Promise<Response> {
   let lastErr: Error = new Error("fetch failed");
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timer);
       if (res.ok || (res.status < 500 && res.status !== 429)) return res;
       lastErr = new Error(`HTTP ${res.status}`);
     } catch (e) {
+      clearTimeout(timer);
       lastErr = e instanceof Error ? e : new Error(String(e));
     }
     if (attempt < retries) {
@@ -163,13 +168,16 @@ export function parseAmount(v: string | number | null | undefined): number {
  * stale-while-revalidate=3600: serve stale for 1hr while refreshing in background,
  * so users get instant responses while fresh data loads behind the scenes
  */
-export function cachedJson(data: unknown, status = 200): Response {
+export function cachedJson(data: unknown, status = 200, noCache = false): Response {
+  const cacheHeader =
+    noCache || status !== 200
+      ? "no-store"
+      : "s-maxage=300, stale-while-revalidate=3600";
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control":
-        status === 200 ? "s-maxage=300, stale-while-revalidate=3600" : "no-store",
+      "Cache-Control": cacheHeader,
     },
   });
 }
