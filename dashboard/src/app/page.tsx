@@ -97,6 +97,7 @@ export default function CommandCenterPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [ownershipView, setOwnershipView] = useState(false);
   const [ttmData, setTtmData] = useState<PortfolioTtmData | null>(null);
+  const [periodRange, setPeriodRange] = useState({ from: "", to: "", period: "mtd" });
   const initialized = useRef(false);
   const skipNextToggleEffect = useRef(true);
   const dataCache = useRef<Map<string, SummaryData>>(new Map());
@@ -148,6 +149,7 @@ export default function CommandCenterPage() {
 
   function handleRangeChange(from: string, to: string, period: string) {
     currentRange.current = { from, to, period };
+    setPeriodRange({ from, to, period });
     fetchData(from, to, period);
   }
 
@@ -157,6 +159,7 @@ export default function CommandCenterPage() {
     const persisted = resolvePersistedRange();
     if (persisted && persisted.period !== "mtd") {
       currentRange.current = { from: persisted.from, to: persisted.to, period: persisted.period };
+      setPeriodRange({ from: persisted.from, to: persisted.to, period: persisted.period });
       fetchData(persisted.from, persisted.to, persisted.period);
     } else {
       fetchData();
@@ -353,7 +356,7 @@ export default function CommandCenterPage() {
             <PortfolioPerformanceChart joeView={ownershipView} onData={setTtmData} />
           </div>
           <div>
-            <PortfolioContributionDonut data={ttmData} />
+            <PortfolioContributionDonut data={ttmData} from={periodRange.from} to={periodRange.to} period={periodRange.period} />
           </div>
         </div>
       </div>

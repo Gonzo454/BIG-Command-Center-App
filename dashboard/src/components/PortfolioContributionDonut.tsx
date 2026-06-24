@@ -19,19 +19,40 @@ interface Slice {
   placeholder?: boolean;
 }
 
-export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | null }) {
+interface DonutProps {
+  data: PortfolioTtmData | null;
+  from?: string;
+  to?: string;
+  period?: string;
+}
+
+export function PortfolioContributionDonut({ data, from, to, period }: DonutProps) {
+  const periodLabel = period === "prevmo" ? "Prior Month" : period === "mtd" ? "Month to Date" : period === "qtd" ? "Quarter to Date" : period === "ytd" ? "Year to Date" : period === "custom" && from ? `${from} – ${to}` : "Month to Date";
+
   const slices: Slice[] = useMemo(() => {
     if (!data) return [];
-    const ttm = (key: "jrw" | "big" | "hotel" | "pvshm") => {
-      const months = data.entities[key].slice(-12);
+    const filterMonths = (key: "jrw" | "big" | "hotel" | "pvshm") => {
+      const all = data.entities[key];
+      if (from && to) {
+        const fromMonth = from.slice(0, 7);
+        const toMonth = to.slice(0, 7);
+        return all.filter((m) => m.month >= fromMonth && m.month <= toMonth);
+      }
+      // Default: current month (MTD)
+      const now = new Date();
+      const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      return all.filter((m) => m.month === curMonth);
+    };
+    const agg = (key: "jrw" | "big" | "hotel" | "pvshm") => {
+      const months = filterMonths(key);
       return {
         revenue: months.reduce((a, m) => a + m.revenue, 0),
         net: months.reduce((a, m) => a + m.netIncome, 0),
       };
     };
-    const jrw = ttm("jrw");
-    const big = ttm("big");
-    const pvshm = ttm("pvshm");
+    const jrw = agg("jrw");
+    const big = agg("big");
+    const pvshm = agg("pvshm");
     // Hotel revenue is already included in JRW (portfolio-series merges it)
     const realTotal = jrw.revenue + big.revenue + pvshm.revenue;
     if (realTotal <= 0) return [];
@@ -40,12 +61,12 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
       { name: "Blackdeer I.G.", value: big.revenue / realTotal, color: "#f59e0b", netIncome: big.net },
       { name: "Park Vista SHM", value: pvshm.revenue / realTotal, color: "#06b6d4", netIncome: pvshm.net },
     ].filter((s) => s.value > 0);
-  }, [data]);
+  }, [data, from, to]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full flex flex-col">
-      <p className="text-sm font-semibold text-gray-900 dark:text-white" title="Each business's share of total trailing-12-month revenue, with its TTM net income shown beside it.">Portfolio Contribution</p>
-      <p className="text-xs text-gray-400 mb-1">Share of trailing 12-month revenue</p>
+      <p className="text-sm font-semibold text-gray-900 dark:text-white" title={`Each business's share of ${periodLabel.toLowerCase()} revenue, with net income shown beside it.`}>Portfolio Contribution</p>
+      <p className="text-xs text-gray-400 mb-1">Share of {periodLabel.toLowerCase()} revenue</p>
       {slices.length === 0 ? (
         <div className="flex-1 flex items-center justify-center min-h-[180px]">
           <p className="text-xs text-gray-400 animate-pulse">Lots of cash loading here, please be patient.</p>
@@ -97,7 +118,7 @@ export function PortfolioContributionDonut({ data }: { data: PortfolioTtmData | 
             ))}
           </div>
           <p className="text-[10px] text-gray-400 mt-2">
-            Share of trailing 12-month revenue. Profitability (TTM Owner Net Income) shown beside each entity.
+            Share of {periodLabel.toLowerCase()} revenue. Profitability ({periodLabel} Owner Net Income) shown beside each entity.
           </p>
         </>
       )}
